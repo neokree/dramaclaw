@@ -163,8 +163,8 @@ def test_generate_sketches_forwards_sketch_model_and_aspect_ratio(
     assert start_calls[0]["payload"]["config"]["aspect_ratio"] == "16:9"
     assert (
         start_calls[0]["payload"]["config"]["image_generation_selection"]
-        == "higgsfield:nano_banana_flash"
+        == "openrouter:google/gemini-3.1-flash-image-preview"
     )
     billing = start_calls[0]["payload"]["billing"]
-    assert billing["image_selection"] == "higgsfield:nano_banana_flash"
+    assert billing["image_selection"] == "openrouter:google/gemini-3.1-flash-image-preview"
     assert billing["pricing_kind"] == "image"

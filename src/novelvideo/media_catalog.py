@@ -2,7 +2,8 @@
 
 Same entry contract the freezone canvas and the model pickers already read
 (`catalogId`, `apiModel`, `supportedModes`, `ratioOptions`, ...), but the
-rows come from Higgsfield's own model schemas, Draw Things and h3.c instead of
+rows come from Higgsfield's own model schemas, Draw Things, h3.c and
+OpenRouter (image models from OPENROUTER_IMAGE_MODELS) instead of
 a gateway's static list.
 """
 
@@ -11,7 +12,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from novelvideo.engines import drawthings, h3c, higgsfield
+from novelvideo.engines import drawthings, h3c, higgsfield, openrouter_image
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +165,20 @@ def media_model_catalog(media_type: str) -> list[dict[str, Any]]:
             entries += _higgsfield_image_entries()
         except Exception as exc:  # noqa: BLE001
             logger.warning("Higgsfield image catalog unavailable: %s", exc)
+        if openrouter_image.api_key():
+            entries += [
+                _entry(
+                    catalog_id=f"openrouter:{model}",
+                    provider="openrouter",
+                    label=openrouter_image.LABELS.get(model) or f"OpenRouter {model}",
+                    media_type="image",
+                    sort_order=500 + index,
+                    ratioOptions=DRAWTHINGS_RATIOS,
+                    resolutionOptions=["1K", "2K", "4K"],
+                    referenceImageMax=14,
+                )
+                for index, model in enumerate(openrouter_image.models())
+            ]
     return entries
 
 
@@ -176,4 +191,5 @@ async def engines_status() -> dict[str, dict[str, Any]]:
         "h3c": h3c.available(),
         "drawthings": await drawthings.status(),
         "mtplx": mtplx.status(),
+        "openrouter": openrouter_image.status(),
     }

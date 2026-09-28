@@ -1,12 +1,14 @@
-"""The one door every image request goes through: Draw Things or Higgsfield.
+"""The one door every image request goes through: Draw Things, Higgsfield, OpenRouter.
 
-A selection is `"drawthings"` (local, A1111 API) or `"higgsfield:<model_ref>"`
-(cloud, schema-shaped). Callers hand over a prompt, reference images and the
-geometry they already computed; they get back `(image_bytes|None, "", error)`,
-the tuple every retired provider call used to return.
+A selection is `"drawthings"` (local, A1111 API), `"higgsfield:<model_ref>"`
+(cloud, schema-shaped) or `"openrouter:<model>"` (cloud, chat/completions).
+Callers hand over a prompt, reference images and the geometry they already
+computed; they get back `(image_bytes|None, "", error)`, the tuple every
+retired provider call used to return.
 
 Each request lands in the project's image ledger (`image_request_usage`) with
-the credits Higgsfield quoted before the job was paid; Draw Things costs 0.
+the credits Higgsfield quoted before the job was paid; Draw Things costs 0;
+OpenRouter records the USD cost its response reports (0 when it reports none).
 """
 
 from __future__ import annotations
@@ -18,31 +20,37 @@ import uuid
 from pathlib import Path
 from typing import Any, Iterable
 
-from novelvideo.engines import drawthings, higgsfield
+from novelvideo.engines import drawthings, higgsfield, openrouter_image
 from novelvideo.engines._proc import EngineError
 
 logger = logging.getLogger(__name__)
 
 DRAWTHINGS = "drawthings"
 HIGGSFIELD_PREFIX = "higgsfield:"
+OPENROUTER_PREFIX = "openrouter:"
 
 # path, raw bytes, (bytes, mime|path hint) or (name, bytes, mime)
 ImageRef = Any
 
 
 def provider_of(selection: str) -> str:
-    return DRAWTHINGS if selection == DRAWTHINGS else "higgsfield"
+    if selection == DRAWTHINGS:
+        return DRAWTHINGS
+    return "openrouter" if selection.startswith(OPENROUTER_PREFIX) else "higgsfield"
 
 
 def model_of(selection: str) -> str:
-    """The model ref a selection points at (`drawthings` for Draw Things)."""
-    return selection.removeprefix(HIGGSFIELD_PREFIX) if selection != DRAWTHINGS else DRAWTHINGS
+    """The model a selection points at (`drawthings` for Draw Things)."""
+    if selection == DRAWTHINGS:
+        return DRAWTHINGS
+    return selection.removeprefix(OPENROUTER_PREFIX).removeprefix(HIGGSFIELD_PREFIX)
 
 
 def is_selection(value: str | None) -> bool:
     value = str(value or "").strip()
-    return value == DRAWTHINGS or (
-        value.startswith(HIGGSFIELD_PREFIX) and bool(value[len(HIGGSFIELD_PREFIX):].strip())
+    return value == DRAWTHINGS or any(
+        value.startswith(prefix) and bool(value[len(prefix):].strip())
+        for prefix in (HIGGSFIELD_PREFIX, OPENROUTER_PREFIX)
     )
 
 
@@ -141,7 +149,8 @@ async def generate_image(
     """Generate one image. Never raises for engine failures: `(None, "", why)`.
 
     `refs`: first one is the img2img init image on Draw Things; every one is an
-    `image_references` entry on Higgsfield (the CLI uploads local paths).
+    `image_references` entry on Higgsfield (the CLI uploads local paths) and an
+    inline data-URL image part on OpenRouter.
     `output_path`: where the engine writes (stable paths let a paid Higgsfield
     job be reattached after a crash); a temp file otherwise.
     `usage`: ledger fields (`task_type`, `scope`, `episode`, `beat_num`,
@@ -184,6 +193,13 @@ async def generate_image(
                     prompt, out, aspect_ratio=aspect_ratio or "1:1",
                     width=width, height=height, refs=ref_paths,
                 )
+            elif provider_of(selection) == "openrouter":
+                request_id = uuid.uuid4().hex
+                cost = await openrouter_image.generate(
+                    model_of(selection), prompt, out, refs=ref_paths,
+                    aspect_ratio=aspect_ratio, image_size=image_size,
+                )
+                accepted(request_id, cost)
             else:
                 model_ref = model_of(selection)
                 ratio, resolution, extra = await asyncio.to_thread(
@@ -216,8 +232,9 @@ async def quote_credits(
     image_size: str | None = None,
     quality: str | None = None,
 ) -> float:
-    """What one image costs, in Higgsfield credits (Draw Things is free)."""
-    if provider_of(selection) == DRAWTHINGS:
+    """What one image costs, in Higgsfield credits (Draw Things is free; OpenRouter
+    bills in USD after the fact, so its quote is 0)."""
+    if provider_of(selection) != "higgsfield":
         return 0.0
     model_ref = model_of(selection)
     ratio, resolution, extra = await asyncio.to_thread(

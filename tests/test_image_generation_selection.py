@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import base64
+import json
 from pathlib import Path
 
+import httpx
 import pytest
 
 from novelvideo.engines import image as engine
+from novelvideo.engines import openrouter_image
 from novelvideo.engines._proc import EngineError
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 16
@@ -21,7 +25,13 @@ def test_legacy_selections_map_to_higgsfield():
 
     assert normalize_image_generation_selection("newapi_gpt_image2") == "higgsfield:gpt_image_2"
     assert normalize_image_generation_selection("huimeng_image2_official") == "higgsfield:gpt_image_2"
-    assert normalize_image_generation_selection("openrouter_nanobanana2") == "higgsfield:nano_banana_flash"
+    assert (
+        normalize_image_generation_selection("openrouter_nanobanana2")
+        == "openrouter:google/gemini-3.1-flash-image-preview"
+    )
+    assert infer_image_generation_selection("openrouter", "openai/gpt-5.4-image-2") == (
+        "openrouter:openai/gpt-5.4-image-2"
+    )
     assert normalize_image_generation_selection("seedream") == "higgsfield:seedream_v5_pro"
     assert normalize_image_generation_selection("drawthings") == "drawthings"
     assert normalize_image_generation_selection("unknown") == "higgsfield:nano_banana_flash"
@@ -164,3 +174,81 @@ def test_image_ledger_stores_credits(tmp_path):
     usage.update_image_request_status(project_output_dir=tmp_path, request_id="j1", status="completed")
     summary = usage.get_image_usage_summary(project_output_dir=tmp_path)
     assert (summary["total_requests"], summary["total_credits"]) == (1, 4.0)
+
+
+def _mock_openrouter(monkeypatch, handler):
+    real = httpx.AsyncClient
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
+    monkeypatch.setattr(
+        openrouter_image.httpx,
+        "AsyncClient",
+        lambda **kw: real(transport=httpx.MockTransport(handler), **kw),
+    )
+
+
+async def test_openrouter_selection_returns_image_and_records_usd_cost(monkeypatch, tmp_path, ledger):
+    seen = {}
+
+    def handler(request):
+        seen.update(json.loads(request.content), url=str(request.url), auth=request.headers["authorization"])
+        url = "data:image/png;base64," + base64.b64encode(PNG).decode()
+        return httpx.Response(200, json={
+            "choices": [{"message": {"images": [{"image_url": {"url": url}}]}}],
+            "usage": {"cost": 0.04},
+        })
+
+    _mock_openrouter(monkeypatch, handler)
+    selection = "openrouter:google/gemini-3.1-flash-image-preview"
+    assert engine.is_selection(selection) and engine.provider_of(selection) == "openrouter"
+    data, _, error = await engine.generate_image(
+        selection, "cat", refs=[JPEG], aspect_ratio="16:9", image_size="0.5K"
+    )
+
+    assert (data, error) == (PNG, "")
+    assert seen["url"] == "https://openrouter.ai/api/v1/chat/completions"
+    assert seen["auth"] == "Bearer sk-test"
+    assert seen["model"] == "google/gemini-3.1-flash-image-preview"
+    assert seen["image_config"] == {"aspect_ratio": "16:9", "image_size": "1K"}
+    parts = seen["messages"][0]["content"]
+    assert parts[0] == {"type": "text", "text": "cat"}
+    assert parts[1]["image_url"]["url"].startswith("data:image/jpeg;base64,")
+    assert ledger[0][1]["provider"] == "openrouter" and ledger[0][1]["cost_estimate"] == 0.04
+    assert ledger[-1][1]["status"] == "completed"
+    assert await engine.quote_credits(selection) == 0.0
+
+
+async def test_openrouter_errors_are_returned_clearly(monkeypatch, tmp_path, ledger):
+    replies = iter([
+        httpx.Response(402, text="Insufficient credits"),
+        httpx.Response(200, json={"choices": [{"message": {"content": "no can do"}}]}),
+    ])
+    _mock_openrouter(monkeypatch, lambda request: next(replies))
+
+    data, _, error = await engine.generate_image("openrouter:openai/gpt-5.4-image-2", "cat")
+    assert data is None and "OpenRouter HTTP 402: Insufficient credits" in error
+    assert ledger == []  # recorded only once OpenRouter reports what it billed
+    with pytest.raises(EngineError, match="non ha restituito un'immagine no can do"):
+        await openrouter_image.generate("openai/gpt-5.4-image-2", "cat", tmp_path / "o.png")
+
+    monkeypatch.delenv("OPENROUTER_API_KEY")
+    with pytest.raises(EngineError, match="OPENROUTER_API_KEY"):
+        await openrouter_image.generate("openai/gpt-5.4-image-2", "cat", tmp_path / "o.png")
+
+
+async def test_engines_status_reports_openrouter(monkeypatch):
+    from novelvideo import media_catalog
+    from novelvideo.engines import mtplx
+
+    async def idle():
+        return {"available": False, "reason": ""}
+
+    monkeypatch.setattr(media_catalog.higgsfield, "status", idle)
+    monkeypatch.setattr(media_catalog.drawthings, "status", idle)
+    monkeypatch.setattr(media_catalog.h3c, "available", lambda: {"available": False})
+    monkeypatch.setattr(mtplx, "status", lambda: {"available": False})
+
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    status = (await media_catalog.engines_status())["openrouter"]
+    assert status["available"] is False and "OPENROUTER_API_KEY" in status["reason"]
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
+    assert (await media_catalog.engines_status())["openrouter"] == {"available": True, "reason": ""}

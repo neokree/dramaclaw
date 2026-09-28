@@ -707,11 +707,11 @@ CHARACTER_IMAGE_SELECTION = (
 LEGACY_IMAGE_GENERATION_SELECTION_ALIASES = {
     "newapi_gpt_image2": "higgsfield:gpt_image_2",
     "openai_gpt_image2": "higgsfield:gpt_image_2",
-    "openrouter_gpt_image2": "higgsfield:gpt_image_2",
+    "openrouter_gpt_image2": "openrouter:openai/gpt-5.4-image-2",
     "huimeng_gpt_image2": "higgsfield:gpt_image_2",
     "huimeng_image2_official": "higgsfield:gpt_image_2",
     "newapi_nanobanana2": "higgsfield:nano_banana_flash",
-    "openrouter_nanobanana2": "higgsfield:nano_banana_flash",
+    "openrouter_nanobanana2": "openrouter:google/gemini-3.1-flash-image-preview",
     "huimeng_nanobanana2": "higgsfield:nano_banana_flash",
     "nanobanana": "higgsfield:nano_banana_flash",
     "seedream": "higgsfield:seedream_v5_pro",
@@ -749,10 +749,11 @@ class _ImageSelections(Mapping):
 
 
 def _image_selection_labels() -> dict[str, str]:
-    from novelvideo.engines import higgsfield
+    from novelvideo.engines import higgsfield, openrouter_image
     from novelvideo.media_catalog import DRAWTHINGS_SELECTION
 
     labels = {DRAWTHINGS_SELECTION: "Draw Things (locale)"}
+    labels |= {f"openrouter:{m}": label for m, label in openrouter_image.LABELS.items()}
     for job_type, preset, label in higgsfield.FEATURED["image"]:
         labels[f"higgsfield:{higgsfield.model_ref(job_type, preset)}"] = label
     return labels
@@ -866,6 +867,8 @@ def infer_image_generation_selection(
         return "drawthings"
     if provider_norm == "higgsfield" and model_norm:
         return f"higgsfield:{model_norm}"
+    if provider_norm == "openrouter" and "/" in model_norm:  # vendor/model ids only
+        return f"openrouter:{model_norm}"
     legacy = _known_image_selection(model_norm) or _known_image_selection(provider_norm)
     return legacy or normalize_image_generation_selection(
         fallback, fallback=DEFAULT_SKETCH_IMAGE_SELECTION

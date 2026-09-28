@@ -112,8 +112,6 @@ docs/zh/guides/telemetry.md,Elastic-2.0,2026 SuperTale contributors,REUSE.toml a
 docs/zh/guides/troubleshooting.md,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
 docs/zh/license.md,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
 docs/zh/reference/environment-variables.md,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
-examples/__init__.py,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
-examples/seedance2_fast_demo.py,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
 frontend/.dockerignore,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
 frontend/.env.ce,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
 frontend/.env.example,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
@@ -2216,7 +2214,6 @@ tests/test_screenplay_normalizer.py,Elastic-2.0,2026 SuperTale contributors,REUS
 tests/test_screenplay_scene_parser.py,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
 tests/test_seedance2_assets.py,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
 tests/test_seedance2_config_persistence.py,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
-tests/test_seedance2_fast_demo.py,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
 tests/test_seedance2_models.py,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
 tests/test_seedance2_panel_service_narration_audio.py,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
 tests/test_seedance2_panel_voice_offload.py,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation

@@ -74,3 +74,26 @@ def app_client(request, monkeypatch):
         monkeypatch.delenv("ST_CONTROL_PLANE_DSN", raising=False)
         monkeypatch.setenv("ST_EDITION", "ce")
     return {"mode": mode}
+
+
+@pytest.fixture(autouse=True)
+def _offline_higgsfield_image_catalog(monkeypatch):
+    """Image catalog from Higgsfield's featured presets, without the CLI or its cache."""
+    from novelvideo import media_catalog
+    from novelvideo.engines import higgsfield
+
+    def entries():
+        return [
+            media_catalog._entry(
+                catalog_id=f"higgsfield:{higgsfield.model_ref(job_type, preset)}",
+                provider="higgsfield",
+                label=label,
+                media_type="image",
+                sort_order=100 + index,
+                ratioOptions=["1:1", "16:9", "9:16", "2:3", "3:2", "21:9"],
+                referenceImageMax=14,
+            )
+            for index, (job_type, preset, label) in enumerate(higgsfield.FEATURED["image"])
+        ]
+
+    monkeypatch.setattr(media_catalog, "_higgsfield_image_entries", entries)

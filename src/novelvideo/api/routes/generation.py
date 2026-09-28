@@ -1505,7 +1505,10 @@ async def update_render_settings(
     user: dict = Depends(get_api_user),
 ):
     """Persist Render-stage image model and sizing settings."""
-    from novelvideo.config import image_generation_selection_options
+    from novelvideo.config import (
+        LEGACY_IMAGE_GENERATION_SELECTION_ALIASES,
+        image_generation_selection_options,
+    )
 
     resolved = await _resolve_generation_project(project, user, required_role="editor")
     username = resolved.username
@@ -1514,6 +1517,7 @@ async def update_render_settings(
 
     if body.render_image_selection is not None:
         selection = str(body.render_image_selection or "").strip()
+        selection = LEGACY_IMAGE_GENERATION_SELECTION_ALIASES.get(selection, selection)
         if selection not in image_generation_selection_options():
             return JSONResponse(
                 status_code=400,
@@ -1551,7 +1555,10 @@ async def update_sketch_settings(
     user: dict = Depends(get_api_user),
 ):
     """Persist Sketch-stage image model settings."""
-    from novelvideo.config import image_generation_selection_options
+    from novelvideo.config import (
+        LEGACY_IMAGE_GENERATION_SELECTION_ALIASES,
+        image_generation_selection_options,
+    )
 
     resolved = await _resolve_generation_project(project, user, required_role="editor")
     username = resolved.username
@@ -1560,6 +1567,7 @@ async def update_sketch_settings(
 
     if body.sketch_image_selection is not None:
         selection = str(body.sketch_image_selection or "").strip()
+        selection = LEGACY_IMAGE_GENERATION_SELECTION_ALIASES.get(selection, selection)
         if selection not in image_generation_selection_options():
             return JSONResponse(
                 status_code=400,

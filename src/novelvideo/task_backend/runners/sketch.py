@@ -497,13 +497,16 @@ async def _run_sketch_generation_async(
 
     log(f"生成 {grid_rows}x{grid_cols} 草图...", progress=0.3)
     if use_director_refs:
-        generator_config = get_grid_generation_config(selection_override="openai_gpt_image2")
         import os
 
-        generator_config["openai_image_quality"] = os.environ.get(
-            "OPENAI_SKETCH_IMAGE_QUALITY", "low"
+        # Director line-art sketches follow geometry refs best on GPT Image.
+        generator_config = get_grid_generation_config(
+            selection_override=os.environ.get(
+                "DIRECTOR_SKETCH_IMAGE_SELECTION", "higgsfield:gpt_image_2"
+            )
         )
-        log("[Sketch Image] 3GS 导演实景草图强制使用 OpenAI provider")
+        generator_config["quality"] = os.environ.get("DIRECTOR_SKETCH_IMAGE_QUALITY", "low")
+        log(f"[Sketch Image] 3GS 导演实景草图使用 {generator_config['selection']}")
     else:
         sketch_image_selection = normalize_image_generation_selection(
             config.get("image_generation_selection"),
@@ -512,10 +515,6 @@ async def _run_sketch_generation_async(
         generator_config = get_sketch_generation_config(selection_override=sketch_image_selection)
 
     generator = NanoBananaGridGenerator(config=generator_config)
-    if use_director_refs and generator.provider != "openai":
-        raise RuntimeError(
-            f"3GS 导演实景草图只允许使用 OpenAI provider，当前 provider={generator.provider}"
-        )
     log(f"[Sketch Image] provider={generator.provider}, model={generator.model}")
 
     output_path = str(

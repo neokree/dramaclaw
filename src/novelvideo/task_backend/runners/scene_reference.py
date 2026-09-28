@@ -10,20 +10,6 @@ from novelvideo.project_context import ProjectContext
 from novelvideo.task_backend.cancel import await_envelope_with_cancel_watch
 from novelvideo.task_backend.registry import register_project_task_runner
 from novelvideo.task_state import get_task_manager
-from novelvideo.egress_context import (
-    TRUSTED_EGRESS_CONTEXT_KEY,
-    TrustedEgressContext,
-    TrustedRunnerEnvelope,
-)
-
-
-def _image_egress_context(envelope: dict[str, Any]) -> TrustedEgressContext | None:
-    if type(envelope) is not TrustedRunnerEnvelope:
-        return None
-    context = envelope.get(TRUSTED_EGRESS_CONTEXT_KEY)
-    if type(context) is not TrustedEgressContext:
-        raise TypeError("trusted runner envelope is missing egress context")
-    return context
 
 
 def run_scene_reference_asset(
@@ -46,7 +32,6 @@ async def _run_scene_reference_asset(
     from novelvideo.cognee import CogneeStore
     from novelvideo.config import (
         IMAGE_DEFAULT_STYLE,
-        IMAGE_GENERATION_SELECTIONS,
         get_style_preset,
         normalize_image_generation_selection,
     )
@@ -61,7 +46,6 @@ async def _run_scene_reference_asset(
     scope = envelope.get("scope")
     output_dir = Path(str(payload.get("output_dir") or ctx.output_dir))
     manager = get_task_manager()
-    egress_context = _image_egress_context(envelope)
 
     if kind not in {"master", "spatial_layout", "reverse_master"}:
         raise ValueError(f"Unsupported scene reference kind: {kind}")
@@ -107,25 +91,19 @@ async def _run_scene_reference_asset(
         style_name = f"{style_label} ({style_id})"
 
         update(0.40, f"调用图像模型生成 {kind}...")
-        provider = None
-        model = None
-        if model_selection:
-            normalized_selection = normalize_image_generation_selection(model_selection)
-            selected_image_source = IMAGE_GENERATION_SELECTIONS[normalized_selection]
-            provider = selected_image_source["provider"]
-            model = selected_image_source["model"]
+        selection = (
+            normalize_image_generation_selection(model_selection) if model_selection else None
+        )
         with scene_reference_feature_billing():
             output_path = await generate_scene_reference_image(
                 project_dir=output_dir,
                 scene=scene,
                 kind=kind,  # type: ignore[arg-type]
-                provider=provider,
-                model=model,
+                model=selection,
                 style_name=style_name,
                 style_prompt=style_prompt,
                 avoid_instructions=avoid_instructions,
                 base_scene=base_scene,
-                egress_context=egress_context,
             )
         if kind == "spatial_layout":
             rel_path = str(Path(output_path).relative_to(output_dir))

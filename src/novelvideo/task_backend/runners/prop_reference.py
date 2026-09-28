@@ -10,20 +10,6 @@ from novelvideo.project_context import ProjectContext
 from novelvideo.task_backend.cancel import await_envelope_with_cancel_watch
 from novelvideo.task_backend.registry import register_project_task_runner
 from novelvideo.task_state import get_task_manager
-from novelvideo.egress_context import (
-    TRUSTED_EGRESS_CONTEXT_KEY,
-    TrustedEgressContext,
-    TrustedRunnerEnvelope,
-)
-
-
-def _image_egress_context(envelope: dict[str, Any]) -> TrustedEgressContext | None:
-    if type(envelope) is not TrustedRunnerEnvelope:
-        return None
-    context = envelope.get(TRUSTED_EGRESS_CONTEXT_KEY)
-    if type(context) is not TrustedEgressContext:
-        raise TypeError("trusted runner envelope is missing egress context")
-    return context
 
 
 def run_prop_reference_asset(
@@ -54,7 +40,6 @@ async def _run_prop_reference_asset(
     output_dir = Path(str(payload.get("output_dir") or ctx.output_dir))
     scope = envelope.get("scope")
     manager = get_task_manager()
-    egress_context = _image_egress_context(envelope)
 
     store = CogneeStore(
         ctx.owner_project_label,
@@ -86,7 +71,6 @@ async def _run_prop_reference_asset(
                 project_dir=str(output_dir),
                 state_dir=str(ctx.state_dir),
                 model=model,
-                egress_context=egress_context,
             )
         if not result_path:
             raise RuntimeError("图像 API 未返回有效图像")

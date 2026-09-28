@@ -264,36 +264,6 @@ def test_insufficient_credits_payload_shape_is_untouched_by_k56() -> None:
     }
 
 
-@pytest.mark.asyncio
-async def test_newapi_image_call_reraises_billing_rule_not_configured(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from novelvideo.generators import nanobanana_grid
-
-    class FakeUsageMeter:
-        async def reserve_current_model_call_credit(self, **_kwargs):
-            raise BillingRuleNotConfiguredError(
-                kind="model", key="doubao/seedance"
-            )
-
-    monkeypatch.setattr(nanobanana_grid, "get_usage_meter", lambda: FakeUsageMeter())
-
-    with pytest.raises(BillingRuleNotConfiguredError):
-        await nanobanana_grid._call_newapi_image_api(
-            api_key="newapi-token",
-            model="doubao/seedance",
-            prompt="portrait prompt",
-            base_url="http://newapi.test/v1",
-        )
-
-    assert (
-        is_insufficient_credits_error(
-            BillingRuleNotConfiguredError(kind="model", key="x")
-        )
-        is False
-    )
-
-
 def test_chat_websocket_surfaces_foreign_billing_error_verbatim(monkeypatch) -> None:
     scope = ChatScope(kind="home")
 

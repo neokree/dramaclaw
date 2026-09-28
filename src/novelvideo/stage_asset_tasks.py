@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
-import hashlib
 import json
 import logging
 import os
@@ -41,9 +40,6 @@ from novelvideo.utils.path_resolver import (
 
 logger = logging.getLogger(__name__)
 
-
-#: Gateway capability that meters the 360 panorama the builder subprocess produces.
-SCENE_360_EGRESS_CAPABILITY = "image.generate.pano_360"
 
 SPATIAL_CONTRACT_SCHEMA_VERSION = "scene_spatial_contract_v8_topology_only_locks"
 SPATIAL_CONTRACT_DEFAULT_MODEL = "openai/gpt-5.5"
@@ -217,23 +213,29 @@ def _confirm_scene_360_model_call(
         logger.debug("scene_360 credit confirm failed: %s", exc)
 
 
-def resolve_scene_360_image_provider(provider: str = "") -> str:
-    """Return the provider used by scene 360 image generation."""
-    return (
-        (
-            provider
-            or os.environ.get("SCENE_360_IMAGE_PROVIDER")
-            or os.environ.get("SCENE_360_PROVIDER")
-            or os.environ.get("NANOBANANA_PROVIDER")
-            or "newapi"
-        )
-        .strip()
-        .lower()
+def _scene_360_selection(provider: str = "", model: str = "") -> str:
+    """Image selection for the 360 panorama (env SCENE_360_IMAGE_SELECTION)."""
+    from novelvideo.config import (
+        infer_image_generation_selection,
+        normalize_image_generation_selection,
     )
+
+    if str(model or "").strip():
+        return infer_image_generation_selection(provider, model)
+    if str(provider or "").strip().lower() == "drawthings":
+        return "drawthings"
+    return normalize_image_generation_selection(os.environ.get("SCENE_360_IMAGE_SELECTION"))
+
+
+def resolve_scene_360_image_provider(provider: str = "") -> str:
+    """Return the engine (`drawthings` / `higgsfield`) used for scene 360 images."""
+    from novelvideo.engines.image import provider_of
+
+    return provider_of(_scene_360_selection(provider))
 
 
 class Scene360ImageModelSelectionError(ValueError):
-    """Raised when a scene 360 model selection is unknown or uses another provider."""
+    """Raised when a catalog model authority does not match the execution model."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -252,52 +254,10 @@ class Scene360CatalogModelAuthority:
 
 
 def resolve_scene_360_image_model(provider: str = "", model: str = "") -> str:
-    """Return the model used by scene 360 image generation."""
-    resolved_provider = resolve_scene_360_image_provider(provider)
-    resolved_model = str(model or "").strip()
-    if resolved_model:
-        from novelvideo.config import IMAGE_GENERATION_SELECTIONS
+    """Return the model (Higgsfield model ref or `drawthings`) used for scene 360."""
+    from novelvideo.engines.image import model_of
 
-        selection = IMAGE_GENERATION_SELECTIONS.get(resolved_model)
-        if selection is not None:
-            selection_provider = str(selection.get("provider") or "").strip().lower()
-            if selection_provider != resolved_provider:
-                raise Scene360ImageModelSelectionError(
-                    f"scene 360 image model selection {resolved_model} does not use provider "
-                    f"{resolved_provider}"
-                )
-            return str(selection.get("model") or "").strip()
-
-        for registered in IMAGE_GENERATION_SELECTIONS.values():
-            registered_provider = str(registered.get("provider") or "").strip().lower()
-            registered_model = str(registered.get("model") or "").strip()
-            if registered_provider == resolved_provider and registered_model == resolved_model:
-                return registered_model
-
-        raise Scene360ImageModelSelectionError(
-            f"unknown scene 360 image model selection: {resolved_model}"
-        )
-    if resolved_provider in {"huimeng", "huimengi"}:
-        return (
-            os.environ.get("SCENE_360_HUIMENG_MODEL")
-            or os.environ.get("HUIMENG_IMAGE_MODEL")
-            or "image-2"
-        )
-    if resolved_provider == "openai":
-        return os.environ.get("OPENAI_IMAGE_MODEL") or "gpt-image-2"
-    if resolved_provider == "newapi":
-        return (
-            os.environ.get("SCENE_360_IMAGE_MODEL")
-            or os.environ.get("NEWAPI_IMAGE_MODEL")
-            or "gpt-image-2"
-        )
-    if resolved_provider == "openrouter":
-        return (
-            os.environ.get("SCENE_360_OPENROUTER_MODEL")
-            or os.environ.get("OPENROUTER_GPT_IMAGE2_MODEL")
-            or "openai/gpt-5.4-image-2"
-        )
-    return ""
+    return model_of(_scene_360_selection(provider, model))
 
 
 def _json_file_has_schema(path: Path, schema_version: str) -> bool:
@@ -1209,10 +1169,7 @@ def run_scene_360(
 ) -> dict[str, Any]:
     """Generate `pano_360.png` from a scene master image or text description."""
 
-    from novelvideo.task_backend.subprocesses import (
-        build_model_child_env,
-        resolve_organization_egress_context,
-    )
+    from novelvideo.task_backend.subprocesses import resolve_organization_egress_context
 
     def report(progress: float, message: str) -> None:
         if progress_callback:
@@ -1260,7 +1217,6 @@ def run_scene_360(
     quality = (
         quality
         or os.environ.get("SCENE_360_IMAGE_QUALITY")
-        or os.environ.get("HUIMENG_IMAGE_QUALITY")
         or "medium"
     ).strip()
     description = description.strip() or "\n".join(
@@ -1491,54 +1447,9 @@ def run_scene_360(
             image_size=image_size,
             quality=quality,
         )
-    # The generator is a separate OS process, so trusted identity cannot follow it.
-    # Claim and resolve here, then hand only the resolved credential across.
-    egress_state = None
-    child_env: dict[str, str] | None = None
-    if is_org:
-        from novelvideo.generators.nanobanana_grid import (
-            _abandon_organization_image_egress,
-            _complete_organization_image_egress,
-            _prepare_organization_image_egress,
-        )
-        from novelvideo.model_gateway_runtime import (
-            next_model_gateway_business_task_id,
-        )
-        from novelvideo.ports.egress_operations import canonical_request_digest
-
-        egress_request = {
-            "provider": provider,
-            "model": resolved_model,
-            "image_size": image_size,
-            "quality": quality,
-            "style": style,
-            "aspect_ratio": "2:1",
-            "source": source,
-            "scene_id": scene_id,
-            "has_master": bool(master_path),
-            "has_reverse_master": bool(reverse_master_path),
-        }
-        egress_state = _run_credit_coro(
-            lambda: _prepare_organization_image_egress(
-                egress_context=org_context,
-                provider=provider,
-                capability=SCENE_360_EGRESS_CAPABILITY,
-                request=egress_request,
-                business_task_id=next_model_gateway_business_task_id(
-                    SCENE_360_EGRESS_CAPABILITY,
-                    request_digest=canonical_request_digest(egress_request),
-                ),
-            )
-        )
-        child_env = build_model_child_env(
-            os.environ.copy(),
-            egress_context=org_context,
-            gateway_credential=egress_state.credential,
-        )
     try:
         proc = run_project_subprocess(
             cmd,
-            env=child_env,
             capture_output=True,
             text=True,
             timeout=int(timeout_seconds),
@@ -1551,17 +1462,6 @@ def run_scene_360(
             raise RuntimeError(f"360 生成器成功退出，但没有写出结果: {generated}")
 
         provider_trace = _read_scene_360_provider_trace(generation_dir)
-        if egress_state is not None:
-            _run_credit_coro(
-                lambda: _complete_organization_image_egress(
-                    egress_state,
-                    trace=provider_trace,
-                    result_ref=(
-                        f"image:sha256:{hashlib.sha256(generated.read_bytes()).hexdigest()}"
-                    ),
-                )
-            )
-            egress_state = None
         pano_path = out_dir / "pano_360.png"
         archived: Path | None = None
         if update_manifest and pano_path.exists():
@@ -1635,10 +1535,6 @@ def run_scene_360(
             "stdout_tail": (proc.stdout or "")[-2000:],
         }
     except BaseException as exc:
-        if egress_state is not None:
-            _run_credit_coro(
-                lambda: _abandon_organization_image_egress(egress_state)
-            )
         if _manage_model_credit:
             _refund_scene_360_model_call(
                 reservation_id,

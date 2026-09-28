@@ -4,6 +4,7 @@
 """
 
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -502,51 +503,15 @@ INDEXTTS2_RECORD_PROVIDER = "newapi" if INDEXTTS2_PROVIDER == "newapi" else "fal
 INDEXTTS2_RECORD_MODEL = (
     INDEXTTS2_NEWAPI_MODEL if INDEXTTS2_PROVIDER == "newapi" else "IndexTTS2"
 )
-NEWAPI_IMAGE_MODEL = os.environ.get("NEWAPI_IMAGE_MODEL", "LingShan-G2")
-NEWAPI_NANOBANANA2_MODEL = os.environ.get("NEWAPI_NANOBANANA2_MODEL", "LingShan-NB-2")
-SCENE_MASTER_IMAGE_PROVIDER = (
-    os.environ.get("SCENE_MASTER_IMAGE_PROVIDER", "").strip().lower() or "newapi"
-)
-SCENE_MASTER_IMAGE_MODEL = os.environ.get("SCENE_MASTER_IMAGE_MODEL", "")
-SCENE_REVERSE_MASTER_IMAGE_PROVIDER = (
-    os.environ.get("SCENE_REVERSE_MASTER_IMAGE_PROVIDER", "").strip().lower()
-    or "newapi"
-)
-SCENE_REVERSE_MASTER_IMAGE_MODEL = os.environ.get(
-    "SCENE_REVERSE_MASTER_IMAGE_MODEL", ""
-)
-SCENE_360_IMAGE_PROVIDER = (
-    os.environ.get("SCENE_360_IMAGE_PROVIDER", "").strip().lower() or "newapi"
-)
-SCENE_360_IMAGE_MODEL = os.environ.get("SCENE_360_IMAGE_MODEL", "")
-PROP_REF_IMAGE_PROVIDER = (
-    os.environ.get("PROP_REF_IMAGE_PROVIDER", "").strip().lower() or "newapi"
-)
-PROP_REF_IMAGE_MODEL = os.environ.get("PROP_REF_IMAGE_MODEL", "")
 
 
-# =============================================================================
-# 火山引擎图像生成配置
-# =============================================================================
-
+# Volcengine key, still read by the TTS config below.
 VOLCENGINE_VISUAL_API_KEY = os.environ.get(
     "VOLCENGINE_VISUAL_API_KEY"
 ) or os.environ.get("ARK_API_KEY")
-VOLCENGINE_VISUAL_ENDPOINT = os.environ.get(
-    "VOLCENGINE_VISUAL_ENDPOINT", "https://ark.cn-beijing.volces.com/api/v3"
-)
 
-SEEDREAM_MODEL = os.environ.get("SEEDREAM_MODEL", "doubao-seedream-4-5-251128")
-SEEDEDIT_MODEL = os.environ.get("SEEDEDIT_MODEL", "doubao-seededit-3-0-i2i-250628")
-
-IMAGE_DEFAULT_WIDTH = int(os.environ.get("IMAGE_DEFAULT_WIDTH", "1440"))
-IMAGE_DEFAULT_HEIGHT = int(os.environ.get("IMAGE_DEFAULT_HEIGHT", "2560"))
 IMAGE_DEFAULT_STYLE = os.environ.get("IMAGE_DEFAULT_STYLE", "chinese_period_drama")
 
-# 角色参考图生成模型选择
-# "nanobanana" - 使用 Nano Banana Pro (Gemini)，与网格生成同一模型，一致性更好
-# "seedream" - 使用 Seedream 4.5 (火山引擎)，质量高但与网格生成跨模型
-CHARACTER_IMAGE_MODEL = os.environ.get("CHARACTER_IMAGE_MODEL", "nanobanana")
 
 # 风格预设统一由 src/novelvideo/styles/presets/*.json 提供。
 
@@ -623,38 +588,6 @@ def list_available_styles() -> list[dict]:
     from novelvideo.services.style_service import StyleService
 
     return StyleService.list_all_styles()
-
-
-def get_image_config() -> dict:
-    """获取图像生成配置。"""
-    from novelvideo.services.style_service import StyleService
-
-    all_styles = StyleService.list_all_styles()
-    style_presets = {
-        s["id"]: StyleService.get_legacy_style_preset(s["id"]) for s in all_styles
-    }
-
-    return {
-        "api_key": VOLCENGINE_VISUAL_API_KEY,
-        "endpoint": VOLCENGINE_VISUAL_ENDPOINT,
-        "seedream_model": SEEDREAM_MODEL,
-        "seededit_model": SEEDEDIT_MODEL,
-        "default_width": IMAGE_DEFAULT_WIDTH,
-        "default_height": IMAGE_DEFAULT_HEIGHT,
-        "default_style": IMAGE_DEFAULT_STYLE,
-        "style_presets": style_presets,
-        "character_image_model": CHARACTER_IMAGE_MODEL,
-        "character_image_selection": get_character_image_selection(),
-    }
-
-
-def get_character_image_model() -> str:
-    """获取角色参考图生成模型类型。
-
-    Returns:
-        "nanobanana" 或 "seedream"
-    """
-    return CHARACTER_IMAGE_MODEL
 
 
 # =============================================================================
@@ -809,109 +742,89 @@ def get_video_config() -> dict:
 
 
 # =============================================================================
-# 图像生成配置（Google / OpenRouter / OpenAI / HuiMeng）
+# 图像生成配置：Draw Things (locale) / Higgsfield (cloud)
 # =============================================================================
 
+# Keys other callers still use for text / vision LLMs (not image generation).
 GOOGLE_AI_API_KEY = os.environ.get("GOOGLE_AI_API_KEY")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-HUIMENGI_API_KEY = os.environ.get("HUIMENGI_API_KEY")
-OPENROUTER_GPT_IMAGE2_MODEL = os.environ.get(
-    "OPENROUTER_GPT_IMAGE2_MODEL", "openai/gpt-5.4-image-2"
-)
-OPENROUTER_NANOBANANA2_MODEL = os.environ.get(
-    "OPENROUTER_NANOBANANA2_MODEL", "google/gemini-3.1-flash-image-preview"
-)
 
-# 图像生成 Provider: "google" / "openrouter" / "openai" / "huimeng"
-# OpenRouter 价格: $0.002/图 (2K) vs Google 官方 $0.134/图 (2K)
-_NANOBANANA_PROVIDER_EXPLICIT = "NANOBANANA_PROVIDER" in os.environ
-NANOBANANA_PROVIDER = os.environ.get("NANOBANANA_PROVIDER", "openrouter")
-
-
-NANOBANANA_MODEL = os.environ.get("NANOBANANA_MODEL", "gemini-3.1-flash-image-preview")
-OPENAI_IMAGE_MODEL = os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-2")
-HUIMENG_IMAGE_MODEL = os.environ.get("HUIMENG_IMAGE_MODEL", "image-2")
-HUIMENG_IMAGE_OFFICIAL_MODEL = os.environ.get(
-    "HUIMENG_IMAGE_OFFICIAL_MODEL", "image-2-official"
+# A selection is "drawthings" or "higgsfield:<model_ref>" (see media_catalog).
+# Default: Nano Banana 2 on Higgsfield — multi-reference, so characters and
+# identities stay consistent across sheets and panels; Draw Things (local, one
+# img2img init image) is one env var away: DEFAULT_IMAGE_SELECTION=drawthings.
+DEFAULT_IMAGE_SELECTION = os.environ.get(
+    "DEFAULT_IMAGE_SELECTION", "higgsfield:nano_banana_flash"
 )
-HUIMENG_NANOBANANA2_MODEL = os.environ.get("HUIMENG_NANOBANANA2_MODEL", "nb-2")
-SCENE_360_PROVIDER = os.environ.get("SCENE_360_PROVIDER") or NANOBANANA_PROVIDER
-SCENE_360_HUIMENG_MODEL = os.environ.get("SCENE_360_HUIMENG_MODEL", HUIMENG_IMAGE_MODEL)
-SCENE_ASSET_PROVIDER = os.environ.get("SCENE_ASSET_PROVIDER") or NANOBANANA_PROVIDER
-SCENE_ASSET_MODEL = os.environ.get("SCENE_ASSET_MODEL", "")
-OPENAI_IMAGE_QUALITY = os.environ.get("OPENAI_IMAGE_QUALITY", "medium")
-OPENAI_SKETCH_IMAGE_QUALITY = os.environ.get("OPENAI_SKETCH_IMAGE_QUALITY", "low")
-_DEFAULT_SKETCH_SELECTION_EXPLICIT = "DEFAULT_SKETCH_IMAGE_SELECTION" in os.environ
-_DEFAULT_RENDER_SELECTION_EXPLICIT = "DEFAULT_RENDER_IMAGE_SELECTION" in os.environ
 DEFAULT_SKETCH_IMAGE_SELECTION = os.environ.get(
-    "DEFAULT_SKETCH_IMAGE_SELECTION", "newapi_gpt_image2"
+    "DEFAULT_SKETCH_IMAGE_SELECTION", DEFAULT_IMAGE_SELECTION
 )
 DEFAULT_RENDER_IMAGE_SELECTION = os.environ.get(
-    "DEFAULT_RENDER_IMAGE_SELECTION", "newapi_gpt_image2"
+    "DEFAULT_RENDER_IMAGE_SELECTION", DEFAULT_IMAGE_SELECTION
 )
-CHARACTER_IMAGE_SELECTION = os.environ.get(
-    "CHARACTER_IMAGE_SELECTION"
-) or os.environ.get("DEFAULT_CHARACTER_IMAGE_SELECTION")
-
-IMAGE_GENERATION_SELECTIONS: dict[str, dict[str, str]] = {
-    "huimeng_gpt_image2": {
-        "label": "HuiMeng GPT Image 2",
-        "provider": "huimeng",
-        "model": HUIMENG_IMAGE_MODEL,
-    },
-    "huimeng_image2_official": {
-        "label": "HuiMeng Image 2 Official",
-        "provider": "huimeng",
-        "model": HUIMENG_IMAGE_OFFICIAL_MODEL,
-    },
-    "huimeng_nanobanana2": {
-        "label": "HuiMeng NanoBanana 2",
-        "provider": "huimeng",
-        "model": HUIMENG_NANOBANANA2_MODEL,
-    },
-    "openai_gpt_image2": {
-        "label": "OpenAI GPT Image 2",
-        "provider": "openai",
-        "model": OPENAI_IMAGE_MODEL,
-    },
-    "openrouter_gpt_image2": {
-        "label": "OpenRouter GPT Image 2",
-        "provider": "openrouter",
-        "model": OPENROUTER_GPT_IMAGE2_MODEL,
-    },
-    "openrouter_nanobanana2": {
-        "label": "OpenRouter NanoBanana 2",
-        "provider": "openrouter",
-        "model": OPENROUTER_NANOBANANA2_MODEL,
-    },
-    "newapi_gpt_image2": {
-        "label": "LingShan-G2",
-        "provider": "newapi",
-        "model": NEWAPI_IMAGE_MODEL,
-    },
-    "newapi_nanobanana2": {
-        "label": "LingShan-NB-2",
-        "provider": "newapi",
-        "model": NEWAPI_NANOBANANA2_MODEL,
-    },
-}
-
-VISIBLE_IMAGE_GENERATION_SELECTION_KEYS = (
-    "newapi_gpt_image2",
-    "newapi_nanobanana2",
+CHARACTER_IMAGE_SELECTION = (
+    os.environ.get("CHARACTER_IMAGE_SELECTION")
+    or os.environ.get("DEFAULT_CHARACTER_IMAGE_SELECTION")
+    or DEFAULT_IMAGE_SELECTION
 )
 
+# Retired providers' selection keys, kept readable in saved projects/canvases.
 LEGACY_IMAGE_GENERATION_SELECTION_ALIASES = {
-    "huimeng_gpt_image2": "newapi_gpt_image2",
-    "huimeng_image2_official": "newapi_gpt_image2",
-    "openai_gpt_image2": "newapi_gpt_image2",
-    "openrouter_gpt_image2": "newapi_gpt_image2",
-    "huimeng_nanobanana2": "newapi_nanobanana2",
-    "openrouter_nanobanana2": "newapi_nanobanana2",
-    "nanobanana": "newapi_nanobanana2",
-    "seedream": "newapi_gpt_image2",
+    "newapi_gpt_image2": "higgsfield:gpt_image_2",
+    "openai_gpt_image2": "higgsfield:gpt_image_2",
+    "openrouter_gpt_image2": "higgsfield:gpt_image_2",
+    "huimeng_gpt_image2": "higgsfield:gpt_image_2",
+    "huimeng_image2_official": "higgsfield:gpt_image_2",
+    "newapi_nanobanana2": "higgsfield:nano_banana_flash",
+    "openrouter_nanobanana2": "higgsfield:nano_banana_flash",
+    "huimeng_nanobanana2": "higgsfield:nano_banana_flash",
+    "nanobanana": "higgsfield:nano_banana_flash",
+    "seedream": "higgsfield:seedream_v5_pro",
 }
+
+
+class _ImageSelections(Mapping):
+    """`{selection: {label, provider, model}}` for every installed image model.
+
+    Lookups never touch the engines (any well-formed selection resolves);
+    iterating lists the live catalog (Higgsfield's is disk-cached for a day).
+    """
+
+    def __getitem__(self, key: str) -> dict[str, str]:
+        from novelvideo.engines.image import is_selection, model_of, provider_of
+
+        if not is_selection(key):
+            raise KeyError(key)
+        return {
+            "label": _image_selection_labels().get(key) or model_of(key),
+            "provider": provider_of(key),
+            "model": model_of(key),
+        }
+
+    def __contains__(self, key: object) -> bool:
+        from novelvideo.engines.image import is_selection
+
+        return isinstance(key, str) and is_selection(key)
+
+    def __iter__(self):
+        return iter(image_generation_selection_options())
+
+    def __len__(self) -> int:
+        return len(image_generation_selection_options())
+
+
+def _image_selection_labels() -> dict[str, str]:
+    from novelvideo.engines import higgsfield
+    from novelvideo.media_catalog import DRAWTHINGS_SELECTION
+
+    labels = {DRAWTHINGS_SELECTION: "Draw Things (locale)"}
+    for job_type, preset, label in higgsfield.FEATURED["image"]:
+        labels[f"higgsfield:{higgsfield.model_ref(job_type, preset)}"] = label
+    return labels
+
+
+IMAGE_GENERATION_SELECTIONS = _ImageSelections()
 
 # 网格生成模式配置
 # 竖屏 Panel 模式（每格竖屏，适合 I2V）：
@@ -956,12 +869,10 @@ GRID_TOTAL_PANELS = 25  # 动态优化时的最大面板数
 
 
 def image_generation_selection_options() -> dict[str, str]:
-    """Return UI labels for configured image-generation selections."""
-    return {
-        key: IMAGE_GENERATION_SELECTIONS[key]["label"]
-        for key in VISIBLE_IMAGE_GENERATION_SELECTION_KEYS
-        if key in IMAGE_GENERATION_SELECTIONS
-    }
+    """`{selection: label}` for the image models installed right now."""
+    from novelvideo.media_catalog import media_model_catalog
+
+    return {entry["catalogId"]: entry["label"] for entry in media_model_catalog("image")}
 
 
 def character_image_selection_options() -> dict[str, str]:
@@ -969,34 +880,12 @@ def character_image_selection_options() -> dict[str, str]:
     return image_generation_selection_options()
 
 
-def _visible_image_generation_selection(value: str | None) -> str:
+def _known_image_selection(value: str | None) -> str:
+    from novelvideo.engines.image import is_selection
+
     candidate = str(value or "").strip()
-    if (
-        candidate in VISIBLE_IMAGE_GENERATION_SELECTION_KEYS
-        and candidate in IMAGE_GENERATION_SELECTIONS
-    ):
-        return candidate
-    alias = LEGACY_IMAGE_GENERATION_SELECTION_ALIASES.get(candidate)
-    if (
-        alias in VISIBLE_IMAGE_GENERATION_SELECTION_KEYS
-        and alias in IMAGE_GENERATION_SELECTIONS
-    ):
-        return alias
-    return ""
-
-
-def _default_image_generation_selection(fallback: str | None = None) -> str:
-    for candidate in (
-        fallback,
-        DEFAULT_SKETCH_IMAGE_SELECTION,
-        DEFAULT_RENDER_IMAGE_SELECTION,
-        "newapi_gpt_image2",
-        *VISIBLE_IMAGE_GENERATION_SELECTION_KEYS,
-    ):
-        selection = _visible_image_generation_selection(candidate)
-        if selection:
-            return selection
-    raise ValueError("No visible image generation selection configured.")
+    candidate = LEGACY_IMAGE_GENERATION_SELECTION_ALIASES.get(candidate, candidate)
+    return candidate if is_selection(candidate) else ""
 
 
 def normalize_image_generation_selection(
@@ -1004,10 +893,11 @@ def normalize_image_generation_selection(
     *,
     fallback: str | None = None,
 ) -> str:
-    selection = _visible_image_generation_selection(value)
-    if selection:
-        return selection
-    return _default_image_generation_selection(fallback)
+    for candidate in (value, fallback, DEFAULT_IMAGE_SELECTION):
+        selection = _known_image_selection(candidate)
+        if selection:
+            return selection
+    return "higgsfield:nano_banana_flash"
 
 
 def image_generation_selection_label(
@@ -1019,26 +909,11 @@ def image_generation_selection_label(
 
 def get_character_image_selection() -> str:
     """Return the configured character/identity image source selection."""
-    candidate = _visible_image_generation_selection(CHARACTER_IMAGE_SELECTION)
-    if candidate:
-        return candidate
-
-    legacy_model = str(CHARACTER_IMAGE_MODEL or "").strip()
-    legacy_selection = _visible_image_generation_selection(legacy_model)
-    if legacy_selection:
-        return legacy_selection
-
-    return normalize_image_generation_selection(
-        DEFAULT_RENDER_IMAGE_SELECTION,
-        fallback=DEFAULT_SKETCH_IMAGE_SELECTION,
-    )
+    return normalize_image_generation_selection(CHARACTER_IMAGE_SELECTION)
 
 
 def normalize_character_image_selection(value: str | None) -> str:
-    candidate = _visible_image_generation_selection(value)
-    if candidate:
-        return candidate
-    return get_character_image_selection()
+    return _known_image_selection(value) or get_character_image_selection()
 
 
 def infer_image_generation_selection(
@@ -1049,75 +924,18 @@ def infer_image_generation_selection(
 ) -> str:
     provider_norm = str(provider or "").strip().lower()
     model_norm = str(model or "").strip()
-    for key, entry in IMAGE_GENERATION_SELECTIONS.items():
-        if entry["provider"] == provider_norm and entry["model"] == model_norm:
-            return key
-    if provider_norm == "openrouter" and model_norm in {
-        NANOBANANA_MODEL,
-        f"google/{NANOBANANA_MODEL}",
-    }:
-        return "openrouter_nanobanana2"
-    if provider_norm == "huimeng" and model_norm == "image-2":
-        return "huimeng_gpt_image2"
-    if provider_norm == "huimeng" and model_norm == "image-2-official":
-        return "huimeng_image2_official"
-    return normalize_image_generation_selection(
+    from novelvideo.engines.image import is_selection
+
+    if is_selection(model_norm):
+        return model_norm
+    if provider_norm == "drawthings":
+        return "drawthings"
+    if provider_norm == "higgsfield" and model_norm:
+        return f"higgsfield:{model_norm}"
+    legacy = _known_image_selection(model_norm) or _known_image_selection(provider_norm)
+    return legacy or normalize_image_generation_selection(
         fallback, fallback=DEFAULT_SKETCH_IMAGE_SELECTION
     )
-
-
-def _image_provider_config(
-    provider: str,
-    *,
-    model_override: str | None = None,
-    selection_override: str | None = None,
-) -> dict:
-    if selection_override:
-        selection = normalize_image_generation_selection(selection_override)
-        entry = IMAGE_GENERATION_SELECTIONS[selection]
-        provider = entry["provider"]
-        model = model_override or entry["model"]
-    else:
-        provider = (provider or "openrouter").lower()
-        model = model_override or ""
-
-    if provider == "openrouter":
-        resolved_model = model or (
-            f"google/{NANOBANANA_MODEL}"
-            if not NANOBANANA_MODEL.startswith("google/")
-            else NANOBANANA_MODEL
-        )
-        return {
-            "provider": provider,
-            "api_key": OPENROUTER_API_KEY,
-            "model": resolved_model,
-        }
-    if provider in {"huimeng", "huimengi"}:
-        return {
-            "provider": "huimeng",
-            "api_key": HUIMENGI_API_KEY,
-            "model": model or HUIMENG_IMAGE_MODEL,
-        }
-    if provider == "openai":
-        return {
-            "provider": provider,
-            "api_key": OPENAI_API_KEY,
-            "model": model or OPENAI_IMAGE_MODEL,
-        }
-    if provider == "newapi":
-        gateway = get_effective_newapi_gateway_config()
-        return {
-            "provider": provider,
-            "api_key": gateway.api_key,
-            "model": model or NEWAPI_IMAGE_MODEL,
-            "base_url": gateway.base_url,
-        }
-
-    return {
-        "provider": "google",
-        "api_key": GOOGLE_AI_API_KEY,
-        "model": model or NANOBANANA_MODEL,
-    }
 
 
 def get_grid_generation_config(
@@ -1126,45 +944,26 @@ def get_grid_generation_config(
     model_override: str | None = None,
     image_size_override: str | None = None,
 ) -> dict:
-    """获取网格生成配置。
+    """Image engine config for grid/sketch/render generation.
 
-    支持四种 Provider:
-    - google: 直连 Google AI Studio (GOOGLE_AI_API_KEY)
-    - openrouter: 通过 OpenRouter 代理 (OPENROUTER_API_KEY)，成本降低 60 倍
-    - openai: 通过 OpenAI Image API (OPENAI_API_KEY)，默认 gpt-image-2
-    - huimeng: 通过 HuiMeng Tasks API (HUIMENGI_API_KEY)
-
-    环境变量:
-    - NANOBANANA_PROVIDER: "google" / "openrouter" / "openai" / "huimeng"
-    - GOOGLE_AI_API_KEY: Google AI Studio API Key
-    - OPENROUTER_API_KEY: OpenRouter API Key
-    - OPENAI_API_KEY: OpenAI API Key
-    - HUIMENGI_API_KEY: HuiMeng API Key
-    - OPENAI_IMAGE_MODEL: OpenAI Image API 模型，默认 gpt-image-2
-    - HUIMENG_IMAGE_MODEL: HuiMeng 图片模型，默认 image-2
-    - DEFAULT_SKETCH_IMAGE_SELECTION / DEFAULT_RENDER_IMAGE_SELECTION: UI 默认图片源
+    `provider_override`/`model_override` name an engine directly
+    (`drawthings`, or `higgsfield` + model ref); otherwise the selection wins.
     """
-    if (
-        selection_override is None
-        and provider_override is None
-        and _DEFAULT_RENDER_SELECTION_EXPLICIT
-    ):
-        selection_override = DEFAULT_RENDER_IMAGE_SELECTION
-
-    provider_config = _image_provider_config(
-        provider_override or NANOBANANA_PROVIDER,
-        model_override=model_override,
-        selection_override=selection_override,
-    )
-
+    if provider_override or model_override:
+        selection = infer_image_generation_selection(
+            provider_override or "higgsfield",
+            model_override,
+            fallback=selection_override or DEFAULT_RENDER_IMAGE_SELECTION,
+        )
+    else:
+        selection = normalize_image_generation_selection(
+            selection_override, fallback=DEFAULT_RENDER_IMAGE_SELECTION
+        )
+    entry = IMAGE_GENERATION_SELECTIONS[selection]
     return {
-        "provider": provider_config["provider"],
-        "api_key": provider_config["api_key"],
-        "model": provider_config["model"],
-        "base_url": provider_config.get("base_url", ""),
-        "openai_image_quality": OPENAI_IMAGE_QUALITY,
-        "openai_sketch_image_quality": OPENAI_SKETCH_IMAGE_QUALITY,
-        "huimeng_image_quality": os.environ.get("HUIMENG_IMAGE_QUALITY", "medium"),
+        "selection": selection,
+        "provider": entry["provider"],
+        "model": entry["model"],
         "image_size": image_size_override or "1K",
         "mode": GRID_MODE,
         "rows": GRID_ROWS,
@@ -1178,28 +977,13 @@ def get_sketch_generation_config(
     selection_override: str | None = None,
     model_override: str | None = None,
 ) -> dict:
-    """获取草图工作台网格生成配置。
-
-    优先级:
-    1. 显式 DEFAULT_SKETCH_IMAGE_SELECTION（新选择表）
-    2. 显式 NANOBANANA_PROVIDER / NANOBANANA_MODEL（旧环境变量兼容）
-    3. 通用 get_grid_generation_config()
-    """
-    selection = selection_override
-    if selection is None:
-        selection = (
-            DEFAULT_SKETCH_IMAGE_SELECTION
-            if (_DEFAULT_SKETCH_SELECTION_EXPLICIT or not _NANOBANANA_PROVIDER_EXPLICIT)
-            else None
-        )
-    provider_override = None if selection else NANOBANANA_PROVIDER
+    """Image engine config for the sketch workbench."""
     config = get_grid_generation_config(
-        selection_override=selection,
-        provider_override=provider_override,
+        selection_override=normalize_image_generation_selection(
+            selection_override, fallback=DEFAULT_SKETCH_IMAGE_SELECTION
+        ),
         model_override=model_override,
     )
-    config["openai_image_quality"] = OPENAI_SKETCH_IMAGE_QUALITY
-    config["huimeng_image_quality"] = "low"
     config["image_size"] = "1K"
     return config
 
@@ -1208,18 +992,9 @@ def get_render_generation_config(
     selection_override: str | None = None,
     model_override: str | None = None,
 ) -> dict:
-    """获取首帧渲染图像配置。"""
-    selection = selection_override
-    if selection is None:
-        selection = (
-            DEFAULT_RENDER_IMAGE_SELECTION
-            if (_DEFAULT_RENDER_SELECTION_EXPLICIT or not _NANOBANANA_PROVIDER_EXPLICIT)
-            else None
-        )
-    provider_override = None if selection else NANOBANANA_PROVIDER
+    """Image engine config for first-frame renders."""
     return get_grid_generation_config(
-        selection_override=selection,
-        provider_override=provider_override,
+        selection_override=selection_override,
         model_override=model_override,
     )
 

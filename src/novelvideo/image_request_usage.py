@@ -28,11 +28,19 @@ CREATE TABLE IF NOT EXISTS image_request_usage (
     accepted_at TEXT NOT NULL,
     completed_at TEXT,
     updated_at TEXT NOT NULL,
-    error_message TEXT
+    error_message TEXT,
+    cost_estimate REAL
 );
 CREATE INDEX IF NOT EXISTS idx_image_request_usage_scope
 ON image_request_usage(task_type, scope, accepted_at DESC);
 """
+
+
+def _initialize(conn) -> None:
+    conn.executescript(_SCHEMA_SQL)
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(image_request_usage)")}
+    if "cost_estimate" not in columns:  # v1 databases
+        conn.execute("ALTER TABLE image_request_usage ADD COLUMN cost_estimate REAL")
 
 _NON_BILLABLE_FAILURE_PATTERNS = (
     "%未返回图像数据%",
@@ -41,7 +49,7 @@ _NON_BILLABLE_FAILURE_PATTERNS = (
 
 _SCHEMA_COMPONENT = "image_request_usage"
 # MIGRATION CONTRACT: increment this whenever _SCHEMA_SQL changes.
-_SCHEMA_VERSION = 1
+_SCHEMA_VERSION = 2
 
 
 def get_image_request_usage_db_path(project_output_dir: str | Path) -> Path:
@@ -103,7 +111,7 @@ def _connect(project_output_dir: str | Path):
         db_path,
         component=_SCHEMA_COMPONENT,
         version=_SCHEMA_VERSION,
-        initialize=lambda schema_conn: schema_conn.executescript(_SCHEMA_SQL),
+        initialize=_initialize,
     )
     conn = sqlite3.connect(db_path, timeout=10, check_same_thread=False)
     configure_sqlite_connection(conn, set_journal_mode=False)
@@ -126,6 +134,7 @@ def record_image_request(
     beat_num: int | None = None,
     character_name: str | None = None,
     identity_name: str | None = None,
+    cost_estimate: float | None = None,
 ) -> None:
     now = datetime.now().isoformat()
     with _connect(project_output_dir) as conn:
@@ -134,8 +143,8 @@ def record_image_request(
             INSERT INTO image_request_usage (
                 request_id, provider, model_name, task_type, scope,
                 episode, beat_num, character_name, identity_name,
-                status, accepted_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'accepted', ?, ?)
+                status, accepted_at, updated_at, cost_estimate
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'accepted', ?, ?, ?)
             ON CONFLICT(request_id) DO NOTHING
             """,
             (
@@ -150,6 +159,7 @@ def record_image_request(
                 identity_name,
                 now,
                 now,
+                cost_estimate,
             ),
         )
 
@@ -275,7 +285,7 @@ def get_image_usage_summary(
     with _connect(project_output_dir) as conn:
         total_row = conn.execute(
             f"""
-            SELECT COUNT(*)
+            SELECT COUNT(*), COALESCE(SUM(cost_estimate), 0)
             FROM image_request_usage
             {where_sql}
             """,
@@ -283,7 +293,7 @@ def get_image_usage_summary(
         ).fetchone()
         today_row = conn.execute(
             f"""
-            SELECT COUNT(*)
+            SELECT COUNT(*), COALESCE(SUM(cost_estimate), 0)
             FROM image_request_usage
             {today_sql}
             """,
@@ -293,4 +303,6 @@ def get_image_usage_summary(
     return {
         "total_requests": int(total_row[0] or 0) if total_row else 0,
         "today_requests": int(today_row[0] or 0) if today_row else 0,
+        "total_credits": float(total_row[1] or 0.0) if total_row else 0.0,
+        "today_credits": float(today_row[1] or 0.0) if today_row else 0.0,
     }

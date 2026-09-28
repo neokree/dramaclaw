@@ -35,14 +35,7 @@ def get_director_sketch_generation_config(image_selection: str | None) -> dict:
     config["image_size"] = os.environ.get(
         "DIRECTOR_CONTROL_SKETCH_IMAGE_SIZE", config.get("image_size") or "1K"
     )
-    quality = os.environ.get("DIRECTOR_CONTROL_SKETCH_IMAGE_QUALITY", "low")
-    for key in (
-        "openai_image_quality",
-        "openai_sketch_image_quality",
-        "huimeng_image_quality",
-        "quality",
-    ):
-        config[key] = quality
+    config["quality"] = os.environ.get("DIRECTOR_CONTROL_SKETCH_IMAGE_QUALITY", "low")
     return config
 
 
@@ -429,22 +422,11 @@ async def convert_control_frame_to_sketch(
     projection: Any = None,
     egress_context: TrustedEgressContext | None = None,
 ) -> dict[str, Any]:
-    """把控制帧转成草图。**会出网**：下游经 NanoBananaGridGenerator 请求图像 provider。
+    """把控制帧转成草图。**会出网**：下游经 NanoBananaGridGenerator 请求图像引擎。
 
     `egress_context` 声明的是这个事实——`freezone.py:FREEZONE_LEAF_EGRESS` 判本函数
-    为 NETWORK 的依据就是它，没有它签名就在谎称「本函数不出网」。
-
-    它**不**继续往 `generate_grid` 里传：那个方法 39 个形参、没有这一项，穿进去等于
-    对整条内部链路做一次签名扫荡。也不需要——身份已由
-    `task_backend/run_core.py:695` 的 `model_gateway_scope_for_runner(envelope)` 在
-    派发处中心绑定，`nanobanana_grid.py:_call_newapi_image_api_with_egress`（`generate_grid`
-    的 newapi 分支经它出网）在显式参数为 None 时读作用域。
-
-    这条前提在 OI-52 修好之前对本路径是**假的**：`generate_grid` 当时根本不经过任何
-    闸门，组织流量在这里无 claim、无组织凭证。钉住它的是
-    `tests/test_p0g4i_freezone_leaf_classification.py`（作用域可达）与
-    `tests/test_p0g4k_grid_family_image_egress.py`（`generate_grid` 真的读了它），
-    不是默认成立。
+    为 NETWORK 的依据就是它；图像引擎（Draw Things / Higgsfield）自己持有凭据，
+    所以它不再往下传。
     """
 
     del egress_context
@@ -566,12 +548,6 @@ async def convert_control_frame_to_sketch(
 
         generator_config = get_director_sketch_generation_config(projected_image_selection)
         generator = NanoBananaGridGenerator(config=generator_config)
-        if generator.provider not in {"openai", "huimeng", "openrouter", "google", "newapi"}:
-            raise RuntimeError(
-                "director control sketch conversion requires an image provider, "
-                f"got provider={generator.provider}"
-            )
-
         if candidate_output_path:
             output_path = Path(candidate_output_path).resolve()
             try:

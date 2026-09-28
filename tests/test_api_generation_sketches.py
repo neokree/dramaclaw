@@ -163,8 +163,8 @@ def test_generate_sketches_forwards_sketch_model_and_aspect_ratio(
     assert start_calls[0]["payload"]["config"]["aspect_ratio"] == "16:9"
     assert (
         start_calls[0]["payload"]["config"]["image_generation_selection"]
-        == "newapi_nanobanana2"
+        == "higgsfield:nano_banana_flash"
     )
     billing = start_calls[0]["payload"]["billing"]
-    assert billing["image_selection"] == "newapi_nanobanana2"
+    assert billing["image_selection"] == "higgsfield:nano_banana_flash"
     assert billing["pricing_kind"] == "image"

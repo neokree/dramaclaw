@@ -21,7 +21,9 @@ from novelvideo.api.schemas import (
     FreezoneRelightRequest,
     FreezoneTemplateEditRequest,
 )
-from novelvideo.config import IMAGE_GENERATION_SELECTIONS
+from novelvideo.config import DEFAULT_IMAGE_SELECTION, IMAGE_GENERATION_SELECTIONS
+from novelvideo.config import LEGACY_IMAGE_GENERATION_SELECTION_ALIASES
+from novelvideo.engines.image import provider_of
 from novelvideo.freezone.paths import resolve_static_url_to_path, safe_upload_filename, uploads_dir
 from novelvideo.freezone.style_templates import (
     get_style_manifest_version,
@@ -32,9 +34,9 @@ from novelvideo.task_identity import task_state_key
 
 logger = logging.getLogger(__name__)
 
-FREEZONE_DEFAULT_IMAGE_SELECTION = "newapi_gpt_image2"
+FREEZONE_DEFAULT_IMAGE_SELECTION = DEFAULT_IMAGE_SELECTION
 FREEZONE_DEFAULT_IMAGE_MODEL = FREEZONE_DEFAULT_IMAGE_SELECTION
-SUPPORTED_FREEZONE_IMAGE_PROVIDERS = {"huimeng", "newapi", "openrouter", "openai"}
+SUPPORTED_FREEZONE_IMAGE_PROVIDERS = {"drawthings", "higgsfield"}
 FREEZONE_IMAGE_CAMERA_OPTIONS = {
     "camera_bodies": [
         {"id": "panavision_dxl2", "label": "Panavision DXL2"},
@@ -54,12 +56,13 @@ FREEZONE_IMAGE_CAMERA_OPTIONS = {
 
 
 def resolve_freezone_image_provider(provider: Optional[str], *, strict: bool = True) -> str:
-    """把 Freezone 图片 provider 归一化到当前支持的 SuperTale 范围内。"""
+    """把 Freezone 图片 provider 归一化到 drawthings / higgsfield。"""
+    default = provider_of(FREEZONE_DEFAULT_IMAGE_SELECTION)
     if provider and provider.strip():
         normalized = provider.strip().lower()
         if normalized not in SUPPORTED_FREEZONE_IMAGE_PROVIDERS:
             if not strict:
-                return "newapi"
+                return default
             raise HTTPException(
                 400,
                 "unsupported freezone image provider: "
@@ -67,7 +70,7 @@ def resolve_freezone_image_provider(provider: Optional[str], *, strict: bool = T
             )
         return normalized
 
-    return "newapi"
+    return default
 
 
 def new_freezone_job_id() -> str:
@@ -242,6 +245,7 @@ def split_provider_and_model(
 ) -> tuple[Optional[str], Optional[str]]:
     """解析 Freezone 图片模型。"""
     model_text = str(model or "").strip()
+    model_text = LEGACY_IMAGE_GENERATION_SELECTION_ALIASES.get(model_text, model_text)
     if model_text:
         if model_text in IMAGE_GENERATION_SELECTIONS:
             entry = IMAGE_GENERATION_SELECTIONS[model_text]

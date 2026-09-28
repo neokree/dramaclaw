@@ -952,7 +952,10 @@ async def update_project_character_image_selection(
     _ctx, username, project_name, _project_dir, _output_dir, _store = (
         await _resolve_character_project(project, user)
     )
+    from novelvideo.config import LEGACY_IMAGE_GENERATION_SELECTION_ALIASES
+
     selection = str(body.character_image_selection or "").strip()
+    selection = LEGACY_IMAGE_GENERATION_SELECTION_ALIASES.get(selection, selection)
     options = character_image_selection_options()
     if selection not in options:
         return JSONResponse(
@@ -1012,7 +1015,10 @@ async def update_project_asset_image_source_selection(
     _ctx, username, project_name, _project_dir, _output_dir, _store = (
         await _resolve_character_project(project, user)
     )
+    from novelvideo.config import LEGACY_IMAGE_GENERATION_SELECTION_ALIASES
+
     selection = str(body.image_source_selection or "").strip()
+    selection = LEGACY_IMAGE_GENERATION_SELECTION_ALIASES.get(selection, selection)
     options = image_generation_selection_options()
     if selection not in options:
         return JSONResponse(

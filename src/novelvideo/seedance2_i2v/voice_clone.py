@@ -7,8 +7,10 @@ so the existing Seedance 2.0 ``reference_audios`` asset path can pick it up.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import inspect
+import mimetypes
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -406,15 +408,20 @@ def build_reference_audio_url(audio_path: Path) -> str:
     ``data:`` URL. We cap raw audio at 5 MB and ask the user to re-encode
     anything larger to mono/16k MP3.
     """
-    from novelvideo.generators.huimengi import local_file_to_data_url
-
     size = Path(audio_path).stat().st_size
     if size > MAX_REFERENCE_AUDIO_BYTES:
         raise ValueError(
             f"Reference audio {Path(audio_path).name} is {size} bytes "
             f"(> {MAX_REFERENCE_AUDIO_BYTES}). Re-encode to mono/16k MP3 before use."
         )
-    return local_file_to_data_url(str(audio_path))
+    path = Path(audio_path)
+    mime_type = (
+        "audio/x-wav"
+        if path.suffix.lower() == ".wav"
+        else mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    )
+    encoded = base64.b64encode(path.read_bytes()).decode("utf-8")
+    return f"data:{mime_type};base64,{encoded}"
 
 
 VoiceTier = Literal["identity_override", "age_group_preset", "character_default"]

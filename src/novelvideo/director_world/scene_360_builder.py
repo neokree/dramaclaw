@@ -18,23 +18,12 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 from novelvideo.config import (
-    HUIMENG_IMAGE_MODEL,
-    NEWAPI_IMAGE_MODEL,
-    OPENAI_IMAGE_MODEL,
-    OPENROUTER_GPT_IMAGE2_MODEL,
     OUTPUT_DIR,
-    SCENE_360_HUIMENG_MODEL,
-    SCENE_360_IMAGE_MODEL,
-    SCENE_360_IMAGE_PROVIDER,
-    SCENE_360_PROVIDER,
     get_style_preset,
+    infer_image_generation_selection,
+    normalize_image_generation_selection,
 )
-from novelvideo.generators.nanobanana_grid import (
-    _call_huimeng_image_api,
-    _call_newapi_image_api,
-    _call_openai_image_api,
-    _call_openrouter_image_api,
-)
+from novelvideo.engines.image import generate_image
 
 # Demo defaults for standalone/manual runs. In production stage_asset_tasks
 # always passes absolute --output-dir/--master, so these defaults are never used.
@@ -771,56 +760,22 @@ def make_contact_sheet(
     sheet.save(output_dir / "scene_360_contact.jpg", quality=92)
 
 
-def _resolve_newapi_credentials() -> tuple[str, str]:
-    """Resolve newapi credentials, honoring an organization gateway injection.
-
-    This builder runs in its own OS process (`stage_asset_tasks.run_scene_360`
-    launches it), so the trusted-identity ContextVar cannot reach here. The parent
-    claims the operation and resolves the organization credential, then hands the
-    resolved credential over through process-local environment variables.
-
-    `ST_ORG_EGRESS_MODE` is what makes "no credential arrived" distinguishable from
-    "this is a platform task" — without it a missing credential would silently fall
-    back to the platform key in settings.db, which is exactly the leak being closed.
-    The credential must be passed as an explicit override: the environment fallback
-    in `get_newapi_runtime_credentials` only applies when the configured gateway is
-    itself environment backed, so an injected `NEWAPI_API_KEY` would be ignored in CE.
-    """
-
-    from novelvideo.config import get_newapi_runtime_credentials
-
-    if os.environ.get("ST_ORG_EGRESS_MODE") != "1":
-        return get_newapi_runtime_credentials()
-
-    org_key = (os.environ.get("ST_ORG_GATEWAY_API_KEY") or "").strip()
-    org_base_url = (os.environ.get("ST_ORG_GATEWAY_BASE_URL") or "").strip()
-    if not org_key or not org_base_url:
-        raise RuntimeError("ORG_CONTEXT_REQUIRED")
-    return get_newapi_runtime_credentials(
-        api_key_override=org_key,
-        base_url_override=org_base_url,
-    )
-
-
 async def run(args: argparse.Namespace) -> int:
     load_env()
     args.quality = str(
         args.quality
         or os.environ.get("SCENE_360_IMAGE_QUALITY")
-        or os.environ.get("HUIMENG_IMAGE_QUALITY")
         or SCENE_360_DEFAULT_QUALITY
     ).strip()
     args.image_size = str(
         args.image_size or os.environ.get("SCENE_360_IMAGE_SIZE") or SCENE_360_DEFAULT_IMAGE_SIZE
     ).strip()
-    provider = str(
-        args.provider
-        or os.environ.get("SCENE_360_IMAGE_PROVIDER")
-        or os.environ.get("SCENE_360_PROVIDER")
-        or SCENE_360_IMAGE_PROVIDER
-        or SCENE_360_PROVIDER
-        or "huimeng"
-    ).lower()
+    if args.provider or args.model:
+        selection = infer_image_generation_selection(args.provider, args.model)
+    else:
+        selection = normalize_image_generation_selection(
+            os.environ.get("SCENE_360_IMAGE_SELECTION")
+        )
     output_dir = repo_path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -967,7 +922,6 @@ async def run(args: argparse.Namespace) -> int:
     if not reference_images:
         reference_images = None  # type: ignore[assignment]
 
-    provider_trace: dict[str, str] = {}
     prompt = build_prompt(
         scene_name=args.scene_name,
         scene_description=args.scene_description,
@@ -987,99 +941,18 @@ async def run(args: argparse.Namespace) -> int:
     manifest_path = output_dir / "scene_360_manifest.json"
     prompt_path.write_text(prompt, encoding="utf-8")
 
-    if provider in {"huimeng", "huimengi"}:
-        api_key = os.environ.get("HUIMENGI_API_KEY")
-        if not api_key:
-            raise RuntimeError("HUIMENGI_API_KEY is missing")
-        model = (
-            args.model
-            or os.environ.get("SCENE_360_HUIMENG_MODEL")
-            or os.environ.get("HUIMENG_IMAGE_MODEL")
-            or SCENE_360_HUIMENG_MODEL
-            or HUIMENG_IMAGE_MODEL
-            or "image-2"
-        )
-        image_bytes, _text, error = await _call_huimeng_image_api(
-            api_key=api_key,
-            model=model,
-            prompt=prompt,
-            reference_images=[item[1] for item in reference_images] if reference_images else None,
-            image_config={
-                "aspect_ratio": "2:1",
-                "image_size": args.image_size,
-                "quality": args.quality,
-                "huimeng_image_quality": args.quality,
-                "output_format": "png",
-            },
-        )
-    elif provider == "openai":
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            raise RuntimeError("OPENAI_API_KEY is missing")
-        model = args.model or os.environ.get("OPENAI_IMAGE_MODEL") or OPENAI_IMAGE_MODEL
-        image_bytes, _text, error = await _call_openai_image_api(
-            api_key=api_key,
-            model=model,
-            prompt=prompt,
-            reference_images=reference_images,
-            image_config={
-                "aspect_ratio": "2:1",
-                "image_size": args.image_size,
-                "quality": args.quality,
-                "output_format": "png",
-            },
-        )
-    elif provider == "newapi":
-        api_key, base_url = _resolve_newapi_credentials()
-        if not api_key:
-            raise RuntimeError("NEWAPI_API_KEY is missing")
-        model = (
-            args.model
-            or os.environ.get("SCENE_360_IMAGE_MODEL")
-            or os.environ.get("NEWAPI_IMAGE_MODEL")
-            or SCENE_360_IMAGE_MODEL
-            or NEWAPI_IMAGE_MODEL
-        )
-        image_bytes, _text, error = await _call_newapi_image_api(
-            api_key=api_key,
-            model=model,
-            prompt=prompt,
-            reference_images=reference_images,
-            image_config={
-                "aspect_ratio": "2:1",
-                "image_size": args.image_size,
-                "quality": args.quality,
-                "output_format": "png",
-            },
-            base_url=base_url,
-            trace=provider_trace,
-            delivery_path=result_path,
-            delivery_state=(image_delivery_state := {}),
-            read_copied_bytes=False,
-        )
-    elif provider == "openrouter":
-        api_key = os.environ.get("OPENROUTER_API_KEY")
-        if not api_key:
-            raise RuntimeError("OPENROUTER_API_KEY is missing")
-        model = (
-            args.model
-            or os.environ.get("SCENE_360_OPENROUTER_MODEL")
-            or os.environ.get("OPENROUTER_GPT_IMAGE2_MODEL")
-            or OPENROUTER_GPT_IMAGE2_MODEL
-        )
-        image_bytes, _text, error = await _call_openrouter_image_api(
-            api_key=api_key,
-            model=model,
-            prompt=prompt,
-            reference_images=[item[1] for item in reference_images] if reference_images else None,
-            image_config={
-                "aspect_ratio": "2:1",
-                "image_size": args.image_size,
-                "quality": args.quality,
-            },
-        )
-    else:
-        raise ValueError(f"Unsupported scene 360 provider: {provider}")
+    # ponytail: models without 2:1 get the nearest ratio they take; the
+    # panorama is not stretched back to 2:1.
+    image_bytes, _text, error = await generate_image(
+        selection,
+        prompt,
+        refs=reference_images or [],
+        aspect_ratio="2:1",
+        image_size=args.image_size,
+        quality=args.quality,
+        usage={"task_type": "scene_360", "scope": f"scene:{args.scene_name}:360"},
+        output_path=result_path,
+    )
 
     manifest_path.write_text(
         json.dumps(
@@ -1100,16 +973,13 @@ async def run(args: argparse.Namespace) -> int:
                 "topology_strip": (
                     "reference_4_topology_strip_2to1.jpg" if has_topology_strip_ref else ""
                 ),
-                "provider": provider,
-                "model": model,
+                "selection": selection,
                 "quality": args.quality,
                 "image_size": args.image_size,
                 "style": args.style,
                 "layer_mode": args.layer_mode,
-                "request_id": provider_trace.get("request_id", ""),
-                "response_id": provider_trace.get("response_id", ""),
                 "result": str(result_path),
-                "size_note": ("scene 360 defaults to image-2 2K medium; aspect_ratio=2:1"),
+                "size_note": "scene 360 asks for 2K at aspect_ratio=2:1",
             },
             ensure_ascii=False,
             indent=2,
@@ -1117,12 +987,8 @@ async def run(args: argparse.Namespace) -> int:
         encoding="utf-8",
     )
 
-    if not image_bytes and not (
-        provider == "newapi" and image_delivery_state.get("copied")
-    ):
+    if not image_bytes:
         raise RuntimeError(error or "image generation returned no image")
-    if not (provider == "newapi" and image_delivery_state.get("copied")):
-        result_path.write_bytes(image_bytes)
 
     make_contact_sheet(output_dir, master_refs, result_path)
 

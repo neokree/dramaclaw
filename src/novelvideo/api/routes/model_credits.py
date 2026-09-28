@@ -65,10 +65,7 @@ def _clean_quantity(value: object) -> int:
 
 def _image_model_supports_quality(model: str) -> bool:
     model_name = str(model or "").strip().lower()
-    return (
-        model_name in {"lingshan-g2", "gpt-image-2", "image-2", "image-2-official"}
-        or "gpt-image" in model_name
-    )
+    return "gpt" in model_name and "image" in model_name
 
 
 def _image_billing_params(
@@ -155,9 +152,13 @@ def _image_selection_cost_model(selection: str) -> str:
 
     from novelvideo.config import (
         IMAGE_GENERATION_SELECTIONS,
+        LEGACY_IMAGE_GENERATION_SELECTION_ALIASES,
         character_image_selection_options,
     )
 
+    clean_selection = LEGACY_IMAGE_GENERATION_SELECTION_ALIASES.get(
+        clean_selection, clean_selection
+    )
     options = character_image_selection_options()
     clean_selection = _resolve_labeled_value(
         clean_selection,
@@ -244,7 +245,6 @@ def _fixed_image_billing_params(value: str, *, model: str) -> dict:
         image_size = (os.environ.get("SCENE_360_IMAGE_SIZE") or "2K").strip()
         quality = (
             os.environ.get("SCENE_360_IMAGE_QUALITY")
-            or os.environ.get("HUIMENG_IMAGE_QUALITY")
             or "medium"
         ).strip()
         return _image_billing_params(
@@ -287,23 +287,13 @@ def _image_selection_billing_params(
 
     clean_role = image_role.strip().lower()
     if clean_role == "sketch":
-        from novelvideo.config import OPENAI_SKETCH_IMAGE_QUALITY
-
-        params.update(
-            _image_billing_params(
-                model=model,
-                image_size="",
-                quality=OPENAI_SKETCH_IMAGE_QUALITY,
-            )
-        )
+        params.update(_image_billing_params(model=model, image_size="", quality="low"))
     elif clean_role in {"render", "character", "identity"}:
-        from novelvideo.config import OPENAI_IMAGE_QUALITY
-
         params.update(
             _image_billing_params(
                 model=model,
                 image_size="1K" if clean_role in {"character", "identity"} else "",
-                quality=OPENAI_IMAGE_QUALITY,
+                quality="medium",
             )
         )
     return params
@@ -665,7 +655,6 @@ def _feature_billing_params(value: str, params: dict, *, mode_key: str = "") -> 
         quality = str(
             params.get("quality")
             or os.environ.get("SCENE_360_IMAGE_QUALITY")
-            or os.environ.get("HUIMENG_IMAGE_QUALITY")
             or "medium"
         )
         return {

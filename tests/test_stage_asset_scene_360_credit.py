@@ -10,8 +10,7 @@ def test_scene_360_reserves_and_confirms_credit(monkeypatch, tmp_path):
 
     calls = []
 
-    monkeypatch.setenv("SCENE_360_IMAGE_PROVIDER", "newapi")
-    monkeypatch.setenv("SCENE_360_IMAGE_MODEL", "gpt-image-2")
+    monkeypatch.setenv("SCENE_360_IMAGE_SELECTION", "higgsfield:gpt_image_2")
     monkeypatch.setattr(
         stage_asset_tasks,
         "_reserve_scene_360_model_call",
@@ -51,20 +50,19 @@ def test_scene_360_reserves_and_confirms_credit(monkeypatch, tmp_path):
         tmp_path / "project",
         "Hall",
         source="text",
-        provider="newapi",
     )
 
     assert result["ok"] is True
-    assert result["model"] == "gpt-image-2"
+    assert result["model"] == "gpt_image_2"
     assert result["request_id"] == "req_360"
     assert result["response_id"] == "resp_360"
-    assert calls[0] == ("reserve", "gpt-image-2", "newapi", "2K", "medium")
+    assert calls[0] == ("reserve", "gpt_image_2", "higgsfield", "2K", "medium")
     assert calls[1] == (
         "confirm",
         {
-            "model": "gpt-image-2",
+            "model": "gpt_image_2",
             "reservation_id": "res_1",
-            "provider": "newapi",
+            "provider": "higgsfield",
             "provider_request_id": "req_360",
             "provider_task_id": "",
             "provider_response_id": "resp_360",
@@ -78,8 +76,7 @@ def test_scene_360_refunds_reserved_credit_on_subprocess_failure(monkeypatch, tm
 
     calls = []
 
-    monkeypatch.setenv("SCENE_360_IMAGE_PROVIDER", "newapi")
-    monkeypatch.setenv("SCENE_360_IMAGE_MODEL", "gpt-image-2")
+    monkeypatch.setenv("SCENE_360_IMAGE_SELECTION", "higgsfield:gpt_image_2")
     monkeypatch.setattr(
         stage_asset_tasks,
         "_reserve_scene_360_model_call",
@@ -111,18 +108,16 @@ def test_scene_360_refunds_reserved_credit_on_subprocess_failure(monkeypatch, tm
             tmp_path / "project",
             "Hall",
             source="text",
-            provider="newapi",
         )
 
     assert calls == [
-        ("reserve", "gpt-image-2", "newapi", "2K", "medium"),
-        ("refund", "res_1", "newapi", "RuntimeError"),
+        ("reserve", "gpt_image_2", "higgsfield", "2K", "medium"),
+        ("refund", "res_1", "higgsfield", "RuntimeError"),
     ]
 
 
 def test_scene_360_candidate_artifact_does_not_update_manifest(monkeypatch, tmp_path):
     from novelvideo import stage_asset_tasks
-    from novelvideo.config import NEWAPI_IMAGE_MODEL
 
     project_dir = tmp_path / "project"
     master = project_dir / "assets" / "scenes" / "Hall" / "master.png"
@@ -166,8 +161,8 @@ def test_scene_360_candidate_artifact_does_not_update_manifest(monkeypatch, tmp_
         project_dir,
         "Hall",
         source="master",
-        provider="newapi",
-        model=NEWAPI_IMAGE_MODEL,
+        provider="higgsfield",
+        model="gpt_image_2",
         master_path_override=master,
         reverse_master_path_override=reverse,
         artifact_dir=artifact_dir,

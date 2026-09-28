@@ -7,7 +7,7 @@
     ]
   },
   "dataLicense": "CC0-1.0",
-  "documentNamespace": "https://supertale.local/spdx/supertale-ce/bb2dd8180d0f7743",
+  "documentNamespace": "https://supertale.local/spdx/supertale-ce/6ee8829e3cdae46d",
   "name": "supertale-ce-p0b-sbom",
   "packages": [
     {
@@ -18,7 +18,7 @@
       "licenseConcluded": "Elastic-2.0",
       "licenseDeclared": "Elastic-2.0",
       "name": "supertale-ce",
-      "versionInfo": "2.0.1"
+      "versionInfo": "2.0.6"
     },
     {
       "SPDXID": "SPDXRef-Package-aiofiles",
@@ -1049,6 +1049,16 @@
       "licenseDeclared": "MIT",
       "name": "langdetect",
       "versionInfo": "1.0.9"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-langid",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "BSD-3-Clause",
+      "licenseDeclared": "BSD-3-Clause",
+      "name": "langid",
+      "versionInfo": "1.1.6"
     },
     {
       "SPDXID": "SPDXRef-Package-limits",
@@ -2361,6 +2371,16 @@
       "versionInfo": "15.0.1"
     },
     {
+      "SPDXID": "SPDXRef-Package-wordninja",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "name": "wordninja",
+      "versionInfo": "2.0.0"
+    },
+    {
       "SPDXID": "SPDXRef-Package-wrapt",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -2904,6 +2924,11 @@
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-langdetect",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-supertale-ce"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-langid",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -3559,6 +3584,11 @@
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-websockets",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-supertale-ce"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-wordninja",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },

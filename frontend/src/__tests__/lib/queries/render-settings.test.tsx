@@ -38,9 +38,9 @@ describe("render settings query", () => {
         return HttpResponse.json({
           ok: true,
           data: {
-            render_image_selection: "openrouter_nanobanana2",
+            render_image_selection: "higgsfield:nano_banana_flash",
             options: {
-              openrouter_nanobanana2: "OpenRouter NanoBanana 2",
+              "higgsfield:nano_banana_flash": "Nano Banana Flash",
             },
             sketch_aspect_padding: true,
           },
@@ -55,7 +55,7 @@ describe("render settings query", () => {
     await waitFor(() => expect(result.current.data).toBeDefined());
     expect(requestedPath).toBe("/api/v1/projects/demo/render-settings");
     expect(result.current.data?.data.render_image_selection).toBe(
-      "openrouter_nanobanana2",
+      "higgsfield:nano_banana_flash",
     );
     expect(result.current.data?.data.sketch_aspect_padding).toBe(true);
   });
@@ -72,9 +72,9 @@ describe("render settings query", () => {
           return HttpResponse.json({
             ok: true,
             data: {
-              render_image_selection: "openrouter_nanobanana2",
+              render_image_selection: "higgsfield:nano_banana_flash",
               options: {
-                openrouter_nanobanana2: "OpenRouter NanoBanana 2",
+                "higgsfield:nano_banana_flash": "Nano Banana Flash",
               },
             sketch_aspect_padding: true,
           },
@@ -88,14 +88,14 @@ describe("render settings query", () => {
     });
 
     result.current.mutate({
-      render_image_selection: "openrouter_nanobanana2",
+      render_image_selection: "higgsfield:nano_banana_flash",
       sketch_aspect_padding: true,
     });
 
     await waitFor(() => expect(result.current.data).toBeDefined());
     expect(requestedPath).toBe("/api/v1/projects/demo/render-settings");
     expect(receivedBody).toEqual({
-      render_image_selection: "openrouter_nanobanana2",
+      render_image_selection: "higgsfield:nano_banana_flash",
       sketch_aspect_padding: true,
     });
   });

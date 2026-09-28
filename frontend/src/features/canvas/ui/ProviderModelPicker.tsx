@@ -28,15 +28,8 @@ const MODEL_PICKER_POPOVER_CLASS =
 const MODEL_PICKER_OPTION_BASE_CLASS =
   'inline-flex h-8 w-full items-center gap-2 rounded-[6px] px-3 text-left text-xs font-medium transition-colors';
 
-export type ProviderId =
-  | 'newapi'
-  | 'huimeng'
-  | 'openrouter'
-  | 'openai'
-  | 'seedance'
-  | 'minimax'
-  | 'eleven'
-  | 'mureka';
+/** 引擎 id，来自目录条目的 providerId（drawthings / higgsfield / openrouter / h3c …）。 */
+export type ProviderId = string;
 
 export interface ProviderOption {
   id: ProviderId;
@@ -78,128 +71,48 @@ export interface ModelOption {
   request?: MediaModelRequestSchema;
 }
 
-// 服务商品牌名，不跟界面语言走。
-// i18n-exempt-start
 export const SHARED_PROVIDERS: ProviderOption[] = [
-  { id: 'newapi', label: '虾驿 / NewAPI' },
-  { id: 'huimeng', label: '绘梦 / HuiMeng' },
-// i18n-exempt-end
+  { id: 'higgsfield', label: 'Higgsfield' },
+  { id: 'drawthings', label: 'Draw Things' },
   { id: 'openrouter', label: 'OpenRouter' },
-  { id: 'openai', label: 'OpenAI' },
 ];
 
-// 兜底模型列表。仅在 /freezone/image/models 拉取失败时顶上 —— 正常路径下模型
-// 及其能力全部来自后台「媒体模型」配置。这里的能力字段跟着一起给，是为了让
-// 兜底状态下的尺寸 / 比例选择器仍有可用档位，而不是散落回各个面板里去硬编码。
+// 兜底图片模型：仅在 /freezone/image/models 拉取失败时顶上。正常路径下模型及其能力
+// 全部来自后台目录（src/novelvideo/media_catalog.py）。只放后端默认选择，不再维护清单。
+export const DEFAULT_SHARED_MODEL_ID = 'higgsfield:nano_banana_flash';
 export const SHARED_MODELS: ModelOption[] = [
   {
-    id: 'huimeng/gpt-image-2',
-    providerId: 'huimeng',
-    apiModel: 'huimeng_gpt_image2',
-    label: 'LingShan-G2',
+    id: DEFAULT_SHARED_MODEL_ID,
+    catalogId: DEFAULT_SHARED_MODEL_ID,
+    providerId: 'higgsfield',
+    apiModel: DEFAULT_SHARED_MODEL_ID,
+    label: 'Nano Banana 2',
     resolutionOptions: [...FALLBACK_IMAGE_SIZE_OPTIONS],
     ratioOptions: [...FALLBACK_IMAGE_ASPECT_OPTIONS],
-  },
-  {
-    id: 'openrouter/gemini-2.5-flash-image',
-    providerId: 'openrouter',
-    apiModel: 'google/gemini-2.5-flash-image-preview',
-    label: 'Gemini 2.5 Flash Image',
-    resolutionOptions: [...FALLBACK_IMAGE_SIZE_OPTIONS],
-    ratioOptions: [...FALLBACK_IMAGE_ASPECT_OPTIONS],
-  },
-  {
-    id: 'openai/gpt-image-2',
-    providerId: 'openai',
-    apiModel: 'gpt-image-2',
-    label: 'GPT Image 2',
-    resolutionOptions: [...FALLBACK_IMAGE_SIZE_OPTIONS],
-    ratioOptions: [...FALLBACK_IMAGE_ASPECT_OPTIONS],
-    qualityOptions: ['low', 'medium', 'high'],
   },
 ];
 
-export const DEFAULT_SHARED_MODEL_ID = 'huimeng/gpt-image-2';
-
-// Video generation models. `id` is the raw backend model id sent to
-// /freezone/video/gen so we don't need a separate apiModel mapping.
 export const VIDEO_PROVIDERS: ProviderOption[] = [
-  { id: 'seedance', label: 'Seedance' },
-  { id: 'huimeng', label: '绘梦 / HuiMeng' }, // i18n-exempt —— 服务商品牌名
+  { id: 'higgsfield', label: 'Higgsfield' },
+  { id: 'h3c', label: 'h3.c' },
 ];
 
-// 兜底视频模型列表。同 SHARED_MODELS：仅在 /freezone/video/models 拉取失败时
-// 顶上，能力字段随行以保证兜底状态下参数面板仍有档位可选。
+// 与后端默认视频 backend 一致。节点首次创建、目录还没回来时用它。
+export const DEFAULT_VIDEO_MODEL_ID = 'higgsfield:seedance_2_0?mode=fast';
+
+// 兜底视频模型：同 SHARED_MODELS，仅在 /freezone/video/models 拉取失败时顶上。
 export const VIDEO_MODELS: ModelOption[] = [
   {
-    id: 'newapi_seedance-2.0-fast',
-    providerId: 'seedance',
-    apiModel: 'newapi_seedance-2.0-fast',
-    label: 'Seedance2.0 Fast',
-    resolutionOptions: ['480p', '720p'],
+    id: DEFAULT_VIDEO_MODEL_ID,
+    catalogId: DEFAULT_VIDEO_MODEL_ID,
+    providerId: 'higgsfield',
+    apiModel: DEFAULT_VIDEO_MODEL_ID,
+    label: 'Seedance 2.0 Fast',
     ratioOptions: [...FALLBACK_VIDEO_ASPECT_OPTIONS],
     minDuration: 4,
     maxDuration: 15,
-  },
-  {
-    id: 'newapi_seedance-2.0',
-    providerId: 'seedance',
-    apiModel: 'newapi_seedance-2.0',
-    label: 'Seedance2.0',
-    resolutionOptions: ['480p', '720p', '1080p'],
-    ratioOptions: [...FALLBACK_VIDEO_ASPECT_OPTIONS],
-    minDuration: 4,
-    maxDuration: 15,
-  },
-  {
-    id: 'newapi_seedance-2.0-value',
-    providerId: 'seedance',
-    apiModel: 'newapi_seedance-2.0-value',
-    label: 'Seedance2.0 Value',
-    resolutionOptions: ['720p', '1080p'],
-    ratioOptions: [...FALLBACK_VIDEO_ASPECT_OPTIONS],
-    minDuration: 4,
-    maxDuration: 15,
-    sceneOptimizeOptions: ['anime', 'realistic'],
-    defaultSceneOptimize: 'anime',
-  },
-  {
-    id: 'newapi_seedance-2.0-fast-value',
-    providerId: 'seedance',
-    apiModel: 'newapi_seedance-2.0-fast-value',
-    label: 'Seedance2.0 Fast Value',
-    resolutionOptions: ['720p', '1080p'],
-    ratioOptions: [...FALLBACK_VIDEO_ASPECT_OPTIONS],
-    minDuration: 4,
-    maxDuration: 15,
-    sceneOptimizeOptions: ['anime', 'realistic'],
-    defaultSceneOptimize: 'realistic',
-  },
-  {
-    id: 'newapi_seedance-1.5-pro',
-    providerId: 'seedance',
-    apiModel: 'newapi_seedance-1.5-pro',
-    label: 'Seedance1.5 Pro',
-    ratioOptions: [...FALLBACK_VIDEO_ASPECT_OPTIONS],
-    minDuration: 4,
-    maxDuration: 12,
-  },
-  {
-    id: 'newapi_seedance-1.0-pro-fast',
-    providerId: 'seedance',
-    apiModel: 'newapi_seedance-1.0-pro-fast',
-    label: 'Seedance1.0 Pro Fast',
-    ratioOptions: [...FALLBACK_VIDEO_ASPECT_OPTIONS],
-    minDuration: 2,
-    maxDuration: 12,
   },
 ];
-
-// Matches the backend `FreezoneVideoGenRequest.model` default. The picker
-// hydrates the live list via /freezone/video/models, but this id is what the
-// canvas store uses on first node creation before that fetch resolves (and
-// when no previously-picked model has been remembered).
-export const DEFAULT_VIDEO_MODEL_ID = 'newapi_seedance-2.0';
 
 export type ProviderModelDomain = 'image' | 'video';
 
@@ -221,7 +134,7 @@ interface ProviderModelPickerProps {
    * Returns a disabled reason for a given model option, or null when the model
    * is selectable. When non-null, that option is rendered greyed-out and not
    * clickable, with the reason shown as a hover tooltip. Used by the video node
-   * to block Seedance 1.0 models while reference media is attached.
+   * to block models that cannot consume the attached reference media.
    */
   getOptionDisabledReason?: (model: ModelOption) => string | null;
 }

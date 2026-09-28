@@ -103,7 +103,7 @@ const DEFAULT_EXTRA_PARAM_ITEM_CLASS_NAME =
 const DEFAULT_EXTRA_PARAM_LABEL_CLASS_NAME = 'text-xs font-medium text-text-dark';
 const DEFAULT_EXTRA_PARAM_FIELD_CLASS_NAME = 'h-9 text-sm';
 
-function NanoBananaIcon({ className = '' }: { className?: string }) {
+function ImageModelIcon({ className = '' }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -248,7 +248,7 @@ export const ModelParamsControls = memo(({
   );
   const selectedProviderName = selectedProvider.label || selectedProvider.name;
   const providerOptions = useMemo(() => {
-    const providerOrder = ['huimeng', 'openrouter', 'openai'];
+    const providerOrder = ['higgsfield', 'drawthings', 'openrouter'];
     const providerIndex = new Map(providerOrder.map((id, index) => [id, index]));
     const uniqueProviderIds = Array.from(new Set(imageModels.map((model) => model.providerId)));
     return uniqueProviderIds
@@ -474,7 +474,7 @@ export const ModelParamsControls = memo(({
             setOpenPanel('model');
           }}
         >
-          <NanoBananaIcon className={modelIconClassName} />
+          <ImageModelIcon className={modelIconClassName} />
           <span className={modelTextClassName}>{selectedModelName}</span>
           {showProviderName && (
             <span className={providerTextClassName}>{selectedProviderName}</span>

@@ -251,14 +251,12 @@ vi.mock("@/lib/queries/video", () => ({
           label: "Seedance 1.0",
           is_default: true,
           is_seedance2: false,
-          dialogue_only: false,
         },
         {
-          value: "huimeng_seedance-2.0-fast",
+          value: "higgsfield:seedance_2_0?mode=fast",
           label: "Seedance 2.0 Fast",
           is_default: false,
           is_seedance2: true,
-          dialogue_only: false,
         },
       ],
     },
@@ -270,7 +268,7 @@ vi.mock("@/lib/queries/sketch-settings", () => ({
     data: {
       ok: true,
       data: {
-        sketch_image_selection: "newapi_gpt_image2",
+        sketch_image_selection: "higgsfield:gpt_image_2",
         options: {},
       },
     },
@@ -526,7 +524,7 @@ describe("BatchBar", () => {
 
   it.each([
     ["narrated" as const, "seedance"],
-    ["narrated" as const, "huimeng_seedance-2.0-fast"],
+    ["narrated" as const, "higgsfield:seedance_2_0?mode=fast"],
     ["drama" as const, "seedance"],
   ])(
     "hides whole-episode audio from the batch toolbar (%s / %s)",

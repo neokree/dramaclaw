@@ -130,8 +130,8 @@ describe("目录动态参数的端到端往返", () => {
   it("没有 request.parameters 的目录条目不凭空造出参数字段", () => {
     const definition = toImageModelDefinition({
       id: "plain",
-      providerId: "huimeng",
-      apiModel: "huimeng_gpt_image2",
+      providerId: "drawthings",
+      apiModel: "drawthings",
       label: "Plain",
     });
     expect(definition.requestParameters).toBeUndefined();

@@ -36,7 +36,7 @@ vi.mock("@/lib/runtime-config", () => ({
 }));
 
 vi.mock("@/lib/queries/model-gateway", () => ({
-  useModelGatewayConfig: () => ({ data: undefined }),
+  useEnginesStatus: () => ({ data: undefined }),
 }));
 
 vi.mock("@/lib/queries/auth", () => ({

@@ -57,7 +57,7 @@ vi.mock("@/lib/queries/video", () => ({
       ok: true,
       data: [
         {
-          value: "huimeng_seedance-2.0-fast",
+          value: "higgsfield:seedance_2_0?mode=fast",
           label: "Seedance 2.0 Fast",
           is_seedance2: true,
         },
@@ -129,7 +129,7 @@ function renderPanel(
         project="demo"
         episode={1}
         stages={{ audio: "missing", video: "missing", sketch: "ready", render: "ready" }}
-        defaultBackend="huimeng_seedance-2.0-fast"
+        defaultBackend="higgsfield:seedance_2_0?mode=fast"
         onDefaultBackendChange={vi.fn()}
         spineTemplate={options.spineTemplate}
         isSeedance2Backend={options.isSeedance2Backend}

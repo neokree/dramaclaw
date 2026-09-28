@@ -114,14 +114,14 @@ describe("sketch generation query", () => {
     result.current.mutate({
       grid_index: 0,
       aspect_ratio: "16:9",
-      image_generation_selection: "openrouter_nanobanana2",
+      image_generation_selection: "higgsfield:nano_banana_flash",
     });
 
     await waitFor(() => expect(result.current.data).toBeDefined());
     expect(receivedBody).toEqual({
       grid_index: 0,
       aspect_ratio: "16:9",
-      image_generation_selection: "openrouter_nanobanana2",
+      image_generation_selection: "higgsfield:nano_banana_flash",
     });
   });
 });
@@ -486,7 +486,6 @@ describe("render grid query", () => {
 
     result.current.mutate({
       gridIndex: 3,
-      model: "nanobanana",
       sceneGrouping: true,
     });
 
@@ -495,7 +494,6 @@ describe("render grid query", () => {
       "/api/v1/projects/demo/episodes/1/grids/3/regenerate",
     );
     expect(receivedBody).toEqual({
-      model: "nanobanana",
       scene_grouping: true,
       character_grouping: false,
     });
@@ -523,16 +521,15 @@ describe("render grid query", () => {
 
     result.current.mutate({
       gridIndex: 3,
-      imageGenerationSelection: "openrouter_nanobanana2",
+      imageGenerationSelection: "higgsfield:nano_banana_flash",
       sketchAspectPadding: true,
     });
 
     await waitFor(() => expect(result.current.data).toBeDefined());
     expect(receivedBody).toEqual({
-      model: "nanobanana",
       scene_grouping: false,
       character_grouping: false,
-      image_generation_selection: "openrouter_nanobanana2",
+      image_generation_selection: "higgsfield:nano_banana_flash",
       sketch_aspect_padding: true,
     });
   });
@@ -563,7 +560,7 @@ describe("render grid query", () => {
     result.current.mutate({
       beatIndices: [1, 3],
       modeKey: "1x1_2-3",
-      imageGenerationSelection: "openrouter_nanobanana2",
+      imageGenerationSelection: "higgsfield:nano_banana_flash",
       sketchAspectPadding: true,
     });
 
@@ -572,7 +569,7 @@ describe("render grid query", () => {
     expect(receivedBody).toEqual({
       beat_indices: [1, 3],
       mode_key: "1x1_2-3",
-      image_generation_selection: "openrouter_nanobanana2",
+      image_generation_selection: "higgsfield:nano_banana_flash",
       sketch_aspect_padding: true,
     });
   });

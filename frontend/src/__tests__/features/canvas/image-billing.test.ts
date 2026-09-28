@@ -22,11 +22,11 @@ describe("buildImageFeatureBillingParams", () => {
   it("preserves the static CE fallback without inventing a catalog id", () => {
     expect(
       buildImageFeatureBillingParams(
-        { apiModel: "newapi_gpt_image2" },
+        { apiModel: "higgsfield:nano_banana_flash" },
         { size: "1K" },
       ),
     ).toEqual({
-      image_selection: "newapi_gpt_image2",
+      image_selection: "higgsfield:nano_banana_flash",
       size: "1K",
     });
   });

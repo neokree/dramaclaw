@@ -63,7 +63,7 @@ vi.mock("@/lib/queries/video", () => ({
       ok: true,
       data: [
         {
-          value: "huimeng_seedance-2.0-fast",
+          value: "higgsfield:seedance_2_0?mode=fast",
           label: "Seedance 2.0 Fast",
           is_seedance2: true,
         },
@@ -142,7 +142,7 @@ describe("ActionPanel", () => {
           states={states}
           project="demo"
           episode={1}
-          defaultBackend="huimeng_seedance-2.0-fast"
+          defaultBackend="higgsfield:seedance_2_0?mode=fast"
           onDefaultBackendChange={vi.fn()}
         />
       </I18nextProvider>,
@@ -168,7 +168,7 @@ describe("ActionPanel", () => {
       states,
       project: "demo",
       episode: 1,
-      defaultBackend: "huimeng_seedance-2.0-fast",
+      defaultBackend: "higgsfield:seedance_2_0?mode=fast",
       onDefaultBackendChange: vi.fn(),
     };
 
@@ -220,7 +220,7 @@ describe("ActionPanel", () => {
           states={states}
           project="demo"
           episode={1}
-          defaultBackend="huimeng_seedance-2.0-fast"
+          defaultBackend="higgsfield:seedance_2_0?mode=fast"
           onDefaultBackendChange={vi.fn()}
         />
       </I18nextProvider>,
@@ -238,7 +238,7 @@ describe("ActionPanel", () => {
           states={states}
           project="demo"
           episode={1}
-          defaultBackend="huimeng_seedance-2.0-fast"
+          defaultBackend="higgsfield:seedance_2_0?mode=fast"
           onDefaultBackendChange={vi.fn()}
         />
       </I18nextProvider>,
@@ -265,7 +265,7 @@ describe("ActionPanel", () => {
           states={states}
           project="demo"
           episode={1}
-          defaultBackend="huimeng_seedance-2.0-fast"
+          defaultBackend="higgsfield:seedance_2_0?mode=fast"
           onDefaultBackendChange={vi.fn()}
           targetSection="sketch"
         />

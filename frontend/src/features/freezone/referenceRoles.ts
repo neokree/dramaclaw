@@ -3,8 +3,8 @@
 /**
  * Reference image role tagging (v1.6ζ).
  *
- * The base GenNode connects N reference images as a flat array. SuperTale's `nanobanana_grid` likewise
- * doesn't natively distinguish "use this as the character anchor" vs "use
+ * The base GenNode connects N reference images as a flat array. The image engines likewise
+ * don't natively distinguish "use this as the character anchor" vs "use
  * this as the style reference" — but those have very different effects on
  * how the model uses the image.
  *
@@ -89,7 +89,7 @@ export function renderReferenceRolesForPrompt(
 
 /**
  * Reorder references so character anchors come first, then pose, then style,
- * then generic. Most providers (gpt-image-2, nanobanana, OpenRouter Gemini)
+ * then generic. Most image models
  * weight earlier references higher; pinning identity first usually wins.
  *
  * Returns reordered URLs + a remapped role table aligned to the new order.

@@ -20,7 +20,7 @@ import i18n from 'i18next';
 
 import type { MediaModelRequestSchema } from '@/api/ops';
 import type { ImageModelDefinition } from '@/features/canvas/models';
-import { normalizeImageModelId } from '@/features/canvas/models';
+import { DEFAULT_IMAGE_MODEL_ID } from '@/features/canvas/models';
 import {
   isAuthoritativeEmptyCatalog,
   useFreezoneImageModels,
@@ -88,11 +88,9 @@ export function toImageModelDefinition(
     ...(parameters.length > 0 ? { requestParameters: parameters } : {}),
     resolveRequest: ({ referenceImageCount }) => ({
       // 必须带上 provider 前缀：`freezoneAiGateway.splitProviderModel` 按**第一个**
-      // `/` 拆 provider/model。只给裸 apiModel 的话，`huimeng_gpt_image2` 这类无斜杠
-      // 的会丢掉 provider（回落到后端 env），而 OpenRouter 那种自带命名空间的
-      // `google/gemini-2.5-flash-image-preview` 更会被截成 `gemini-...`，与目录里
-      // 配置的模型对不上，后端 `_catalog_image_execution_selection` 直接 400。
-      // 加前缀后拆出来正是 (openrouter, google/gemini-2.5-flash-image-preview)。
+      // `/` 拆 provider/model。OpenRouter 那种自带命名空间的模型名
+      // （`openrouter:google/...`）不加前缀会被截断，与目录对不上，后端
+      // `_catalog_image_execution_selection` 直接 400。
       requestModel: `${info.providerId}/${info.apiModel}`,
       modeLabel: i18n.t(
         referenceImageCount > 0
@@ -109,7 +107,7 @@ export interface CatalogImageModels {
   /**
    * 按节点上存的 model id 取模型。
    *
-   * 兜底链：精确 id → 历史 id 别名 → apiModel 同名 → 目录首个模型。节点上可能
+   * 兜底链：精确 id → apiModel 同名 → 后端默认模型 → 目录首个模型。节点上可能
    * 存着后台已经下线的模型，这时落回第一个可用模型而不是崩掉。
    *
    * 权威空目录（`isEmpty`）时返回 undefined —— 没有任何模型可选是一个必须让调用方
@@ -155,8 +153,8 @@ export function useCatalogImageModels(): CatalogImageModels {
         const requested = String(modelId ?? '').trim();
         return (
           byId.get(requested)
-          ?? byId.get(normalizeImageModelId(requested))
           ?? byApiModel.get(requested)
+          ?? byId.get(DEFAULT_IMAGE_MODEL_ID)
           ?? models[0]
         );
       },

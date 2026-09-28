@@ -73,7 +73,7 @@ describe("useCatalogImageModels 的空目录语义", () => {
     expect(result.isEmpty).toBe(true);
     expect(result.models).toEqual([]);
     // 节点上存着的旧模型 id 也不能凭空复活成兜底模型。
-    expect(result.getModel("huimeng_gpt_image2")).toBeUndefined();
+    expect(result.getModel("higgsfield:nano_banana_flash")).toBeUndefined();
     expect(result.getModel(null)).toBeUndefined();
   });
 

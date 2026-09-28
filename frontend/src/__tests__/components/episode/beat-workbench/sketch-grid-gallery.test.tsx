@@ -450,7 +450,7 @@ describe("SketchGridGallery", () => {
           episode={1}
           beats={plannedBeats}
           aspectRatio="16:9"
-          imageGenerationSelection="openrouter_nanobanana2"
+          imageGenerationSelection="higgsfield:nano_banana_flash"
         />
       </I18nextProvider>,
     );
@@ -461,7 +461,7 @@ describe("SketchGridGallery", () => {
       grid_index: 0,
       sketch_scene_grouping: true,
       aspect_ratio: "16:9",
-      image_generation_selection: "openrouter_nanobanana2",
+      image_generation_selection: "higgsfield:nano_banana_flash",
     });
   });
 

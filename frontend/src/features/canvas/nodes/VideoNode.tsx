@@ -70,8 +70,6 @@ import {
   MAX_AUDIO_REFERENCE_TOTAL_DURATION_MS,
   MIN_AUDIO_REFERENCE_DURATION_MS,
   referenceDurationLimitsMs,
-  isHappyHorseVideoModel,
-  isSeedance2VideoModel,
   isVideoModeSupportedByModel,
   resolveVideoKeyframeUrls,
   videoEmptyStateCtaModes,
@@ -291,7 +289,6 @@ const REFERENCE_CAPS_BY_MODE: Partial<
 export const ASPECT_RATIOS: ReadonlyArray<FreezoneVideoAspectRatio> =
   FALLBACK_VIDEO_ASPECT_OPTIONS;
 const QUALITIES: ReadonlyArray<VideoGenQuality> = FALLBACK_VIDEO_RESOLUTION_OPTIONS;
-const SCENE_OPTIMIZE_OPTIONS: ReadonlyArray<Seedance2SceneOptimize> = ["anime", "realistic"];
 const DEFAULT_DURATION_MIN = 5;
 const DEFAULT_DURATION_MAX = 15;
 
@@ -372,18 +369,8 @@ function probeVideoDurationMs(url: string): Promise<number | null> {
   return probeMediaDurationMs(url, "video");
 }
 
-function isSeedance2ValueModel(modelId: string | null | undefined): boolean {
-  const normalized = String(modelId ?? "").trim().toLowerCase();
-  return normalized === "newapi_seedance-2.0-value" ||
-    normalized === "newapi_seedance-2.0-fast-value" ||
-    normalized === "huimeng_seedance-2.0-value" ||
-    normalized === "huimeng_seedance-2.0-fast-value";
-}
-
-// 模型能力判定（isHappyHorseVideoModel / isSeedance1xVideoModel /
-// isSeedance2VideoModel / isGrokVideoChannelModel / isVideoModeSupportedByModel）
-// 统一收敛到 nodes/shared/videoModelCapabilities.ts，作为 CTA / tab / 提交校验的
-// 单一事实来源；这里仅额外叠加媒体目录声明的逐模式素材上限。
+// 模型能力判定统一收敛到 nodes/shared/videoModelCapabilities.ts（只读媒体目录能力），
+// 这里仅额外叠加媒体目录声明的逐模式素材上限。
 
 function selectedVideoModelReferenceDisabledReason(
   model: ModelOption | null | undefined,
@@ -475,7 +462,7 @@ function sceneOptimizeOptionsForModel(
   if (model?.sceneOptimizeOptions?.length) {
     return model.sceneOptimizeOptions;
   }
-  return isSeedance2ValueModel(model?.apiModel ?? model?.id) ? SCENE_OPTIMIZE_OPTIONS : [];
+  return [];
 }
 
 function defaultSceneOptimizeForModel(
@@ -488,8 +475,7 @@ function defaultSceneOptimizeForModel(
   if (model?.defaultSceneOptimize === "anime" || model?.defaultSceneOptimize === "realistic") {
     return model.defaultSceneOptimize;
   }
-  const modelId = String(model?.apiModel ?? model?.id ?? "").toLowerCase();
-  return modelId.includes("fast-value") ? "realistic" : "anime";
+  return "anime";
 }
 
 function normalizeSceneOptimize(
@@ -529,7 +515,7 @@ function referenceImageUrl(node: CanvasNode | undefined | null): string | null {
 
 // 上游「视频引用」：视频节点自带 videoUrl，但从资产库选入的视频是 upload 节点，
 // 地址同样写在 data.videoUrl。所以「是不是视频上游」应按「存在非空 data.videoUrl」
-// 判定，而非节点类型——否则资产库视频会被漏认（HappyHorse 不自动切 videoEdit、
+// 判定，而非节点类型——否则资产库视频会被漏认（不自动切 videoEdit、
 // 提交找不到 videoUrl），还会被 referenceImageUrl / isUploadNode 误当图片。
 function referenceVideoUrl(node: CanvasNode | undefined | null): string | null {
   if (!node) return null;
@@ -678,7 +664,6 @@ export const VideoNode = memo(
     }, [availableVideoModels, data.model]);
     const modelId = selectedVideoModel?.id ?? "";
     const selectedVideoModelId = selectedVideoModel?.apiModel ?? selectedVideoModel?.id ?? modelId;
-    const isHappyHorseModel = isHappyHorseVideoModel(selectedVideoModelId);
     const configuredAspectRatios = useMemo(
       () => (selectedVideoModel?.ratioOptions ?? []).map((ratio) => ratio.trim()).filter(Boolean),
       [selectedVideoModel],
@@ -747,12 +732,10 @@ export const VideoNode = memo(
       (typeof data.generateAudio === "boolean"
         ? data.generateAudio
         : defaultGenerateAudio);
-    // 家族判定必须喂 `selectedVideoModelId`(apiModel ?? id)，**不能用 `modelId`**：
-    // `modelId` 是 `selectedVideoModel.id`，在 EE 里是 media_model_catalog 的 ULID
-    // 主键（如 `01KZ58VSE52RFFDASY2T9SY4NC`），根本不含模型名，判定恒为 false ——
-    // 选了 Seedance 2.0 也会被「全能参考仅支持 Seedance 2.0」挡下，视频/音频上游
-    // 也不再自动切模式。CE 兜底列表恰好 id === apiModel，所以这个坑只在 EE 显形。
-    const isSeedance20Model = isSeedance2VideoModel(selectedVideoModelId);
+    // 逐条 1.8~15.2s / 总和 15.2s 是 Seedance 2.0 的厂商口径；目录没配时长上限时，
+    // 对所有收音频参考的模型沿用它。
+    // ponytail: vendor default for any audio-reference model; add per-model seconds to the catalog if another vendor differs.
+    const acceptsAudioReferences = (selectedVideoModel?.referenceAudioMax ?? 0) > 0;
     const supportsAllReference = isVideoModeSupportedByModel(
       "allReference",
       selectedVideoModel,
@@ -1057,7 +1040,7 @@ export const VideoNode = memo(
       }
       return { images, videos, audios };
     }, [upstreamNodes]);
-    // HappyHorse 的模式可用性由「上游节点类型」决定，而非素材是否已填。空的图片
+    // 模式可用性按「上游节点类型」统计，而非素材是否已填。空的图片
     // 节点（尚未生成/上传图）也应让「首帧 / 图片参考」可选——用户先连节点、后填图
     // 是正常顺序。所以这里按节点类型统计，区别于 upstreamCounts 的「已解析 URL」口径。
     const upstreamTypeCounts = useMemo(() => {
@@ -1430,8 +1413,7 @@ export const VideoNode = memo(
           );
           state.autoGroupSpawn(id, [newId], { label: groupLabel });
           // 上游图片直接作为素材喂给对应端点；模式切到用户点的那一个，不预填提示词
-          // （尊重用户已写内容）。HappyHorse 下由统一状态机确认（imageToVideo /
-          // imageReference 都与「1 张上游图」匹配，不会被改写）；非 HappyHorse 下
+          // （尊重用户已写内容）。
           // data.genMode 一旦非空，默认推断 effect 就不再覆盖它。
           updateNodeData(id, { genMode: mode });
           return;
@@ -1487,12 +1469,9 @@ export const VideoNode = memo(
 
     // First time an upstream image becomes available, flip the gen mode so the
     // video actually consumes it. 默认模式按模型能力选（videoUpstreamImageDefaultMode）：
-    // Seedance 2.0 → 全能参考（1-9 图的通用入口，首尾帧仍可经空态 CTA 进入）；
-    // Seedance 1.x → 首帧（1.x 不支持全能参考，默认推成它会让提交必 400）。
+    // 目录声明了全能参考 → 全能参考，否则退到图生视频 / 首帧。
     // 仅在 data.genMode 未定义时兜底——用户一旦选过任何 tab 就尊重其选择。
-    // HappyHorse 走下面的统一状态机，不参与这条默认。
     useEffect(() => {
-      if (isHappyHorseModel) return;
       if (data.genMode != null) return;
       if (referenceImages.length === 0) return;
       const defaultMode = videoUpstreamImageDefaultMode(selectedVideoModel);
@@ -1500,52 +1479,8 @@ export const VideoNode = memo(
     }, [
       data.genMode,
       id,
-      isHappyHorseModel,
       referenceImages.length,
       selectedVideoModel,
-      updateNodeData,
-    ]);
-
-    // HappyHorse 的模式完全由上游节点类型决定（文档的 4 大功能一一对应），这里用
-    // 一条统一状态机替代分散的兜底 effect，避免多个 effect 互相打架：
-    //   - 上游有视频            → 视频编辑 (videoEdit / video_url)
-    //   - 上游图片 >1 张        → 图片参考 (imageReference / reference_images 1-9)
-    //   - 上游图片 == 1 张      → 按目录能力选择单图默认入口，并尊重用户主动选择的
-    //                             首帧 / 图生视频 / 图片参考
-    //   - 无上游                → 文生视频 (textToVideo)
-    // 每次都纠正，确保 genMode 不会卡在与当前上游不匹配的模式（否则 submit 时会被
-    // 静默截断 / 触发上游互斥报错）。
-    useEffect(() => {
-      if (!isHappyHorseModel) return;
-      const { images, videos } = upstreamTypeCounts;
-      let target: VideoGenMode;
-      if (videos > 0) {
-        target = "videoEdit";
-      } else if (images > 1) {
-        target = "imageReference";
-      } else if (images === 1) {
-        const currentImageMode = ["firstFrame", "imageToVideo", "imageReference"].includes(
-          genMode,
-        )
-          ? genMode
-          : null;
-        target =
-          currentImageMode && isVideoModeSupportedByModel(currentImageMode, selectedVideoModel)
-            ? currentImageMode
-            : (videoUpstreamImageDefaultMode(selectedVideoModel) ?? "textToVideo");
-      } else {
-        target = "textToVideo";
-      }
-      if (genMode !== target) {
-        updateNodeData(id, { genMode: target });
-      }
-    }, [
-      genMode,
-      id,
-      isHappyHorseModel,
-      selectedVideoModel,
-      upstreamTypeCounts.images,
-      upstreamTypeCounts.videos,
       updateNodeData,
     ]);
 
@@ -1568,7 +1503,6 @@ export const VideoNode = memo(
         hasAudioUpstream &&
         data.genMode !== "allReference" &&
         !(data.genMode === "videoEdit" && videoEditAcceptsAudio) &&
-        !isHappyHorseModel &&
         supportsAllReference
       ) {
         updateNodeData(id, { genMode: "allReference" });
@@ -1577,25 +1511,24 @@ export const VideoNode = memo(
       data.genMode,
       hasAudioUpstream,
       id,
-      isHappyHorseModel,
       supportsAllReference,
       updateNodeData,
       videoEditAcceptsAudio,
     ]);
 
-    // Seedance 1.x 吃不下视频 / 音频，留在上面只能收获一次必然失败的提交。用户把
-    // 视频或音频节点连上来就是明确意图，直接替他换成 Seedance 2.0 + 全能参考。
+    // 当前模型（按目录能力）吃不下视频 / 音频，留在上面只能收获一次必然失败的提交。用户把
+    // 视频或音频节点连上来就是明确意图，直接替他换成支持全能参考的模型。
     // 判定走 upstreamTypeCounts（按节点类型）：空的视频节点也算 —— 先连节点、后生成
-    // 是正常顺序，等它出了 URL 再切模型就太迟了（用户中间会看见一个不该出现的 1.x）。
+    // 是正常顺序，等它出了 URL 再切模型就太迟了（用户中间会看见一个不该出现的旧模型）。
     // 模型和模式必须一次 patch 写完：分两步会先渲染出「2.0 + 图生视频」的中间态，
     // 再被下面那条 videos→allReference 的 effect 纠一次，白闪一帧。
     //
     // 只在「没有 → 有视频/音频」这一次跳变时触发，**不能每次渲染都无条件纠正**：
     // updateNodeData 每次都 pushSnapshot 且清空 future（canvasStore），若持续纠正，
-    // 用户 ⌘Z 恢复回 1.x 后边还在，effect 立刻把 2.0 写回去、再压一条 past ——
+    // 用户 ⌘Z 恢复回旧模型后边还在，effect 立刻把新模型写回去、再压一条 past ——
     // 撤销看起来毫无反应，redo 栈还被清空，等于把「回到连线之前」这条路堵死。改的
     // 又是 model 这种用户显式挑过的值，无声覆盖且撤不回来，性质比 genMode 重得多。
-    // 一次性触发也不会被绕过：素材在场期间选择器已经把 1.x 置灰了，切不回去。
+    // 一次性触发也不会被绕过：素材在场期间选择器已经把旧模型置灰了，切不回去。
     // 与紧邻上面那条音频 → allReference 的 effect 用的是同一套闩锁。
     const autoSwitchedForMediaRef = useRef(false);
     useEffect(() => {
@@ -1640,7 +1573,6 @@ export const VideoNode = memo(
     // 以免顶进提交必 400 的模式。
     useEffect(() => {
       if (upstreamCounts.videos === 0) return;
-      if (isHappyHorseModel) return;
       if (genMode === "videoEdit" && supportsVideoEdit) return;
       if (genMode === "videoExtend" && supportsVideoExtend) return;
       if (!supportsAllReference) return;
@@ -1650,7 +1582,6 @@ export const VideoNode = memo(
       upstreamCounts.videos,
       genMode,
       id,
-      isHappyHorseModel,
       supportsAllReference,
       supportsVideoEdit,
       supportsVideoExtend,
@@ -1660,10 +1591,9 @@ export const VideoNode = memo(
     // 文生视频不接受任何素材引用。即便用户先手动选了 textToVideo 再接入
     // 图片/音频（此时上面两个自动切换 effect 都因 genMode 已显式而 bail），
     // 也要强制切走，否则会停在 textToVideo 把已连素材丢弃。
-    // 有图 → 按模型能力选默认（2.0 全能参考 / 1.x 首帧）；仅音频（只有 Seedance 2.0
-    // 能消费）→ 全能参考；音频对非 2.0 不可用，由模型选择器拦截，这里不强推。
+    // 有图 → 按模型能力选默认；仅音频（只有全能参考
+    // 能消费）→ 全能参考；不支持全能参考的模型，由模型选择器拦截，这里不强推。
     useEffect(() => {
-      if (isHappyHorseModel) return;
       if (genMode !== "textToVideo") return;
       if (upstreamCounts.images === 0 && upstreamCounts.audios === 0) return;
       if (upstreamCounts.images > 0) {
@@ -1674,7 +1604,6 @@ export const VideoNode = memo(
       }
     }, [
       genMode,
-      isHappyHorseModel,
       supportsAllReference,
       selectedVideoModel,
       upstreamCounts.images,
@@ -1688,14 +1617,12 @@ export const VideoNode = memo(
     // 上游强制切 allReference」是同一类兜底逻辑。每次都纠正，避免用户在 >2
     // 图状态下被卡在 firstLastFrame 触发 submit 时被静默截断成两张。
     useEffect(() => {
-      if (isHappyHorseModel) return;
       if (genMode !== "firstLastFrame") return;
       if (upstreamCounts.images <= 2) return;
       if (!supportsAllReference) return;
       updateNodeData(id, { genMode: "allReference" });
     }, [
       genMode,
-      isHappyHorseModel,
       supportsAllReference,
       upstreamCounts.images,
       id,
@@ -1729,7 +1656,7 @@ export const VideoNode = memo(
     // 任何一条负责在素材撤空后把模式推回去。于是「连一张图 → 又把图撤掉」之后节点卡在
     // 全能参考上：界面看不出异常，提交却会被 handleSubmit 的 references.length === 0
     // 静默拦下，用户看到的就是「打了字、点发送没反应」。这里补上反向的那一档 ——
-    // 没有任何上游素材 = 文生视频，与 HappyHorse 统一状态机的「无上游 → 文生视频」同规则。
+    // 没有任何上游素材 = 文生视频。
     //
     // 用 upstreamTypeCounts（按节点类型）而非 upstreamCounts（已解析 URL）：空态 CTA
     // 先铺一个还没出图的图片/上传节点、再切模式，按 URL 口径那一瞬间是 0 张，会被这条
@@ -1741,13 +1668,11 @@ export const VideoNode = memo(
     // 模型自动救场那条 effect 的注释）。不记历史则 ⌘Z 直接回到「有图 + 全能参考」，正向 effect
     // 看到素材还在便不再改写。
     useEffect(() => {
-      if (isHappyHorseModel) return;
       const target = videoNoUpstreamResetMode(genMode, upstreamTypeCounts);
       if (!target) return;
       updateNodeData(id, { genMode: target }, { recordHistory: false });
     }, [
       genMode,
-      isHappyHorseModel,
       upstreamTypeCounts,
       id,
       updateNodeData,
@@ -1991,8 +1916,8 @@ export const VideoNode = memo(
           ? upstreamCounts.images + upstreamCounts.videos + upstreamCounts.audios > 0 ||
             Boolean(data.referenceFileUrl || data.referenceLink?.trim())
           : upstreamCounts.images > 0;
-    // 提交前守卫：当前模型/模式无法消费已接入素材（视频/音频被静默丢、非 2.0 非
-    // HappyHorse 多图会被后端 400）时给出理由并禁用提交，替代静默丢素材 / 提交 400。
+    // 提交前守卫：当前模型/模式无法消费已接入素材（视频/音频被静默丢、
+    // 单图模型接多图会被后端 400）时给出理由并禁用提交，替代静默丢素材 / 提交 400。
     const mediaRejectionReasonKey = videoSubmitMediaRejectionReason(
       genMode,
       selectedVideoModel,
@@ -2172,18 +2097,18 @@ export const VideoNode = memo(
           const limits = {
             minMs:
               configured.minMs ??
-              (media === "audio" && isSeedance20Model
+              (media === "audio" && acceptsAudioReferences
                 ? MIN_AUDIO_REFERENCE_DURATION_MS
                 : undefined),
             maxMs:
               configured.maxMs ??
-              (media === "audio" && isSeedance20Model
+              (media === "audio" && acceptsAudioReferences
                 ? MAX_AUDIO_REFERENCE_DURATION_MS
                 : undefined),
             totalMinMs: configured.totalMinMs,
             totalMaxMs:
               configured.totalMaxMs ??
-              (media === "audio" && isSeedance20Model
+              (media === "audio" && acceptsAudioReferences
                 ? MAX_AUDIO_REFERENCE_TOTAL_DURATION_MS
                 : undefined),
           };
@@ -2303,7 +2228,7 @@ export const VideoNode = memo(
             });
         } else if (genMode === "videoEdit") {
           // 视频编辑：1 个源视频，并按媒体目录上限附带参考图片和独立参考音频。
-          // 不再是 HappyHorse 专属 —— 目录里声明了 video_edit 的模型都走这条路。
+          // 目录里声明了 video_edit 的模型都走这条路。
           const upstream = collectUpstream();
           const videoUrl =
             upstream
@@ -2407,11 +2332,7 @@ export const VideoNode = memo(
           // 可读提示，防止切换模型后残留模式打到不支持的端点。
           if (!supportsAllReference) {
             void showErrorDialog(
-              t(
-                isHappyHorseModel
-                  ? "node.videoNode.allReference.happyHorseUnsupported"
-                  : "node.videoNode.allReference.modelUnsupported",
-              ),
+              t("node.videoNode.allReference.modelUnsupported"),
               t("common.error"),
             );
             updateNodeData(id, {
@@ -2789,7 +2710,7 @@ export const VideoNode = memo(
       genMode,
       humanReview,
       id,
-      isSeedance20Model,
+      acceptsAudioReferences,
       supportsAllReference,
       supportsHumanReview,
       modelId,
@@ -3453,7 +3374,6 @@ export const VideoNode = memo(
             modelId={modelId}
             selectedVideoModel={selectedVideoModel}
             availableVideoModels={availableVideoModels}
-            isHappyHorseModel={isHappyHorseModel}
             upstreamCounts={upstreamCounts}
             upstreamTypeCounts={upstreamTypeCounts}
             upstreamContents={upstreamContents}

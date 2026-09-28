@@ -49,10 +49,10 @@ describe("character generation model selection", () => {
     const { result } = renderHook(() => useGeneratePortraitAsync("demo", "秦"), {
       wrapper,
     });
-    result.current.mutate({ model: "openrouter_nanobanana2" });
+    result.current.mutate({ model: "higgsfield:nano_banana_flash" });
 
     await waitFor(() => expect(result.current.data).toBeDefined());
-    expect(body).toEqual({ model: "openrouter_nanobanana2" });
+    expect(body).toEqual({ model: "higgsfield:nano_banana_flash" });
   });
 
   it("surfaces backend queue-limit errors when generating a character portrait", async () => {
@@ -149,7 +149,7 @@ describe("character generation model selection", () => {
 
     const promise = result.current.mutateAsync({
       beatNum: 6,
-      videoBackend: "huimeng_seedance-1.0-pro-fast",
+      videoBackend: "higgsfield:seedance_2_0?mode=fast",
     });
     await expect(promise).rejects.toMatchObject({
       name: "ProjectQueueLimitError",
@@ -178,14 +178,14 @@ describe("character generation model selection", () => {
     );
     result.current.mutate({
       identityId: "id-1",
-      model: "openrouter_nanobanana2",
+      model: "higgsfield:nano_banana_flash",
     });
 
     await waitFor(() => expect(result.current.data).toBeDefined());
     expect(requestedPath).toBe(
       "/api/v1/projects/demo/characters/%E7%A7%A6/identities/id-1/generate-async",
     );
-    expect(body).toEqual({ model: "openrouter_nanobanana2" });
+    expect(body).toEqual({ model: "higgsfield:nano_banana_flash" });
   });
 
   it("posts the selected model when generating an identity portrait", async () => {
@@ -206,10 +206,10 @@ describe("character generation model selection", () => {
     );
     result.current.mutate({
       identityId: "id-1",
-      model: "openrouter_nanobanana2",
+      model: "higgsfield:nano_banana_flash",
     });
 
     await waitFor(() => expect(result.current.data).toBeDefined());
-    expect(body).toEqual({ model: "openrouter_nanobanana2" });
+    expect(body).toEqual({ model: "higgsfield:nano_banana_flash" });
   });
 });

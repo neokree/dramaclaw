@@ -41,14 +41,13 @@ describe("resolveFixedFeatureModelRequest", () => {
 
   it("模型名不加 provider 前缀", () => {
     const { submit } = resolveFixedFeatureModelRequest(CATALOG_MODEL);
-    // scene-360 那条老路由把 provider 恒定当成 newapi，整串 `provider/model`
-    // 会被原样当作模型名送给网关。
+    // scene-360 那条老路由把整串 `provider/model` 原样当作模型名。
     expect(submit.model).not.toContain("openrouter/");
   });
 
   it("目录没声明画质：既不下发 quality，也不按 quality 报价", () => {
     const { submit, billingParams } = resolveFixedFeatureModelRequest({
-      apiModel: "huimeng_gpt_image2",
+      apiModel: "drawthings",
       resolutionOptions: ["1K", "2K"],
     });
     expect(submit.quality).toBeUndefined();
@@ -58,7 +57,7 @@ describe("resolveFixedFeatureModelRequest", () => {
 
   it("目录没配分辨率时用通用兜底档位，且两侧仍一致", () => {
     const { submit, billingParams } = resolveFixedFeatureModelRequest({
-      apiModel: "huimeng_gpt_image2",
+      apiModel: "drawthings",
     });
     expect(submit.imageSize).toBe("2K");
     expect(billingParams.size).toBe("2K");

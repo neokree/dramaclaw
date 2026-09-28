@@ -41,7 +41,6 @@ import {
 } from "@/features/canvas/domain/canvasNodes";
 import { formatResolutionLabel } from "@/features/canvas/domain/mediaModelOptions";
 import {
-  isHappyHorseVideoModel,
   isVideoModeSupportedByModel,
   videoModeForcesAutomaticAspectRatio,
   videoModelDefaultGenerateAudio,
@@ -151,15 +150,6 @@ const MODE_TABS: ReadonlyArray<{ key: VideoGenMode; labelKey: string }> = [
   { key: "videoExtend", labelKey: "node.videoNode.tabs.videoExtend" },
 ];
 
-// HappyHorse 的入口顺序：文生视频 → 首帧 → 图生视频 → 图片参考 → 视频编辑。
-const HAPPYHORSE_TAB_ORDER: ReadonlyArray<VideoGenMode> = [
-  "textToVideo",
-  "firstFrame",
-  "imageToVideo",
-  "imageReference",
-  "videoEdit",
-];
-
 const COUNT_OPTIONS: ReadonlyArray<VideoGenCount> = [1, 2, 4];
 const VIDEO_PARAM_POPOVER_CLASS =
   `nodrag nowheel absolute bottom-full left-0 z-50 mb-2 w-[320px] p-4 ${NODE_FLOATING_PANEL_SURFACE_CLASS}`;
@@ -208,7 +198,6 @@ interface VideoOperationsPanelProps {
   modelId: string;
   selectedVideoModel: ModelOption | undefined;
   availableVideoModels: ModelOption[];
-  isHappyHorseModel: boolean;
   upstreamCounts: { images: number; videos: number; audios: number };
   upstreamTypeCounts: { images: number; videos: number; audios: number };
   upstreamContents: UpstreamContent[];
@@ -252,7 +241,6 @@ export function VideoOperationsPanel({
   modelId,
   selectedVideoModel,
   availableVideoModels,
-  isHappyHorseModel,
   upstreamCounts,
   upstreamTypeCounts,
   upstreamContents,
@@ -811,11 +799,7 @@ export function VideoOperationsPanel({
                     value={genMode}
                     modelId={selectedVideoModel?.apiModel ?? selectedVideoModel?.id ?? modelId}
                     supportedModes={selectedVideoModel?.supportedModes}
-                    // HappyHorse 的可选模式由上游节点类型（含未填图的空节点）决定，
-                    // 其余模型仍按已解析素材 URL 计数。
-                    upstreamCounts={
-                      isHappyHorseModel ? upstreamTypeCounts : upstreamCounts
-                    }
+                    upstreamCounts={upstreamCounts}
                     onChange={(nextMode) =>
                       updateNodeData(id, {
                         genMode: nextMode,
@@ -974,8 +958,8 @@ export function VideoOperationsPanel({
                       const nextModel = availableVideoModels.find(
                         (item) => item.id === nextModelId,
                       );
-                      // 切换模型后，若当前 genMode 不被新模型支持（如 HappyHorse
-                      // 专属的 videoEdit 切到普通模型），重置为通用安全值 textToVideo，
+                      // 切换模型后，若当前 genMode 不被新模型支持（如 videoEdit
+                      // 切到不支持它的模型），重置为通用安全值 textToVideo，
                       // 让状态机按新模型 + 上游重新推导；否则残留模式会在提交时打到
                       // 不支持的端点被后端 400（界面还停在错误的 tab）。
                       const resetGenMode =
@@ -1000,14 +984,14 @@ export function VideoOperationsPanel({
                     getOptionDisabledReason={(model) =>
                       // 传整个 ModelOption,不要塌成 id —— 能力口径以后台「媒体模型」
                       // 声明的 supportedModes 为准,只传 id 会退到启发式,把目录里的
-                      // 改动整个丢掉(例如后台下掉 HappyHorse 的视频编辑后,它在这里
+                      // 改动整个丢掉(例如目录下掉某模型的视频编辑后,它在这里
                       // 依然可选,选进去所有模式都是灰的、提交也被拦)。与 VideoNode
                       // 的提交守卫同源。
                       translateDisabledReason(videoModelReferenceDisabledReason(model, {
                         images: upstreamCounts.images,
                         // 视频 / 音频必须和自动切模型的 effect 同一口径（按节点类型，
                         // 空节点也算）。若这里用「已解析 URL」口径，连着空视频节点时
-                        // 1.x 不置灰、用户能选回去，又被 effect 立刻切走，来回打架。
+                        // 旧模型不置灰、用户能选回去，又被 effect 立刻切走，来回打架。
                         videos: upstreamTypeCounts.videos,
                         audios: upstreamTypeCounts.audios,
                       }))
@@ -1165,46 +1149,6 @@ export function videoModeDisabledReason(
   t: TFn,
   supportedModes?: string[],
 ): string | null {
-  // HappyHorse 的模式可用性完全由上游节点类型决定（文档 4 大功能）：
-  //   文生视频  — 仅无上游时可用
-  //   首帧/图生视频 — 仅上游正好 1 张图片时可用
-  //   图片参考  — 上游 1~9 张图片时可用
-  //   视频编辑  — 仅上游有 1 个视频时可用
-  // 不可用时返回 hover 文案（提示用户需要连接什么）。
-  if (isHappyHorseVideoModel(modelId)) {
-    const { images, videos } = upstreamCounts;
-    switch (mode) {
-      case "textToVideo":
-        if (videos > 0) return t("node.videoOps.modeDisabled.hasVideoUseVideoEdit");
-        if (images > 0) return t("node.videoOps.modeDisabled.hasImagePickMode");
-        return null;
-      case "imageToVideo":
-      case "firstFrame":
-        if (videos > 0) {
-          return mode === "firstFrame"
-            ? t("node.videoOps.modeDisabled.hasVideoNoFirstFrame")
-            : t("node.videoOps.modeDisabled.hasVideoNoImageToVideo");
-        }
-        if (images === 0) return t("node.videoOps.modeDisabled.needOneImage");
-        if (images > 1) {
-          return mode === "firstFrame"
-            ? t("node.videoOps.modeDisabled.firstFrameSingleImage")
-            : t("node.videoOps.modeDisabled.imageToVideoSingleImageUseRef");
-        }
-        return null;
-      case "imageReference": // 图片参考 (r2v)
-        if (videos > 0) return t("node.videoOps.modeDisabled.hasVideoNoImageReference");
-        if (images === 0) return t("node.videoOps.modeDisabled.needImages1to9");
-        if (images > 9) return t("node.videoOps.modeDisabled.imageReferenceMax9");
-        return null;
-      case "videoEdit":
-        if (videos === 0) return t("node.videoOps.modeDisabled.needOneVideo");
-        if (videos > 1) return t("node.videoOps.modeDisabled.videoEditSingleVideo");
-        return null;
-      default:
-        return t("node.videoOps.modeDisabled.happyHorseUnsupported");
-    }
-  }
   // 全能参考、视频编辑和视频延长都会消费上游视频；后两种模式在进入通用素材守卫前
   // 分别校验自己的输入数量和模型能力。
   const model = supportedModes?.length
@@ -1261,29 +1205,13 @@ function GenModeSelect({ value, modelId, supportedModes, upstreamCounts, onChang
     left: number;
     top: number;
   } | null>(null);
-  // HappyHorse 的模式面板把首帧与单图整体参考拆成独立入口。
-  //   - 隐藏「首尾帧」「全能参考」：HappyHorse 无这两种能力，点了只会报错。
-  //   - 首帧与图生视频是两个独立模式：前者锁定第一帧，后者把单图作为整体参考。
-  //   - 上游接入视频后，图片类入口隐藏，只保留「文生视频」(禁用) 与「视频编辑」。
-  // 非 HappyHorse 不暴露「视频编辑」(它是 HappyHorse 专属功能)。
+  // 可见 tab 按模型能力过滤（目录 supportedModes；没有时走通用口径）。
   const visibleTabs = useMemo(() => {
-    if (supportedModes?.length) {
-      const configuredModel = { apiModel: modelId ?? undefined, supportedModes };
-      return MODE_TABS.filter((tab) => isVideoModeSupportedByModel(tab.key, configuredModel));
-    }
-    if (!isHappyHorseVideoModel(modelId)) {
-      // 按模型能力过滤，而非「非 HappyHorse 一律给全部」：Seedance 1.x 不支持
-      // 全能参考(400)与真尾帧首尾帧(静默丢尾帧)，这两个 tab 对它不可见。
-      return MODE_TABS.filter((tab) => isVideoModeSupportedByModel(tab.key, modelId));
-    }
-    const order =
-      upstreamCounts.videos > 0
-        ? (["textToVideo", "videoEdit"] as VideoGenMode[])
-        : HAPPYHORSE_TAB_ORDER;
-    return order
-      .map((key) => MODE_TABS.find((tab) => tab.key === key))
-      .filter((tab): tab is (typeof MODE_TABS)[number] => Boolean(tab));
-  }, [modelId, supportedModes, upstreamCounts.videos]);
+    const model = supportedModes?.length
+      ? { apiModel: modelId ?? undefined, supportedModes }
+      : modelId;
+    return MODE_TABS.filter((tab) => isVideoModeSupportedByModel(tab.key, model));
+  }, [modelId, supportedModes]);
   const activeTab = visibleTabs.find((tab) => tab.key === value) ?? visibleTabs[0];
 
   const syncPopoverPosition = useCallback(() => {

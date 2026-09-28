@@ -111,11 +111,8 @@ export async function deleteNodeGenerationHistoryRecord(
 
 // /freezone/gen ----------------------------------------------------------- //
 
-export type FreezoneProvider =
-  | "newapi"
-  | "openrouter"
-  | "huimeng"
-  | "openai";
+/** Image engine behind a catalog entry (see media_catalog.py). */
+export type FreezoneProvider = "higgsfield" | "drawthings" | "openrouter";
 
 export interface FreezoneGenCamera {
   /** id from /freezone/image/camera-options.camera_bodies */
@@ -138,7 +135,6 @@ export interface FreezoneGenPayload extends FreezoneNodeContext {
   referenceUrls?: string[];
   camera?: FreezoneGenCamera | null;
   style?: FreezoneGenStyle | null;
-  /** Override `NANOBANANA_PROVIDER` env default for the reference-image path. */
   provider?: FreezoneProvider | null;
   /** Override the provider's default model (e.g. "gpt-image-2"). */
   model?: string | null;
@@ -146,7 +142,7 @@ export interface FreezoneGenPayload extends FreezoneNodeContext {
   modelId?: string | null;
   /** 生成模式（还原用）：text_to_image / image_to_image / all_reference / image_reference。 */
   genMode?: string | null;
-  /** Only honored by openai gpt-image-2 (low / medium / high / auto). */
+  /** One of the catalog entry's qualityOptions, when it advertises any. */
   quality?: string | null;
 }
 
@@ -210,7 +206,7 @@ export interface FreezoneVideoGenPayload extends FreezoneNodeContext {
   /** seconds; spec only requires ≥1, the UI typically caps higher. */
   durationSeconds?: number;
   generateAudio?: boolean;
-  /** Backend model id, e.g. huimeng_seedance20_fast / seedance_pro. */
+  /** Backend model id, e.g. higgsfield:seedance_2_0?mode=fast / h3c. */
   model?: string;
   /** 文生视频入口的固定业务模式。 */
   genMode: "textToVideo";
@@ -413,7 +409,7 @@ export interface FreezoneVideoI2vPayload extends FreezoneNodeContext {
   resolution?: FreezoneVideoResolution;
   durationSeconds?: number;
   generateAudio?: boolean;
-  /** default huimeng_seedance10_fast (matches keyframes); multi-image prefers seedance 2.0. */
+  /** Catalog backend id; omitted means the backend default. */
   model?: string;
   /** Required product entry; both values execute as image_reference. */
   genMode: "imageToVideo" | "imageReference";
@@ -477,7 +473,7 @@ export interface FreezoneVideoEditPayload extends FreezoneNodeContext {
   /** 视频编辑音频策略：auto 自动 / origin 保留原声。 */
   audioSetting?: "auto" | "origin";
   generateAudio?: boolean;
-  /** default newapi_happyhorse-1.0. */
+  /** Catalog backend id; omitted means the backend default. */
   model?: string;
   /** 视频编辑入口的固定业务模式。 */
   genMode: "videoEdit";
@@ -584,7 +580,7 @@ export interface FreezoneVideoOmniGenPayload extends FreezoneNodeContext {
   resolution?: FreezoneVideoResolution;
   durationSeconds?: number;
   generateAudio?: boolean;
-  /** default huimeng_seedance20_fast per backend default. */
+  /** Catalog backend id; omitted means the backend default. */
   model?: string;
   /** 全能参考入口的固定业务模式。 */
   genMode: "allReference";
@@ -1006,9 +1002,9 @@ export interface MediaModelRequestSchema {
 export interface FreezoneImageModelInfo extends ReferenceMediaLimits {
   /** Opaque database identity used by new billing and task records. */
   catalogId?: string;
-  /** Stable picker id, e.g. `"huimeng/gpt-image-2"`. */
+  /** Stable picker id (the backend selection, e.g. `"higgsfield:nano_banana_flash"`). */
   id: string;
-  /** Provider tab id (`huimeng` / `openrouter` / `openai`). */
+  /** Engine id (`higgsfield` / `drawthings` / `openrouter`). */
   providerId: FreezoneProvider;
   /** Value sent to backend `model` field. */
   apiModel: string;
@@ -1027,20 +1023,15 @@ const MODEL_PROVIDER_HINTS: Array<{
   match: (raw: string) => boolean;
   providerId: FreezoneProvider;
 }> = [
-  { match: (s) => s.toLowerCase().startsWith("huimeng"), providerId: "huimeng" },
-  { match: (s) => s.toLowerCase().includes("/gemini"), providerId: "openrouter" },
-  { match: (s) => s.toLowerCase().startsWith("google/"), providerId: "openrouter" },
-  { match: (s) => s.toLowerCase().startsWith("anthropic/"), providerId: "openrouter" },
-  { match: (s) => s.toLowerCase().startsWith("openrouter/"), providerId: "openrouter" },
-  { match: (s) => s.toLowerCase().startsWith("gpt-image"), providerId: "openai" },
-  { match: (s) => s.toLowerCase().startsWith("dall-e"), providerId: "openai" },
+  { match: (s) => s.toLowerCase().startsWith("drawthings"), providerId: "drawthings" },
+  { match: (s) => s.toLowerCase().startsWith("openrouter:"), providerId: "openrouter" },
 ];
 
 function inferProvider(raw: string): FreezoneProvider {
   for (const hint of MODEL_PROVIDER_HINTS) {
     if (hint.match(raw)) return hint.providerId;
   }
-  return "huimeng";
+  return "higgsfield";
 }
 
 function pickString(record: Record<string, unknown>, ...keys: string[]): string | null {
@@ -1091,12 +1082,7 @@ function pickMediaRequestSchema(value: unknown): MediaModelRequestSchema | undef
 function normalizeProviderId(raw: string | null): FreezoneProvider | null {
   if (!raw) return null;
   const lowered = raw.toLowerCase();
-  if (
-    lowered === "newapi" ||
-    lowered === "huimeng" ||
-    lowered === "openrouter" ||
-    lowered === "openai"
-  ) {
+  if (lowered === "higgsfield" || lowered === "drawthings" || lowered === "openrouter") {
     return lowered;
   }
   return null;
@@ -1146,7 +1132,7 @@ function coerceModelList(payload: unknown): FreezoneImageModelInfo[] {
     else if (Array.isArray(wrapper.data)) candidate = wrapper.data;
     else if (Array.isArray(wrapper.items)) candidate = wrapper.items;
     else {
-      // provider→models[] map: { huimeng: [...], openrouter: [...] }
+      // provider→models[] map: { higgsfield: [...], drawthings: [...] }
       const flattened: FreezoneImageModelInfo[] = [];
       for (const [providerRaw, value] of Object.entries(wrapper)) {
         const providerId = normalizeProviderId(providerRaw);
@@ -1194,14 +1180,14 @@ export async function fetchFreezoneImageModels(
 // /freezone/video/models -------------------------------------------------- //
 
 /** Provider tab id for video generation models. */
-export type FreezoneVideoProvider = "newapi" | "seedance" | "huimeng";
+export type FreezoneVideoProvider = "higgsfield" | "h3c";
 
 export interface FreezoneVideoModelInfo extends ReferenceMediaLimits {
   /** Opaque database identity used by new billing and task records. */
   catalogId?: string;
-  /** Stable picker id, e.g. `"seedance_2"` (backend currently keys by api id). */
+  /** Stable picker id (the backend id, e.g. `"higgsfield:seedance_2_0?mode=fast"`). */
   id: string;
-  /** Provider tab id (`seedance` / `huimeng`). */
+  /** Engine id (`higgsfield` / `h3c`). */
   providerId: FreezoneVideoProvider;
   /** Value sent to backend `/freezone/video/gen` `model` field. */
   apiModel: string;
@@ -1216,6 +1202,8 @@ export interface FreezoneVideoModelInfo extends ReferenceMediaLimits {
   minDuration?: number | null;
   /** Largest supported duration in seconds, when advertised by backend. */
   maxDuration?: number | null;
+  /** Discrete durations (seconds) the model accepts, when advertised by backend. */
+  durationOptions?: number[];
   /** Supported Seedance 2.0 Value style hints, when advertised by backend. */
   sceneOptimizeOptions?: Array<"anime" | "realistic">;
   /** Default Seedance 2.0 Value style hint, when advertised by backend. */
@@ -1245,27 +1233,25 @@ export interface FreezoneVideoModelInfo extends ReferenceMediaLimits {
 }
 
 // Provider inference for raw model ids the backend may return without
-// metadata. Order matters — first match wins. Anything we don't recognize
-// falls back to `seedance` (the primary provider).
+// metadata. Anything we don't recognize falls back to `higgsfield`.
 const VIDEO_MODEL_PROVIDER_HINTS: Array<{
   match: (raw: string) => boolean;
   providerId: FreezoneVideoProvider;
 }> = [
-  { match: (s) => s.toLowerCase().startsWith("huimeng"), providerId: "huimeng" },
-  { match: (s) => s.toLowerCase().startsWith("seedance"), providerId: "seedance" },
+  { match: (s) => s.toLowerCase().startsWith("h3c"), providerId: "h3c" },
 ];
 
 function inferVideoProvider(raw: string): FreezoneVideoProvider {
   for (const hint of VIDEO_MODEL_PROVIDER_HINTS) {
     if (hint.match(raw)) return hint.providerId;
   }
-  return "seedance";
+  return "higgsfield";
 }
 
 function normalizeVideoProviderId(raw: string | null): FreezoneVideoProvider | null {
   if (!raw) return null;
   const lowered = raw.toLowerCase();
-  if (lowered === "newapi" || lowered === "seedance" || lowered === "huimeng") return lowered;
+  if (lowered === "higgsfield" || lowered === "h3c") return lowered;
   return null;
 }
 
@@ -1304,9 +1290,12 @@ function videoModelEntryFromObject(
       entry,
       "supportsGenerateAudio",
       "supports_generate_audio",
+      "supportsAudio",
+      "supports_audio",
     ),
     minDuration: pickNumber(entry, "minDuration", "min_duration"),
     maxDuration: pickNumber(entry, "maxDuration", "max_duration"),
+    ...pickDurationOptions(entry),
     ...(sceneOptimizeOptions.length > 0 ? { sceneOptimizeOptions } : {}),
     defaultSceneOptimize,
     ratioOptions: pickStringArray(entry, "ratioOptions", "ratio_options"),
@@ -1362,6 +1351,13 @@ function videoModelEntryFromObject(
   };
 }
 
+function pickDurationOptions(entry: Record<string, unknown>): { durationOptions?: number[] } {
+  const raw = entry.durationOptions ?? entry.duration_options;
+  if (!Array.isArray(raw)) return {};
+  const durationOptions = raw.map(Number).filter((value) => Number.isFinite(value) && value > 0);
+  return durationOptions.length > 0 ? { durationOptions } : {};
+}
+
 function videoModelEntryFromString(raw: string): FreezoneVideoModelInfo {
   const providerId = inferVideoProvider(raw);
   return {
@@ -1380,7 +1376,7 @@ function coerceVideoModelList(payload: unknown): FreezoneVideoModelInfo[] {
     else if (Array.isArray(wrapper.data)) candidate = wrapper.data;
     else if (Array.isArray(wrapper.items)) candidate = wrapper.items;
     else {
-      // provider→models[] map: { seedance: [...], huimeng: [...] }
+      // provider→models[] map: { higgsfield: [...], h3c: [...] }
       const flattened: FreezoneVideoModelInfo[] = [];
       for (const [providerRaw, value] of Object.entries(wrapper)) {
         const providerId = normalizeVideoProviderId(providerRaw);
@@ -2208,7 +2204,7 @@ export async function submitFreezoneAudioSpeech(
 
 /**
  * 文本生成音乐请求。除 input 外全部可选，不传走后端默认。
- * model / response_format / output_format 不需要前端传（走后端默认 LingShan-MU-11 / mp3 /
+ * model / response_format / output_format 不需要前端传（走后端默认 sonilo_music / mp3 /
  * mp3_44100_128），故不在此暴露。
  */
 export interface FreezoneAudioMusicPayload {

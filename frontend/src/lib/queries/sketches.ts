@@ -122,7 +122,7 @@ export function useRegenerateGrid(project: string, episode: number) {
     mutationFn: ({
       gridIndex,
       style,
-      model = "nanobanana",
+      model,
       sceneGrouping = false,
       characterGrouping = false,
       imageGenerationSelection,
@@ -140,7 +140,7 @@ export function useRegenerateGrid(project: string, episode: number) {
           {
             json: {
               ...(style ? { style } : {}),
-              model,
+              ...(model ? { model } : {}),
               scene_grouping: sceneGrouping,
               character_grouping: characterGrouping,
               ...renderGenerationSettingsJson({

@@ -133,7 +133,7 @@ vi.mock("@/lib/queries/generation-credit-cost", () => ({
 
 vi.mock("@/lib/queries/render-settings", () => ({
   useRenderSettings: () => ({
-    data: { data: { render_image_selection: "newapi_gpt_image_2" } },
+    data: { data: { render_image_selection: "higgsfield:gpt_image_2" } },
   }),
 }));
 

@@ -153,7 +153,7 @@ vi.mock("@/lib/queries/render-settings", () => ({
     data: {
       ok: true,
       data: {
-        render_image_selection: "doubao_seedream-3.0-t2i",
+        render_image_selection: "drawthings",
         options: {},
         sketch_aspect_padding: true,
       },
@@ -525,7 +525,7 @@ describe("RenderSection", () => {
     expect(updateBackgroundAnchorMock).toHaveBeenCalledWith({ anchorId: "master" });
     expect(regenerateMock).toHaveBeenCalledWith({
       beatIndices: [5],
-      imageGenerationSelection: "doubao_seedream-3.0-t2i",
+      imageGenerationSelection: "drawthings",
       modeKey: "1x1_2-3",
     });
     expect(
@@ -557,7 +557,7 @@ describe("RenderSection", () => {
         surface: "supertale",
         imageRole: "render",
         modeKey: "1x1_16-9",
-        params: { image_selection: "doubao_seedream-3.0-t2i" },
+        params: { image_selection: "drawthings" },
       },
     );
 
@@ -566,7 +566,7 @@ describe("RenderSection", () => {
 
     expect(regenerateMock).toHaveBeenCalledWith({
       beatIndices: [5],
-      imageGenerationSelection: "doubao_seedream-3.0-t2i",
+      imageGenerationSelection: "drawthings",
       modeKey: "1x1_16-9",
     });
   });
@@ -607,7 +607,7 @@ describe("RenderSection", () => {
             surface: "supertale",
             imageRole: "render",
             modeKey: "1x1_2-3",
-            params: { image_selection: "doubao_seedream-3.0-t2i" },
+            params: { image_selection: "drawthings" },
           },
         ),
       );
@@ -617,7 +617,7 @@ describe("RenderSection", () => {
 
       expect(regenerateMock).toHaveBeenCalledWith({
         beatIndices: [5],
-        imageGenerationSelection: "doubao_seedream-3.0-t2i",
+        imageGenerationSelection: "drawthings",
         modeKey: "1x1_2-3",
       });
     } finally {

@@ -321,16 +321,6 @@ function VideoBackendHeaderSelect({
                     {t("episode.workbench.video.noteDefault")}
                   </span>
                 )}
-                {backend.is_seedance2 && (
-                  <span className="text-[10px] text-muted-foreground">
-                    Seedance2
-                  </span>
-                )}
-                {backend.dialogue_only && (
-                  <span className="text-[10px] text-muted-foreground">
-                    {t("episode.workbench.video.noteDialogue")}
-                  </span>
-                )}
               </span>
             </SelectItem>
           ))}

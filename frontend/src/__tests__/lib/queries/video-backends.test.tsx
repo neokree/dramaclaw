@@ -36,18 +36,21 @@ describe("video backend options query", () => {
           ok: true,
           data: [
             {
-              value: "huimeng_seedance-1.0-pro-fast",
-              label: "HuiMeng Seedance 1.0 Pro Fast",
+              value: "higgsfield:seedance_2_0?mode=fast",
+              label: "Seedance 2.0 Fast",
               is_default: true,
-              is_seedance2: false,
-              dialogue_only: false,
+              is_seedance2: true,
+              supported_modes: ["text_to_video", "first_frame", "multimodal_reference"],
+              resolution_options: ["480p", "720p"],
+              supports_audio: true,
             },
             {
-              value: "huimeng_seedance-2.0-fast",
-              label: "HuiMeng Seedance 2.0 Fast",
+              value: "h3c",
+              label: "h3.c (local)",
               is_default: false,
-              is_seedance2: true,
-              dialogue_only: false,
+              is_seedance2: false,
+              supported_modes: ["text_to_video", "first_frame", "first_last_frame"],
+              supports_audio: true,
             },
           ],
         });
@@ -61,7 +64,8 @@ describe("video backend options query", () => {
     await waitFor(() => expect(result.current.data).toBeDefined());
     expect(requestedPath).toBe("/api/v1/projects/demo/video-backends");
     expect(result.current.data?.data[0]?.value).toBe(
-      "huimeng_seedance-1.0-pro-fast",
+      "higgsfield:seedance_2_0?mode=fast",
     );
+    expect(result.current.data?.data[1]?.supported_modes).toContain("first_last_frame");
   });
 });

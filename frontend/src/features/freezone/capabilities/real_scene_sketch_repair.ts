@@ -50,7 +50,7 @@ export const realSceneSketchRepairCapability: GenerationCapability = {
   category: "beat",
   descriptionKey: `${K}.description`,
   outputKind: "sketch",
-  model: "openai/gpt-image-2",
+  model: "higgsfield/higgsfield:gpt_image_2",
   aspectRatio: "16:9",
   imageSize: "2K",
   inputs: [
@@ -195,7 +195,7 @@ ${notes ? `\nAdditional notes:\n${notes}` : ""}`;
     return {
       prompt,
       referenceUrls: inputUrls,
-      model: "openai/gpt-image-2",
+      model: "higgsfield/higgsfield:gpt_image_2",
       aspectRatio: "16:9",
       imageSize: "2K",
       quality: "medium",

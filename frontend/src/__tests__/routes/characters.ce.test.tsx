@@ -94,15 +94,15 @@ vi.mock("@/lib/queries/character-image-selection", () => ({
       ok: true,
       data: {
         asset_kind: "character",
-        image_source_selection: "newapi_gpt_image2",
-        options: { newapi_gpt_image2: "LingShan-G2" },
+        image_source_selection: "higgsfield:gpt_image_2",
+        options: { "higgsfield:gpt_image_2": "GPT Image 2" },
       },
     },
     isLoading: false,
     isFetching: false,
   }),
   useCharacterImageSelection: () => ({
-    data: { ok: true, data: { character_image_selection: "seedream" } },
+    data: { ok: true, data: { character_image_selection: "drawthings" } },
   }),
   useUpdateAssetImageSourceSelection: mutation,
   useUpdateCharacterImageSelection: mutation,

@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 const root = process.cwd();
 const read = (path: string) => readFileSync(resolve(root, path), "utf8");
 
-describe("audio IndexTTS2 alignment contract", () => {
+describe("beat audio task contract", () => {
   it("does not expose legacy TTS voices, preview, or tts/generate calls in active FE code", () => {
     const audioQueries = read("src/lib/queries/audio.ts");
     const audioPane = read("src/components/episode/beat-workbench/audio-pane.tsx");
@@ -19,7 +19,7 @@ describe("audio IndexTTS2 alignment contract", () => {
     expect(audioPane).not.toContain("usePreviewTTS");
   });
 
-  it("uses audio_generation_indextts2 as the active audio task type", () => {
+  it("uses the backend beat audio task type id (audio_generation_indextts2)", () => {
     const taskTypes = read("src/lib/task-types.ts");
     const stageRegistry = read("src/lib/episode-stage-registry.ts");
     const batchBar = read("src/components/episode/beat-workbench/batch-bar.tsx");

@@ -76,7 +76,7 @@ vi.mock("@/lib/queries/sketch-settings", () => ({
     data: {
       ok: true,
       data: {
-        sketch_image_selection: "doubao_seedream-3.0-t2i",
+        sketch_image_selection: "drawthings",
         options: {},
       },
     },
@@ -546,7 +546,7 @@ describe("SketchSection", () => {
     expect(regenerateSketchMock).toHaveBeenCalledWith({
       beatIndices: [4],
       modeKey: "1x1_16-9_sketch",
-      imageGenerationSelection: "doubao_seedream-3.0-t2i",
+      imageGenerationSelection: "drawthings",
     });
   });
 
@@ -613,7 +613,7 @@ describe("SketchSection", () => {
     await waitFor(() => expect(regenerateSketchMock).toHaveBeenCalledWith({
       beatIndices: [4],
       modeKey: "1x1_2-3_sketch",
-      imageGenerationSelection: "doubao_seedream-3.0-t2i",
+      imageGenerationSelection: "drawthings",
     }));
   });
 });

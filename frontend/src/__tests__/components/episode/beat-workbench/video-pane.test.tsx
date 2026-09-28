@@ -8,7 +8,6 @@ import { beforeAll, beforeEach, describe, expect, it, vi, type Mock } from "vite
 import { toast } from "sonner";
 
 import {
-  shouldDisableDialogueOnlyBackendForBeat,
   VideoPane,
 } from "@/components/episode/beat-workbench/video-pane";
 import { BackendStatusError } from "@/lib/api-errors";
@@ -142,12 +141,8 @@ beforeAll(async () => {
                 seedance2GeneratePrompt: "AI 优化",
                 seedance2PromptGenerated: "Seedance2 Prompt 已优化",
                 seedance2SubjectPromptGenerated: "主体提示词已优化",
-                grokVideoInspector: "Grok Video 检视器",
-                happyHorseInspector: "HappyHorse 检视器",
-                grokPromptLabel: "Grok 提示词",
+                videoInspector: "视频检视器",
                 subjectPromptLabel: "主体提示词",
-                generateGrokPrompt: "生成 Grok 提示词",
-                generateSubjectPrompt: "生成主体提示词",
                 seedance2CropTitleWithAspect: "裁剪 {{aspect}}",
                 seedance2CropDragHandle: "移动裁剪区域",
                 seedance2PromptGeneratedOtherBeat: "主体提示词已优化，已写回镜头 #{{n}}",
@@ -243,67 +238,56 @@ vi.mock("@/lib/queries/video", () => ({
       ok: true,
       data: [
         {
-          value: "newapi_seedance-1.0-pro-fast",
-          label: "Seedance 1.0 Pro Fast",
+          value: "h3c",
+          label: "h3.c (local)",
+          is_default: false,
+          is_seedance2: false,
+          min_duration: 4,
+          max_duration: 12,
+          supported_modes: ["text_to_video", "first_frame", "first_last_frame"],
+        },
+        {
+          value: "higgsfield:seedance_2_0?mode=fast",
+          label: "Seedance 2.0 Fast",
           is_default: true,
-          is_seedance2: false,
-          dialogue_only: false,
-          min_duration: 4,
-          max_duration: 12,
-        },
-        {
-          value: "newapi_seedance-1.5-pro",
-          label: "Seedance 1.5 Pro",
-          is_default: false,
-          is_seedance2: false,
-          dialogue_only: true,
-          min_duration: 4,
-          max_duration: 12,
-        },
-        {
-          value: "huimeng_seedance-2.0-fast",
-          label: "HuiMeng Seedance 2.0 Fast",
-          is_default: false,
           is_seedance2: true,
-          dialogue_only: false,
           min_duration: 4,
           max_duration: 15,
+          resolution_options: ["480p", "720p"],
+          supported_modes: [
+            "text_to_video",
+            "first_frame",
+            "first_last_frame",
+            "multimodal_reference",
+          ],
+          reference_audio_max: 3,
         },
         {
-          value: "newapi_seedance-2.0-fast",
-          label: "Seedance2.0 Fast",
+          value: "higgsfield:seedance_2_0",
+          label: "Seedance 2.0",
           is_default: false,
           is_seedance2: true,
-          dialogue_only: false,
           min_duration: 4,
           max_duration: 15,
+          resolution_options: ["480p", "720p", "1080p"],
+          supported_modes: [
+            "text_to_video",
+            "first_frame",
+            "first_last_frame",
+            "multimodal_reference",
+          ],
+          reference_audio_max: 3,
         },
         {
-          value: "newapi_seedance-2.0",
-          label: "Seedance2.0",
+          value: "higgsfield:kling3_0?mode=pro",
+          label: "Kling 3.0 Pro",
           is_default: false,
           is_seedance2: true,
-          dialogue_only: false,
           min_duration: 4,
           max_duration: 15,
-        },
-        {
-          value: "newapi_seedance-2.0-value",
-          label: "Seedance2.0 Value",
-          is_default: false,
-          is_seedance2: true,
-          dialogue_only: false,
-          min_duration: 4,
-          max_duration: 15,
-        },
-        {
-          value: "newapi_seedance-2.0-fast-value",
-          label: "Seedance2.0 Fast Value",
-          is_default: false,
-          is_seedance2: true,
-          dialogue_only: false,
-          min_duration: 4,
-          max_duration: 15,
+          resolution_options: ["720p", "1080p"],
+          supported_modes: ["text_to_video", "first_frame", "first_last_frame"],
+          reference_audio_max: 0,
         },
       ],
     },
@@ -323,7 +307,7 @@ vi.mock("@/lib/queries/video", () => ({
             generated_at: "2026-05-16T09:00:00Z",
             duration: 5,
             video_mode: "first_frame",
-            backend: "newapi_seedance-2.0-fast",
+            backend: "higgsfield:seedance_2_0?mode=fast",
             prompt: "old",
           },
           {
@@ -334,7 +318,7 @@ vi.mock("@/lib/queries/video", () => ({
             generated_at: "2026-05-16T10:00:00Z",
             duration: 5,
             video_mode: "first_frame",
-            backend: "newapi_seedance-2.0-fast",
+            backend: "higgsfield:seedance_2_0?mode=fast",
             prompt: "new",
           },
         ],
@@ -680,7 +664,7 @@ function renderPane(
         project="demo"
         episode={1}
         state="ready"
-        defaultBackend={options.defaultBackend ?? "huimeng_seedance-2.0-fast"}
+        defaultBackend={options.defaultBackend ?? "higgsfield:seedance_2_0?mode=fast"}
         showAudioMediaStatus={options.showAudioMediaStatus}
       />
     </I18nextProvider>,
@@ -762,7 +746,7 @@ describe("VideoPane Seedance2 inspector", () => {
         video_mode: "first_frame",
         video_prompt: "base video prompt",
       }),
-      { defaultBackend: "newapi_seedance-1.0-pro-fast" },
+      { defaultBackend: "h3c" },
     );
 
     expect(screen.queryByText("Seedance2 Inspector")).not.toBeInTheDocument();
@@ -792,7 +776,7 @@ describe("VideoPane Seedance2 inspector", () => {
         video_mode: "first_frame",
         video_prompt: "base video prompt",
       }),
-      { defaultBackend: "newapi_seedance-1.0-pro-fast" },
+      { defaultBackend: "h3c" },
     );
     expandSeedance2References();
 
@@ -807,7 +791,7 @@ describe("VideoPane Seedance2 inspector", () => {
     const user = userEvent.setup();
     renderPane(
       makeBeat({ video_mode: "first_frame", video_prompt: "" }),
-      { defaultBackend: "newapi_seedance-1.0-pro-fast" },
+      { defaultBackend: "h3c" },
     );
 
     const promptButton = screen.getByRole("button", {
@@ -833,7 +817,7 @@ describe("VideoPane Seedance2 inspector", () => {
     });
     renderPane(
       makeBeat({ video_mode: "first_frame", video_prompt: "" }),
-      { defaultBackend: "newapi_seedance-1.0-pro-fast" },
+      { defaultBackend: "h3c" },
     );
 
     await user.click(screen.getByRole("button", { name: "生成本 Beat 提示词" }));
@@ -860,7 +844,7 @@ describe("VideoPane Seedance2 inspector", () => {
     );
     renderPane(
       makeBeat({ video_mode: "first_frame", video_prompt: "" }),
-      { defaultBackend: "newapi_seedance-1.0-pro-fast" },
+      { defaultBackend: "h3c" },
     );
 
     await user.click(screen.getByRole("button", { name: "生成本 Beat 提示词" }));
@@ -876,7 +860,7 @@ describe("VideoPane Seedance2 inspector", () => {
         video_prompt: "first frame prompt",
         keyframe_prompt: "transition prompt",
       }),
-      { defaultBackend: "newapi_seedance-1.0-pro-fast" },
+      { defaultBackend: "h3c" },
     );
 
     expect(screen.getByLabelText("单个 Beat 视频提示词")).toHaveValue(
@@ -906,7 +890,7 @@ describe("VideoPane Seedance2 inspector", () => {
     const user = userEvent.setup();
     renderPane(
       makeBeat({ video_url: null, video_mode: "first_frame", video_prompt: "" }),
-      { defaultBackend: "newapi_seedance-1.0-pro-fast" },
+      { defaultBackend: "h3c" },
     );
 
     await user.click(screen.getByRole("button", { name: "重新生成" }));
@@ -946,7 +930,7 @@ describe("VideoPane Seedance2 inspector", () => {
     const user = userEvent.setup();
     regenerateMock.mockResolvedValueOnce({
       ok: false,
-      error: "Beat 1 不是 dialogue，Seedance 1.5 有声只允许用于 dialogue beat",
+      error: "Beat 1 不是 dialogue，缺少首帧",
     });
     renderPane();
 
@@ -954,7 +938,7 @@ describe("VideoPane Seedance2 inspector", () => {
     await user.click(screen.getByRole("button", { name: "确认" }));
 
     expect(toast.error).toHaveBeenCalledWith(
-      "Beat 1 不是 dialogue，Seedance 1.5 有声只允许用于 dialogue beat",
+      "Beat 1 不是 dialogue，缺少首帧",
     );
     expect(taskStartMock).not.toHaveBeenCalled();
   });
@@ -1003,29 +987,6 @@ describe("VideoPane Seedance2 inspector", () => {
     const payload = updateBeatMock.mock.calls[0][0];
     const config = JSON.parse(payload.data.seedance2_config_json);
     expect(config.duration).toBe(4);
-  });
-
-  it("disables dialogue-only backends by the current beat audio type", () => {
-    const dialogueOnlyBackend = {
-      value: "seedance_pro",
-      label: "Seedance 1.5 有声",
-      is_default: false,
-      is_seedance2: false,
-      dialogue_only: true,
-    };
-
-    expect(
-      shouldDisableDialogueOnlyBackendForBeat(
-        dialogueOnlyBackend,
-        makeBeat({ audio_type: "dialogue" }),
-      ),
-    ).toBe(false);
-    expect(
-      shouldDisableDialogueOnlyBackendForBeat(
-        dialogueOnlyBackend,
-        makeBeat({ audio_type: "narration" }),
-      ),
-    ).toBe(true);
   });
 
   it("renders Seedance2 media, config, and version status", () => {
@@ -1099,34 +1060,30 @@ describe("VideoPane Seedance2 inspector", () => {
   it("shows readable backend labels on video version thumbnails", () => {
     renderPane();
 
-    expect(screen.getAllByText("Seedance2.0 Fast").length).toBeGreaterThan(0);
-    expect(screen.queryByText("newapi_seedance-2.0-fast")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Seedance 2.0 Fast").length).toBeGreaterThan(0);
+    expect(
+      screen.queryByText("higgsfield:seedance_2_0?mode=fast"),
+    ).not.toBeInTheDocument();
   });
 
-  it("shows scene optimize styles only for Seedance2 value models", async () => {
+  it("uses generic labels and backend modes for non-Seedance Higgsfield models", async () => {
     const user = userEvent.setup();
     renderPane(makeBeat({ seedance2_config_json: "" }), {
-      defaultBackend: "newapi_seedance-2.0-value",
+      defaultBackend: "higgsfield:kling3_0?mode=pro",
     });
 
-    expect(screen.getByRole("radiogroup", { name: "风格" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "动漫" })).toHaveAttribute(
-      "aria-checked",
-      "true",
-    );
-    await user.click(screen.getByRole("radio", { name: "写实" }));
-    await waitForSeedance2Autosave();
-
-    const payload =
-      updateBeatMock.mock.calls[updateBeatMock.mock.calls.length - 1][0];
-    const config = JSON.parse(payload.data.seedance2_config_json);
-    expect(config.scene_optimize).toBe("realistic");
+    expect(screen.getByText("视频检视器")).toBeInTheDocument();
+    expect(screen.queryByText("Seedance2 Inspector")).not.toBeInTheDocument();
+    expect(screen.getByText("主体提示词")).toBeInTheDocument();
+    await user.click(screen.getByLabelText("生成模式"));
+    expect(await screen.findByRole("option", { name: "首尾帧模式" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "多参模式" })).not.toBeInTheDocument();
   });
 
   it("uses model-specific Seedance2 resolution options", async () => {
     const user = userEvent.setup();
     renderPane(makeBeat({ seedance2_config_json: "" }), {
-      defaultBackend: "newapi_seedance-2.0",
+      defaultBackend: "higgsfield:seedance_2_0",
     });
 
     await user.click(screen.getByRole("combobox", { name: "分辨率" }));
@@ -1135,25 +1092,19 @@ describe("VideoPane Seedance2 inspector", () => {
     expect(screen.getByRole("option", { name: "1080p" })).toBeInTheDocument();
   });
 
-  it("hides unsupported Seedance2 value resolution options", async () => {
+  it("hides resolution options the backend does not offer", async () => {
     const user = userEvent.setup();
     renderPane(makeBeat({ seedance2_config_json: "" }), {
-      defaultBackend: "newapi_seedance-2.0-value",
+      defaultBackend: "higgsfield:kling3_0?mode=pro",
     });
 
-    await waitFor(() =>
-      expect(screen.getByRole("radio", { name: "动漫" })).toHaveAttribute(
-        "aria-checked",
-        "true",
-      ),
-    );
     await user.click(screen.getByLabelText("分辨率"));
     expect(await screen.findByRole("option", { name: "720p" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "480p" })).not.toBeInTheDocument();
     expect(screen.getByRole("option", { name: "1080p" })).toBeInTheDocument();
   });
 
-  it("normalizes unsupported saved Seedance2 value resolution", async () => {
+  it("normalizes an unsupported saved resolution", async () => {
     renderPane(
       makeBeat({
         seedance2_config_json: JSON.stringify({
@@ -1161,7 +1112,7 @@ describe("VideoPane Seedance2 inspector", () => {
           final_prompt: "existing seedance2 prompt",
         }),
       }),
-      { defaultBackend: "newapi_seedance-2.0-value" },
+      { defaultBackend: "higgsfield:kling3_0?mode=pro" },
     );
 
     await waitForSeedance2Autosave();
@@ -1184,7 +1135,7 @@ describe("VideoPane Seedance2 inspector", () => {
       }),
     });
     const view = renderPane(beat, {
-      defaultBackend: "newapi_seedance-2.0",
+      defaultBackend: "higgsfield:seedance_2_0",
     });
 
     view.rerender(
@@ -1194,7 +1145,7 @@ describe("VideoPane Seedance2 inspector", () => {
           project="demo"
           episode={1}
           state="ready"
-          defaultBackend="newapi_seedance-2.0-fast"
+          defaultBackend="higgsfield:seedance_2_0?mode=fast"
         />
       </I18nextProvider>,
     );
@@ -1215,7 +1166,7 @@ describe("VideoPane Seedance2 inspector", () => {
     );
   });
 
-  it("hides scene optimize styles for non-value Seedance2 models", () => {
+  it("does not render the retired scene optimize styles", () => {
     renderPane();
 
     expect(screen.queryByRole("radiogroup", { name: "风格" })).not.toBeInTheDocument();
@@ -1984,7 +1935,7 @@ describe("VideoPane Seedance2 inspector", () => {
           project="demo"
           episode={1}
           state="ready"
-          defaultBackend="huimeng_seedance-2.0-fast"
+          defaultBackend="higgsfield:seedance_2_0?mode=fast"
         />
       </I18nextProvider>,
     );

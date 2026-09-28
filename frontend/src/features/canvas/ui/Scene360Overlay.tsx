@@ -30,6 +30,7 @@ import { notifyTaskStillRunning } from '@/features/canvas/application/errorDialo
 import { generationTaskDescriptor } from '@/features/canvas/application/resumeGeneration';
 import { readUrl } from '@/lib/url-params';
 import { NODE_TOOLBAR_CLASS } from './nodeToolbarConfig';
+import { DEFAULT_SHARED_MODEL_ID } from './ProviderModelPicker';
 import { CANVAS_NODE_TOOLBAR_PILL_CLASS } from './nodeFrameStyles';
 import { ZoomScaledToolbar } from './ZoomScaledToolbar';
 import {
@@ -41,15 +42,18 @@ import {
 const PANO_VIEWER_LAYOUT_WIDTH = 720;
 const PANO_VIEWER_LAYOUT_HEIGHT = 420;
 const SCENE_360_OUTPUT_ASPECT_RATIO = '2:1' as const;
-const SCENE_360_MODEL_NAME = 'LingShan-G2';
-
-function isScene360Model(model: { apiModel: string; label: string }): boolean {
+/** 360 用的目录模型：优先后端默认图片模型，且要能出 2:1；都不满足时取目录首个。 */
+function pickScene360Model<T extends { id: string; ratioOptions?: string[] | null }>(
+  models: readonly T[],
+): T | undefined {
+  const panoramic = models.filter(
+    (model) => !model.ratioOptions?.length || model.ratioOptions.includes(SCENE_360_OUTPUT_ASPECT_RATIO),
+  );
   return (
-    model.label === SCENE_360_MODEL_NAME
-    || model.apiModel === SCENE_360_MODEL_NAME
-    // CE 拉取目录失败时的兼容兜底条目仍使用旧模型别名。
-    || model.apiModel === 'newapi_gpt_image2'
-    || model.apiModel === 'huimeng_gpt_image2'
+    panoramic.find((model) => model.id === DEFAULT_SHARED_MODEL_ID)
+    ?? panoramic[0]
+    ?? models.find((model) => model.id === DEFAULT_SHARED_MODEL_ID)
+    ?? models[0]
   );
 }
 
@@ -69,9 +73,7 @@ export const Scene360Overlay = memo(
     const updateNodeData = useCanvasStore((state) => state.updateNodeData);
     const imageCatalog = useFreezoneImageModels();
     const imageModels = imageCatalog.models;
-    // 360 是固定的 LingShan-G2 能力，不跟随后台目录排序。否则管理员调整排序后，
-    // 报价和实际执行会在无提示的情况下切换到另一款模型。
-    const selectedModel = imageModels.find(isScene360Model);
+    const selectedModel = pickScene360Model(imageModels);
     const modelUnavailable =
       isAuthoritativeEmptyCatalog(imageCatalog) || selectedModel === undefined;
     // 全景没有尺寸/画质选择器，按后台对该模型配置的档位取默认值；模型没配

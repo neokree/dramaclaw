@@ -295,7 +295,7 @@ export async function jsonWithBackendError<T>(request: Promise<Response>): Promi
  * gateway. Sketch/render/video failures surface as a RuntimeError whose text
  * embeds the gateway response, e.g.
  *
- *   草图重生未生成可用图片（...）: HTTP 429: ...; body={"error":{"code":"huimeng_low_quality_skipped","type":"channel_policy",...}}
+ *   草图重生未生成可用图片（...）: HTTP 429: ...; body={"error":{"code":"low_quality_skipped","type":"channel_policy",...}}
  *
  * A `channel_policy` rejection is a *route-layer* refusal (the gateway skipped
  * the channel before dispatching, e.g. low-quality sketch regen), NOT real
@@ -447,7 +447,7 @@ export function classifyGatewayError(
 ): GatewayErrorKind | null {
   if (!raw) return null;
   // `"type":"channel_policy"` is the authoritative marker; `_skipped` codes
-  // (huimeng_low_quality_skipped, ...) are the same route-layer family.
+  // (low_quality_skipped, ...) are the same route-layer family.
   if (/channel[_-]?policy/i.test(raw) || /_skipped\b/i.test(raw)) {
     return "channel_policy";
   }

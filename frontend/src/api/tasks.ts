@@ -225,9 +225,8 @@ export const DEFAULT_MAX_POLL_MS = 20 * 60 * 1000;
 
 /**
  * Idle budget for jobs whose backend ceiling is 30 minutes — video generation
- * (`NEWAPI_VIDEO_HTTP_TIMEOUT_SECONDS`, `_run_video_subprocess(timeout=30 * 60)`,
- * the `max_polls=360 * 5s` loop in `generators/video_generator.py`), image
- * generation (`NEWAPI_IMAGE_HTTP_TIMEOUT_SECONDS`), the ffmpeg renders behind
+ * (`_run_video_subprocess(timeout=30 * 60)` and the engine polling in
+ * `generators/video_generator.py`), image generation, the ffmpeg renders behind
  * compose/erase/upscale (`freezone/jobs.py` `_run_cmd(timeout=1800)`),
  * `stage_asset_tasks` and image-to-3GS.
  *

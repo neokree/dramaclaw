@@ -22,23 +22,25 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-// 目录第一款故意不是 360 使用的 G2，验证后台排序不会改变 360 执行模型。
+// 目录第一款故意不是 360 用的默认模型（且出不了 2:1），验证后台排序不会改变 360 执行模型。
 const CATALOG_MODEL = {
   catalogId: "cat-77",
   id: "studio-image-v1",
   providerId: "openrouter" as const,
   apiModel: "google/gemini-2.5-flash-image-preview",
   label: "Studio Image",
+  ratioOptions: ["1:1", "16:9"],
   resolutionOptions: ["1K", "4K"],
   qualityOptions: ["low", "high"],
 };
 
 const SCENE_360_MODEL = {
-  catalogId: "cat-g2",
-  id: "lingshan-g2",
-  providerId: "newapi" as const,
-  apiModel: "LingShan-G2",
-  label: "LingShan-G2",
+  catalogId: "higgsfield:nano_banana_flash",
+  id: "higgsfield:nano_banana_flash",
+  providerId: "higgsfield" as const,
+  apiModel: "higgsfield:nano_banana_flash",
+  label: "Nano Banana 2",
+  ratioOptions: ["1:1", "2:1", "16:9"],
   resolutionOptions: ["1K", "2K", "4K"],
   qualityOptions: ["low", "medium", "high"],
 };
@@ -135,7 +137,7 @@ beforeEach(() => {
 });
 
 describe("360 全景面板", () => {
-  it("固定使用 LingShan-G2，并且提交与报价参数一致", async () => {
+  it("使用能出 2:1 的默认模型，并且提交与报价参数一致", async () => {
     render(
       <Scene360Overlay node={NODE} imageSource="https://x/src.png?t=1" onClose={() => {}} />,
     );
@@ -157,7 +159,7 @@ describe("360 全景面板", () => {
     expect(payload.catalogId).toBe(quoted.catalog_id);
   });
 
-  it("目录没有 LingShan-G2 时禁用提交，不回落到第一款模型", () => {
+  it("目录没有默认模型时回落到目录模型，仍可提交", async () => {
     imageCatalogState = {
       models: [CATALOG_MODEL],
       isLoading: false,
@@ -167,10 +169,10 @@ describe("360 全景面板", () => {
     render(
       <Scene360Overlay node={NODE} imageSource="https://x/src.png?t=1" onClose={() => {}} />,
     );
-    const button = screen.getByTitle("modelParams.noModelsAvailable");
-    expect(button).toBeDisabled();
-    fireEvent.click(button);
-    expect(submitFreezoneScene360).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTitle("scene360.submit"));
+    await waitFor(() => expect(submitFreezoneScene360).toHaveBeenCalled());
+    const payload = submitFreezoneScene360.mock.calls[0][1] as Record<string, unknown>;
+    expect(payload.model).toBe(CATALOG_MODEL.apiModel);
   });
 
   it("后台一个图片模型都没配时禁用提交，点了也不发请求", () => {

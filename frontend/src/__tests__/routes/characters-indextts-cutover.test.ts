@@ -11,7 +11,7 @@ const routeSource = readFileSync(
 const characterTypes = readFileSync("src/types/character.ts", "utf-8");
 const characterQueries = readFileSync("src/lib/queries/characters.ts", "utf-8");
 
-describe("character workbench IndexTTS2 cutover", () => {
+describe("character workbench voice sample fields", () => {
   it("does not expose legacy Fish voice controls in the character workbench", () => {
     expect(routeSource).not.toContain("VOICE_TYPE_OPTIONS");
     expect(routeSource).not.toContain("characters.voice.");
@@ -20,7 +20,7 @@ describe("character workbench IndexTTS2 cutover", () => {
     expect(routeSource).not.toContain("fish_voice_id");
   });
 
-  it("uses IndexTTS2 voice sample fields in frontend character types", () => {
+  it("uses voice sample fields in frontend character types", () => {
     expect(characterTypes).not.toContain("fish_voice_id");
     expect(characterTypes).toContain("reference_audio_path");
     expect(characterTypes).toContain("reference_audio_url");

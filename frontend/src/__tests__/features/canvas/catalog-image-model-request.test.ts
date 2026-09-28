@@ -106,22 +106,22 @@ describe("目录模型的 provider/model 往返", () => {
   it("apiModel 不带命名空间时也不能丢 provider", async () => {
     const body = await submittedBody(
       entry({
-        id: "huimeng/gpt-image-2",
-        providerId: "huimeng",
-        apiModel: "huimeng_gpt_image2",
+        id: "drawthings",
+        providerId: "drawthings",
+        apiModel: "drawthings",
       }),
     );
-    expect(body.provider).toBe("huimeng");
-    expect(body.model).toBe("huimeng_gpt_image2");
+    expect(body.provider).toBe("drawthings");
+    expect(body.model).toBe("drawthings");
   });
 
   it("目录 id 与 provider/apiModel 组合不一致时，送的是 apiModel 而非 id", async () => {
     // 后台可以给条目配任意 id；能被后端 identifiers 认出来的是 apiModel。
     const body = await submittedBody(
-      entry({ id: "custom-slug", providerId: "openai", apiModel: "gpt-image-2" }),
+      entry({ id: "custom-slug", providerId: "higgsfield", apiModel: "higgsfield:gpt_image_2" }),
     );
-    expect(body.provider).toBe("openai");
-    expect(body.model).toBe("gpt-image-2");
+    expect(body.provider).toBe("higgsfield");
+    expect(body.model).toBe("higgsfield:gpt_image_2");
     expect(body.modelId).toBe("custom-slug");
   });
 });

@@ -63,14 +63,8 @@ function providerTaskId(task: TaskState): string {
   const metadata = taskMetadata(task);
   return (
     stringField(result, "provider_task_id") ||
-    stringField(result, "huimeng_task_id") ||
-    stringField(result, "newapi_task_id") ||
     stringField(resultTaskMetadata, "provider_task_id") ||
-    stringField(resultTaskMetadata, "huimeng_task_id") ||
-    stringField(resultTaskMetadata, "newapi_task_id") ||
-    stringField(metadata, "provider_task_id") ||
-    stringField(metadata, "huimeng_task_id") ||
-    stringField(metadata, "newapi_task_id")
+    stringField(metadata, "provider_task_id")
   );
 }
 

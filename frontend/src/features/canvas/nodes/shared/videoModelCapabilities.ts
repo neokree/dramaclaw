@@ -6,53 +6,12 @@ import type {
 } from "@/features/canvas/domain/canvasNodes";
 
 /**
- * Freezone 画布视频模型的**能力口径**——与后端 `freezone.py` 各视频端点的模型门禁
- * 一一对齐，作为 CTA / 模式可见性 / 自动推导默认 / 提交校验的**单一事实来源**，
- * 避免「把所有非 HappyHorse 模型都当作 Seedance 2.0」的假设散落在组件各处。
- *
- * 后端事实（src/novelvideo/api/routes/freezone.py）：
- * - 全能参考 omni-gen：`is_freezone_seedance2_backend` 为假直接 400；
- * - 首尾帧 keyframes：仅 Seedance 2.0 才 append 尾帧，其余后端**静默丢弃尾帧**；
- * - 图生视频 i2v / 首尾帧 keyframes / 视频编辑 edit：均**不校验 prompt**（允许空提示词）；
- * - 视频编辑 edit：仅 HappyHorse。
- *
- * 模型 id / apiModel 形如 `newapi_seedance-2.0-fast` / `newapi_seedance-1.0-pro-fast`
- * / `newapi_happyhorse-1.0`（见 freezone/video_node.py）。这里统一去掉分隔符后按版本号
- * 前缀匹配，避免把 `2.0` 误命中成 `1.x`（`seedance1\d` 只吃 `seedance1` 后跟数字）。
+ * Freezone 画布视频模型的**能力口径**——CTA / 模式可见性 / 自动推导默认 / 提交校验的
+ * 单一事实来源。能力只读媒体目录（`/freezone/video/models`，由已安装引擎生成，见
+ * src/novelvideo/media_catalog.py）下发的 `supportedModes` / `referenceAudioMax` 等字段，
+ * 不按模型名猜。只拿到一个 id 字符串（目录还没到）时按通用口径：除视频编辑 / 视频延长
+ * 之外的模式都放行，交给后端做最终校验。
  */
-
-function normalizeVideoModelId(modelId: string | null | undefined): string {
-  return String(modelId ?? "")
-    .replace(/[\s._-]/g, "")
-    .toLowerCase();
-}
-
-export function isHappyHorseVideoModel(modelId: string | null | undefined): boolean {
-  return normalizeVideoModelId(modelId).includes("happyhorse10");
-}
-
-export function isGrokVideoChannelModel(modelId: string | null | undefined): boolean {
-  return normalizeVideoModelId(modelId).includes("grokvideochannel");
-}
-
-// Seedance 1 全系列（1.0 Pro Fast / 1.5 Pro / …）：版本号 `1.x` → `1x`，匹配
-// `seedance1` 后跟任意数字，避免误命中 2.0（`seedance20`）。引用素材时这些模型受限。
-export function isSeedance1xVideoModel(modelId: string | null | undefined): boolean {
-  return /seedance1\d/.test(normalizeVideoModelId(modelId));
-}
-
-// Seedance 2.0 全系列（2.0 / fast / value / fast-value）：与后端
-// `is_freezone_seedance2_backend`（model.startswith("seedance-2.0")）等价。
-export function isSeedance2VideoModel(modelId: string | null | undefined): boolean {
-  return /seedance2/.test(normalizeVideoModelId(modelId));
-}
-
-// 基础款 Seedance 2.0（`…seedance-2.0` 本体，不含 fast / value / fast-value 变体）。
-// 归一化后以 `seedance20` 结尾即为基础款——变体都会在后面多出 `fast` / `value` 后缀。
-function isBaseSeedance2VideoModel(modelId: string | null | undefined): boolean {
-  return /seedance20$/.test(normalizeVideoModelId(modelId));
-}
-
 /** 前端模式与媒体模型目录能力的唯一映射。 */
 export const GEN_MODE_TO_CATALOG_MODE: Record<VideoGenMode, string> = {
   textToVideo: "text_to_video",
@@ -148,42 +107,24 @@ export function videoModelDefaultGenerateAudio(model: VideoModelRef): boolean {
   return videoModelSupportsGenerateAudio(model);
 }
 
-/** 从模型入参里取出用于能力启发式判定的 id（优先 apiModel，它才是打给上游的名字）。 */
-function videoModelIdOf(model: VideoModelRef): string | null | undefined {
-  return typeof model === "string" ? model : (model?.apiModel ?? model?.id);
+/** 目录下发了 supportedModes 的模型对象。 */
+function catalogModes(model: VideoModelRef): string[] | null {
+  return typeof model === "object" && model !== null && (model.supportedModes?.length ?? 0) > 0
+    ? (model.supportedModes ?? null)
+    : null;
 }
 
 /**
  * 指定模型是否支持某 genMode（与可见 tab / 切模型时是否重置残留模式口径一致）。
- * - HappyHorse：文生 / 首帧(i2v) / 图片参考(r2v) / 视频编辑。
- * - 目录未返回 supportedModes 时沿用旧启发式；视频延长没有旧默认，只有后台显式配置后
- *   才开放。
+ * 目录没给 supportedModes 时按通用口径：视频编辑 / 视频延长只有目录显式声明才开放。
  */
 export function isVideoModeSupportedByModel(
   mode: VideoGenMode,
   model: VideoModelRef,
 ): boolean {
-  if (typeof model === "object" && model !== null && (model.supportedModes?.length ?? 0) > 0) {
-    return model.supportedModes?.includes(GEN_MODE_TO_CATALOG_MODE[mode]) ?? false;
-  }
-  const modelId = videoModelIdOf(model);
-  if (isHappyHorseVideoModel(modelId)) {
-    return (
-      mode === "textToVideo" ||
-      mode === "firstFrame" ||
-      mode === "imageToVideo" ||
-      mode === "imageReference" ||
-      mode === "videoEdit"
-    );
-  }
-  if (isSeedance1xVideoModel(modelId)) {
-    return mode === "textToVideo" || mode === "firstFrame";
-  }
-  if (mode === "videoEdit" || mode === "videoExtend") return false;
-  if (mode === "allReference" || mode === "firstLastFrame") {
-    return isSeedance2VideoModel(modelId);
-  }
-  return true;
+  const modes = catalogModes(model);
+  if (modes) return modes.includes(GEN_MODE_TO_CATALOG_MODE[mode]);
+  return mode !== "videoEdit" && mode !== "videoExtend";
 }
 
 /**
@@ -197,58 +138,33 @@ export type VideoEmptyStateCtaMode =
   | "imageToVideo"
   | "firstLastFrame";
 
-/**
- * 视频节点「空态」CTA 的模式顺序——只列该模型**真正能起步**的图片 / 首尾帧模式：
- * - HappyHorse：首帧 → 图片参考；
- * - Seedance 2.0：全能参考 → 图片参考 → 首尾帧；
- * - Seedance 1.x 及其它非 2.0 非 HappyHorse：全能参考会 400、首尾帧尾帧被静默丢弃、
- *   多图参考也不支持，只给确实可用的「首帧」。
- */
+/** 视频节点「空态」CTA 的模式顺序——只列该模型**真正能起步**的图片 / 首尾帧模式。 */
 export function videoEmptyStateCtaModes(
   model: VideoModelRef,
 ): VideoEmptyStateCtaMode[] {
-  if (typeof model === "object" && model !== null && (model.supportedModes?.length ?? 0) > 0) {
-    const order: VideoEmptyStateCtaMode[] = [
-      "allReference",
-      "imageToVideo",
-      "firstFrame",
-      "imageReference",
-      "firstLastFrame",
-    ];
-    return order.filter((mode) => isVideoModeSupportedByModel(mode, model));
-  }
-  const modelId = videoModelIdOf(model);
-  if (isHappyHorseVideoModel(modelId)) {
-    return ["imageToVideo", "firstFrame", "imageReference"];
-  }
-  if (isSeedance2VideoModel(modelId)) {
-    return ["allReference", "imageToVideo", "firstFrame", "imageReference", "firstLastFrame"];
-  }
-  return ["firstFrame"];
+  const order: VideoEmptyStateCtaMode[] = [
+    "allReference",
+    "imageToVideo",
+    "firstFrame",
+    "imageReference",
+    "firstLastFrame",
+  ];
+  return order.filter((mode) => isVideoModeSupportedByModel(mode, model));
 }
 
-/**
- * 非 HappyHorse 模型「首次接入图片素材」后的默认模式：Seedance 2.0 用全能参考
- * （omni，1-9 图 + 视频 + 音频的通用入口），其余（Seedance 1.x）不支持全能参考，
- * 退到确实可用的「首帧」，避免默认推导把 1.x 顶进一个提交必 400 的模式。
- */
+/** 「首次接入图片素材」后的默认模式：按全能参考 → 图生视频 → 首帧 → 图片参考取第一个支持的。 */
 export function videoUpstreamImageDefaultMode(
   model: VideoModelRef,
 ): VideoGenMode | null {
-  if (typeof model === "object" && model !== null && (model.supportedModes?.length ?? 0) > 0) {
-    for (const mode of [
-      "allReference",
-      "imageToVideo",
-      "firstFrame",
-      "imageReference",
-    ] as const) {
-      if (isVideoModeSupportedByModel(mode, model)) return mode;
-    }
-    return null;
+  for (const mode of [
+    "allReference",
+    "imageToVideo",
+    "firstFrame",
+    "imageReference",
+  ] as const) {
+    if (isVideoModeSupportedByModel(mode, model)) return mode;
   }
-  const modelId = videoModelIdOf(model);
-  if (isHappyHorseVideoModel(modelId)) return "imageToVideo";
-  return isSeedance2VideoModel(modelId) ? "allReference" : "firstFrame";
+  return null;
 }
 
 /**
@@ -280,8 +196,6 @@ export function videoModeRequiresMedia(mode: VideoGenMode): boolean {
  * 视频节点的模式推导原本是**单向**的：接入图片/视频/音频时有一堆 effect 把模式推进
  * 到能消费该素材的模式，却没有任何一条在素材撤空后把它推回来。于是「连一张图 → 又把
  * 图删掉」之后节点卡在全能参考上，界面上看不出异常，提交却必然被静默拦下。
- * HappyHorse 那条统一状态机早就有「无上游 → 文生视频」这一档，这里把同一条规则补给
- * 其余模型。
  *
  * 素材计数要传**按节点类型**的口径（`upstreamTypeCounts`，空的图片节点也算），不能用
  * 「已解析 URL」的口径：空态 CTA（全能参考 / 图片参考 / 首尾帧）正是先铺一个还没出图
@@ -296,40 +210,20 @@ export function videoNoUpstreamResetMode(
   return mode === "textToVideo" ? null : "textToVideo";
 }
 
-/**
- * 该模型的 i2v 端点是否放行多图（>1）。后端只在「非 2.0 且非 HappyHorse」时对
- * `len(source_paths) > 1` 直接 400（freezone.py），所以这两族之外的模型（Seedance
- * 1.x 等）一次只能吃一张图 —— 对它们来说换模式救不了，得换模型。
- */
+/** 该模型是否能一次消费多张图（目录声明了全能参考或图片参考）。 */
 export function videoModelAcceptsMultipleImages(
   model: VideoModelRef,
 ): boolean {
-  if (typeof model === "object" && model !== null && (model.supportedModes?.length ?? 0) > 0) {
-    return (
-      isVideoModeSupportedByModel("allReference", model) ||
-      isVideoModeSupportedByModel("imageReference", model)
-    );
-  }
-  const modelId = videoModelIdOf(model);
-  return isSeedance2VideoModel(modelId) || isHappyHorseVideoModel(modelId);
+  return (
+    isVideoModeSupportedByModel("allReference", model) ||
+    isVideoModeSupportedByModel("imageReference", model)
+  );
 }
 
 /**
  * 「首帧生成视频」(imageToVideo / i2v) 接了多图时该切到哪个模式，null = 不动。
- *
- * 为什么必须切：后端 i2v 端点按**图片张数**分流（1 张 = 图生视频，2-9 张 = 图片
- * 参考视频），多连一张不会报错，而是悄悄变成另一种生成方式 —— 界面上模式却还写着
- * 「首帧生成视频」。用户把第二张图连上来这个动作本身就是明确意图，直接把模式导到
- * 真正在做的事情上：优先「全能参考」(omni，还能继续接视频 / 音频)，模型不支持
- * omni 时退「图片参考」。
- *
- * 三种情况**不动**：
- * - HappyHorse 有自己那套完整状态机（videos>0→视频编辑 / images>1→图片参考 /
- *   images===1→首帧），在那儿统一收口，这里再插一脚只会两处来回打架；
- * - 模型压根消费不了多图（Seedance 1.x：i2v 端点 >1 图直接 400），换到哪个模式都是
- *   400。留在首帧上，让提交守卫那句「该模型单次仅支持 1 张图片」把话说清楚，别用
- *   一次模式跳变把真正的问题（该换模型）盖掉；
- * - 两个候选模式该模型都不支持 —— 宁可不动，也不要顶进一个提交必 400 的模式。
+ * 优先「全能参考」(还能继续接视频 / 音频)，不支持时退「图片参考」；模型消费不了多图
+ * 就不动，让提交守卫说清楚「该换模型」。
  */
 export function videoMultiImageAutoSwitchMode(
   mode: VideoGenMode,
@@ -337,8 +231,6 @@ export function videoMultiImageAutoSwitchMode(
   imageCount: number,
 ): VideoGenMode | null {
   if (mode !== "imageToVideo" || imageCount <= 1) return null;
-  const modelId = videoModelIdOf(model);
-  if (isHappyHorseVideoModel(modelId)) return null;
   if (!videoModelAcceptsMultipleImages(model)) return null;
   const candidates: VideoGenMode[] = ["allReference", "imageReference"];
   return candidates.find((candidate) => isVideoModeSupportedByModel(candidate, model)) ?? null;
@@ -573,8 +465,7 @@ export function formatAudioDurationClips(
  * - 视频素材：「全能参考」「视频编辑」「视频延长」消费，其余模式静默丢弃 → 拦；
  * - 音频素材：「全能参考」消费；「视频编辑」仅在媒体目录显式配置音频上限时消费；
  *   其余模式静默丢弃 → 拦；
- * - 多图(>1)：i2v 端点仅 Seedance 2.0 / HappyHorse 放行，非 2.0 非 HappyHorse
- *   （Seedance 1.x）传 >1 图后端直接 400 → 拦。
+ * - 多图(>1)：目录没声明全能参考 / 图片参考的模型一次只吃一张图 → 拦。
  *
  * 未配置相应视频模式的模型接入视频/音频后，这些规则会阻止素材被静默丢弃。
  */
@@ -622,78 +513,35 @@ export function videoSubmitMediaRejectionReason(
 
 /**
  * 模型选择器里某个候选**为什么不能选**（非 null 则置灰 + 悬浮显示这句理由）。
- *
- * 与上面的 `videoSubmitMediaRejectionReason` 是一对：那条管「选定模型后能不能提交」，
- * 这条管「带着当前这堆上游素材，还能不能切到这个模型」。要维持的不变量是
- * **「不置灰 ⇒ 存在一个该模型支持、且提交守卫放行的模式」**——不是逐条阈值相等。
- * 逐条相等这个说法在这里不成立：HappyHorse 的多图 / 视频都由它自己的 r2v / 视频编辑
- * 路径消化，两条守卫本来就写着不同的判断；真正不能破的是「选得进去就必须走得通」，
- * 否则用户会被放进一个提交必被拦、界面上又毫无预兆的死胡同。
- *
- * 三处阈值的由来：
- * - Seedance 1.x 是 **>1 图**，不是 >0：后端 i2v 端点只在 `len(source_paths) > 1`
- *   且非 2.0 非 HappyHorse 时才 400（freezone.py），单图首帧正是 1.x 唯一能用、也是
- *   `videoEmptyStateCtaModes` 明确推荐给它的模式。写成 >0 会把「一张图 + Seedance
- *   1.5 Pro」这个完全合法的常规组合整个锁死。
- * - HappyHorse 只拦音频：音频只有全能参考(omni, 2.0)能消费，而
- *   `isVideoModeSupportedByModel` 里 HappyHorse 永远到不了 allReference——不拦的话
- *   「HappyHorse + 音频节点」就是上面说的那种死胡同（选得进去、提交必被拦）。
- *   它的多图（r2v）和视频（视频编辑）都能消化，不拦。
- * - Grok Video Channel 只支持图片。注：它当前在后端是关掉的
- *   （`FREEZONE_DISABLED_VIDEO_BACKENDS`），不会出现在选择器里，这条分支是休眠的。
+ * 不变量：**「不置灰 ⇒ 存在一个该模型支持、且提交守卫放行的模式」**。
+ * 返回 i18n key，调用方负责 `t()`。
  */
-/** 同上：返回的是 i18n key，调用方负责 `t()`。 */
 export function videoModelReferenceDisabledReason(
   model: VideoModelRef,
   counts: { images: number; videos: number; audios: number },
 ): string | null {
-  if (typeof model === "object" && model !== null && (model.supportedModes?.length ?? 0) > 0) {
-    const supportsAllReference = isVideoModeSupportedByModel("allReference", model);
-    const supportsVideoEdit = isVideoModeSupportedByModel("videoEdit", model);
-    const supportsVideoExtend = isVideoModeSupportedByModel("videoExtend", model);
-    if (
-      counts.videos > 0 &&
-      !supportsAllReference &&
-      !supportsVideoEdit &&
-      !supportsVideoExtend
-    ) {
-      return "node.videoModel.reason.videoUnsupported";
-    }
-    const supportsVideoEditAudio =
-      supportsVideoEdit &&
-      typeof model.referenceAudioMax === "number" &&
-      model.referenceAudioMax > 0;
-    if (counts.audios > 0 && !supportsAllReference && !supportsVideoEditAudio) {
-      return "node.videoModel.reason.audioUnsupported";
-    }
-    if (counts.images > 1 && !videoModelAcceptsMultipleImages(model)) {
-      return "node.videoModel.reason.singleImageOnly";
-    }
-    return null;
+  const supportsAllReference = isVideoModeSupportedByModel("allReference", model);
+  const supportsVideoEdit = isVideoModeSupportedByModel("videoEdit", model);
+  const supportsVideoExtend = isVideoModeSupportedByModel("videoExtend", model);
+  if (
+    counts.videos > 0 &&
+    !supportsAllReference &&
+    !supportsVideoEdit &&
+    !supportsVideoExtend
+  ) {
+    return "node.videoModel.reason.videoUnsupported";
   }
-  const modelId = videoModelIdOf(model);
-  if (isGrokVideoChannelModel(modelId)) {
-    if (counts.videos > 0 || counts.audios > 0) {
-      return "node.videoModel.reason.grokImagesOnly";
-    }
-    if (counts.images > 8) {
-      return "node.videoModel.reason.grokImageLimit";
-    }
-    return null;
+  const supportsVideoEditAudio =
+    supportsVideoEdit &&
+    typeof model === "object" &&
+    model !== null &&
+    typeof model.referenceAudioMax === "number" &&
+    model.referenceAudioMax > 0;
+  if (counts.audios > 0 && !supportsAllReference && !supportsVideoEditAudio) {
+    return "node.videoModel.reason.audioUnsupported";
   }
-  if (isHappyHorseVideoModel(modelId)) {
-    if (counts.audios > 0) {
-      return "node.videoModel.reason.audioUnsupported";
-    }
-    return null;
-  }
-  if (isSeedance1xVideoModel(modelId)) {
-    if (counts.videos > 0 || counts.audios > 0) {
-      return "node.videoModel.reason.imagesOnly";
-    }
-    if (counts.images > 1) {
-      return "node.videoModel.reason.singleImageOnly";
-    }
+  if (counts.images > 1 && !videoModelAcceptsMultipleImages(model)) {
+    return "node.videoModel.reason.singleImageOnly";
   }
   return null;
 }
@@ -704,42 +552,33 @@ export interface VideoReferenceAutoSwitch {
   genMode: VideoGenMode;
 }
 
+export type VideoReferenceAutoSwitchModel = {
+  id: string;
+  apiModel?: string;
+  supportedModes?: string[];
+};
+
 /**
- * 上游接入视频 / 音频时的**自动救场**：Seedance 1.x 根本消费不了这两类素材
- * （i2v 端点只收图，omni 端点非 2.0 直接 400），把用户留在 1.x 上只能得到一次
- * 必然失败的提交。用户连上视频/音频节点这个动作本身就是明确意图，所以直接替他
- * 换成能吃这些素材的 Seedance 2.0，并落到唯一能消费它们的「全能参考」。
- *
- * 只管 Seedance 1.x：
- * - HappyHorse 有自己的「视频编辑」路径，能吃视频，不该被抢走；
- * - Grok Video Channel 是用户显式选的独立渠道，只支持图片，这里不替他改渠道，
- *   继续由选择器置灰 + 提交守卫兜底；
- * - 2.0 本来就支持，无需动。
- *
- * 素材计数请传**按节点类型**的口径（空的视频节点也算），并且和喂给
- * `videoModelReferenceDisabledReason` 的口径保持同源 —— 否则会出现「effect 把模型
- * 切走、选择器又允许切回来」的来回打架。
- *
- * 目标锁定**基础款 Seedance 2.0**，而不是列表里排最前的 `Seedance2.0 Fast`：fast 是
- * 提速降档的变体，替用户救场时把他悄悄放到降档模型上不合适；基础款也正是后端
- * `FreezoneVideoGenRequest.model` 的默认值。基础款不在候选列表里（接口只下发了变体）
- * 时退到任意一个 2.0——总比让他卡在必然失败的 1.x 上强；一个 2.0 都没有则返回 null，
- * 宁可不动也不要瞎切。
+ * 上游接入视频 / 音频时的**自动救场**：当前模型（按目录能力）不支持全能参考、也没有
+ * 视频编辑 / 延长能消费这些素材时，换成列表里第一个支持全能参考的模型。当前模型不在
+ * 列表里（能力未知）时不动。
  */
 function pickVideoReferenceAutoSwitch(
   currentModelId: string | null | undefined,
   counts: { videos: number; audios: number },
-  models: readonly { id: string; apiModel?: string }[],
+  models: readonly VideoReferenceAutoSwitchModel[],
 ): VideoReferenceAutoSwitch | null {
   if (counts.videos === 0 && counts.audios === 0) {
     return null;
   }
-  if (!isSeedance1xVideoModel(currentModelId)) {
+  const current = models.find(
+    (model) => model.id === currentModelId || model.apiModel === currentModelId,
+  );
+  if (!current) return null;
+  if (videoModelReferenceDisabledReason(current, { images: 0, ...counts }) == null) {
     return null;
   }
-  const target =
-    models.find((model) => isBaseSeedance2VideoModel(model.apiModel ?? model.id)) ??
-    models.find((model) => isSeedance2VideoModel(model.apiModel ?? model.id));
+  const target = models.find((model) => isVideoModeSupportedByModel("allReference", model));
   return target ? { modelId: target.id, genMode: "allReference" } : null;
 }
 
@@ -752,30 +591,13 @@ export type VideoReferenceAutoSwitchAction =
   | { kind: "switch"; modelId: string; genMode: VideoGenMode };
 
 /**
- * 自动救场的**完整闸门**——组件那条 effect 该调的就是这一个，除了改 ref 和发 patch
- * 之外不该再自己判断任何条件。把闸门做成纯函数是为了能整段测：异步加载时序（下面第
- * 一条）光测「该换成谁」是覆盖不到的，而它恰恰是最容易出事的地方。
- *
- * 三道闸，顺序有讲究：
- * 1. **素材撤走优先于一切**（含加载中）——松闩只是复位一个 ref，没有任何副作用，
- *    没必要等列表；等了反而会漏掉「加载期间用户又把线拔了」这种收尾。
- * 2. **`modelsLoading` 期间一律不动**。`useFreezoneVideoModels` 在 pending 时返回的
- *    不是空数组，而是硬编码的 `VIDEO_MODELS`——照着它挑出来的 2.0 未必存在于该项目
- *    的真列表里。提前切了还落闩，真列表回来也不再纠正，节点就卡在一个后端不认识的
- *    模型上，提交直接 400。**注意只看 `isLoading`，不要连 `isFallback` 一起挡**：
- *    isFallback 在「URL 没有 project」「拉取失败」「后端返回空列表」这三种**已落定**
- *    的情况下会一直是 true，而此时选择器渲染的正是同一份 `VIDEO_MODELS`（
- *    `ProviderModelPicker` 用的就是这个 hook 的 models），2.0 就在里面、用户手动也
- *    能选中；连它一起挡等于在这些情况下永久关掉救场。
- * 3. **`alreadySwitched` 落闩后不再纠正**，避免把 undo 堵死（见组件里的注释）。
- *
- * 「没切成」不落闩：列表里一个 2.0 都没有时返回 `none`，把这次跳变留着，等列表变了
- * 还有机会补救。
+ * 自动救场的**完整闸门**：素材撤走优先（松闩）；`modelsLoading` 期间不动（兜底列表
+ * 未必是项目真列表）；`alreadySwitched` 落闩后不再纠正，避免把 undo 堵死。
  */
 export function videoReferenceAutoSwitchAction(input: {
   counts: { videos: number; audios: number };
   currentModelId: string | null | undefined;
-  models: readonly { id: string; apiModel?: string }[];
+  models: readonly VideoReferenceAutoSwitchModel[];
   modelsLoading: boolean;
   alreadySwitched: boolean;
 }): VideoReferenceAutoSwitchAction {

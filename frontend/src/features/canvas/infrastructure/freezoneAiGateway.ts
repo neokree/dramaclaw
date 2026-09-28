@@ -10,11 +10,12 @@
 //   - on completion → fetch /freezone/jobs/<type>/<id>/result for the URL
 //
 // Provider/model routing (v1.1):
-//   - upstream node payload's `model` field is split on '/' → (provider, model)
-//     e.g. "openai/gpt-image-2" → provider="openai", model="gpt-image-2"
+//   - upstream node payload's `model` field is split on the first '/' → (provider, model)
+//     e.g. "higgsfield/higgsfield:nano_banana_flash" → provider="higgsfield",
+//     model="higgsfield:nano_banana_flash"
 //   - if no '/' → entire string treated as model, provider left as null
-//     (backend falls back to NANOBANANA_PROVIDER env)
-//   - extraParams.quality is forwarded for openai gpt-image-2
+//     (backend resolves it as an image selection, e.g. "drawthings")
+//   - extraParams.quality is forwarded when the catalog declares qualityOptions
 //   - payload.modelParams is forwarded verbatim as `model_params` (媒体模型目录
 //     声明的动态参数，后端按目录 schema 校验)
 
@@ -52,9 +53,9 @@ interface ProviderModel {
 
 /** Split frontend model strings into SuperTale's provider/model pair. */
 const PLACEHOLDER_MODEL_TOKENS = new Set(["default", "auto", ""]);
-const SUPPORTED_PROVIDERS = new Set<FreezoneProvider>([
-  "huimeng",
-  "openai",
+const SUPPORTED_PROVIDERS = new Set<string>([
+  "drawthings",
+  "higgsfield",
   "openrouter",
 ]);
 
@@ -65,13 +66,12 @@ function splitProviderModel(input: string | undefined | null): ProviderModel {
     return { provider: null, model: input };
   }
   const providerToken = input.slice(0, idx);
-  const provider = SUPPORTED_PROVIDERS.has(providerToken as FreezoneProvider)
+  const provider = SUPPORTED_PROVIDERS.has(providerToken)
     ? (providerToken as FreezoneProvider)
     : null;
   const rawModel = input.slice(idx + 1);
-  // SuperTale-specific model files use placeholder tokens like
-  // "openrouter/default" or "huimeng/default" so the backend can fall back
-  // to NANOBANANA_MODEL env. Strip those so we don't ship a bogus model name.
+  // Placeholder tokens like "<provider>/default" let the backend pick its
+  // default model. Strip those so we don't ship a bogus model name.
   const model = PLACEHOLDER_MODEL_TOKENS.has(rawModel.toLowerCase())
     ? null
     : rawModel;

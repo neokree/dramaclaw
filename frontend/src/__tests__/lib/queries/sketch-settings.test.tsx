@@ -40,8 +40,8 @@ describe("sketch settings query", () => {
           return HttpResponse.json({
             ok: true,
             data: {
-              sketch_image_selection: "openrouter_nanobanana2",
-              options: { openrouter_nanobanana2: "OpenRouter NanoBanana 2" },
+              sketch_image_selection: "higgsfield:nano_banana_flash",
+              options: { "higgsfield:nano_banana_flash": "Nano Banana Flash" },
             },
           });
         },
@@ -55,7 +55,7 @@ describe("sketch settings query", () => {
     await waitFor(() => expect(result.current.data).toBeDefined());
     expect(requestedPath).toBe("/api/v1/projects/demo/sketch-settings");
     expect(result.current.data?.data.sketch_image_selection).toBe(
-      "openrouter_nanobanana2",
+      "higgsfield:nano_banana_flash",
     );
   });
 
@@ -71,8 +71,8 @@ describe("sketch settings query", () => {
           return HttpResponse.json({
             ok: true,
             data: {
-              sketch_image_selection: "openrouter_nanobanana2",
-              options: { openrouter_nanobanana2: "OpenRouter NanoBanana 2" },
+              sketch_image_selection: "higgsfield:nano_banana_flash",
+              options: { "higgsfield:nano_banana_flash": "Nano Banana Flash" },
             },
           });
         },
@@ -84,13 +84,13 @@ describe("sketch settings query", () => {
     });
 
     result.current.mutate({
-      sketch_image_selection: "openrouter_nanobanana2",
+      sketch_image_selection: "higgsfield:nano_banana_flash",
     });
 
     await waitFor(() => expect(result.current.data).toBeDefined());
     expect(requestedPath).toBe("/api/v1/projects/demo/sketch-settings");
     expect(receivedBody).toEqual({
-      sketch_image_selection: "openrouter_nanobanana2",
+      sketch_image_selection: "higgsfield:nano_banana_flash",
     });
   });
 });

@@ -162,8 +162,6 @@ const VIDEO_CANDIDATES_CLASS =
   "flex max-h-[220px] flex-wrap content-start gap-2 overflow-y-auto pr-1";
 const SEEDANCE2_CONTROL_CLASS =
   "rounded-[8px] border-white/[0.095] bg-white/[0.025] text-sm shadow-none focus-visible:border-white/[0.16] focus-visible:ring-white/10 dark:border-white/[0.095] dark:bg-white/[0.025]";
-const VIDEO_PARAM_CONTROL_CLASS =
-  "!h-[30px] rounded-[7px] border border-white/[0.13] bg-white/[0.018] px-2.5 text-[12px] font-normal leading-none text-foreground/86 shadow-none transition-colors hover:border-white/[0.22] hover:bg-white/[0.035] focus-visible:border-white/[0.24] focus-visible:ring-white/10 dark:border-white/[0.13] dark:bg-white/[0.018] [&>svg]:size-3.5";
 const VIDEO_PARAM_ACTION_CLASS =
   "!h-[30px] gap-1.5 rounded-[7px] border border-white/[0.13] bg-white/[0.018] px-2.5 text-[12px] font-normal leading-none text-foreground/86 shadow-none transition-[background-color,border-color,color,transform] hover:border-white/[0.22] hover:bg-white/[0.035] hover:text-foreground active:scale-95 disabled:border-white/[0.07] disabled:bg-white/[0.012] disabled:text-muted-foreground/45 dark:border-white/[0.13] dark:bg-white/[0.018] dark:hover:bg-white/[0.035] [&_svg]:size-3.5";
 const SEEDANCE2_TEXTAREA_CLASS =
@@ -172,27 +170,12 @@ const SEEDANCE2_SECONDARY_ACTION_CLASS =
   "h-7 gap-1 rounded-[7px] border-white/[0.11] bg-white/[0.03] px-2.5 text-[12px] font-normal text-foreground/76 shadow-none hover:border-white/[0.18] hover:bg-white/[0.055] hover:text-foreground disabled:border-white/[0.07] disabled:bg-white/[0.018] disabled:text-muted-foreground/45 dark:border-white/[0.11] dark:bg-white/[0.03]";
 const SEEDANCE2_PILL_ACTION_CLASS =
   "h-6 rounded-full border border-white/[0.075] bg-white/[0.018] px-2 text-[11px] font-normal text-muted-foreground/78 shadow-none hover:border-white/[0.14] hover:bg-white/[0.04] hover:text-foreground";
-const SEEDANCE2_SEGMENTED_OPTION_CLASS =
-  "h-7 rounded-[7px] border px-1.5 text-xs font-normal shadow-none transition-[background-color,border-color,color] duration-150";
 const SEEDANCE2_COLLAPSE_TRIGGER_CLASS =
   "-ml-1 h-6 gap-1.5 px-1 text-xs font-medium text-foreground/78 !bg-transparent hover:!bg-transparent hover:text-foreground aria-expanded:!bg-transparent dark:hover:!bg-transparent";
 const SEEDANCE2_DEFAULT_RESOLUTION_OPTIONS = ["480p", "720p"] as const;
-const HAPPYHORSE_RESOLUTION_OPTIONS = ["720p", "1080p"] as const;
-const HAPPYHORSE_RATIO_OPTIONS = ["16:9", "9:16", "1:1", "4:3", "3:4"] as const;
-const GROK_VIDEO_RESOLUTION_OPTIONS = ["720p", "480p"] as const;
-const GROK_VIDEO_RATIO_OPTIONS = ["16:9", "9:16", "1:1", "2:3", "3:2"] as const;
-const SEEDANCE2_RESOLUTION_OPTIONS_BY_MODEL = {
-  "seedance-2.0-fast": ["480p", "720p"],
-  "seedance-2.0": ["480p", "720p", "1080p"],
-  "seedance-2.0-value": ["720p", "1080p"],
-  "seedance-2.0-fast-value": ["720p", "1080p"],
-  // Seedance 1.5 Pro（有声）清晰度，来源 huimengi /api/v1/models
-  "seedance-1.5-pro": ["480p", "720p", "1080p"],
-} as const;
 
-type Seedance2Resolution = "480p" | "720p" | "1080p";
-type HappyHorseRatio = (typeof HAPPYHORSE_RATIO_OPTIONS)[number];
-type GrokVideoRatio = (typeof GROK_VIDEO_RATIO_OPTIONS)[number];
+// Resolutions come from the backend option (Higgsfield specs), not a fixed enum.
+type Seedance2Resolution = string;
 
 interface Seedance2DurationBounds {
   min: number;
@@ -215,7 +198,7 @@ interface Seedance2ConfigDraft {
   mode_user_set: boolean;
   duration: number;
   resolution: Seedance2Resolution;
-  ratio: "9:16" | "16:9" | "1:1" | "4:3" | "3:4" | "21:9" | "2:3" | "3:2";
+  ratio: "9:16" | "16:9" | "1:1" | "4:3" | "3:4" | "4:5" | "21:9" | "2:3" | "3:2";
   generate_audio: boolean;
   generate_audio_user_set: boolean;
   return_last_frame: boolean;
@@ -247,14 +230,6 @@ type Seedance2CropIntent = {
   asset: Seedance2AssetItem;
   target: VideoInputCropTarget;
 };
-
-export function shouldDisableDialogueOnlyBackendForBeat(
-  backend: { dialogue_only?: boolean },
-  beat: Pick<Beat, "audio_type">,
-): boolean {
-  if (!backend.dialogue_only) return false;
-  return String(beat.audio_type ?? "narration").trim() !== "dialogue";
-}
 
 /**
  * 视频 sub-tab — first-frame preview + video preview + per-beat regen.
@@ -369,15 +344,14 @@ export function VideoPane({
   }, [videoBackends]);
   const selectedBackend = videoBackends.find((b) => b.value === defaultBackend);
   const showSeedance2Config = selectedBackend?.is_seedance2 === true;
-  const showHappyHorseConfig = selectedBackend?.is_happyhorse === true;
-  const showGrokVideoConfig = selectedBackend?.is_grok_video === true;
-  const showPromptConfig =
-    showSeedance2Config || showHappyHorseConfig || showGrokVideoConfig;
+  const showPromptConfig = showSeedance2Config;
+  // Non-multi-reference engines (h3.c) still take the first frame as input.
   const showReferenceDetails =
     showSeedance2Config ||
-    showHappyHorseConfig ||
-    showGrokVideoConfig ||
-    isSeedanceReferenceCropBackend(defaultBackend);
+    (selectedBackend?.supported_modes?.includes("first_frame") ?? false);
+  // Wording only: the multi-reference flow keeps "Seedance" labels for Seedance
+  // models; every other Higgsfield model gets generic labels.
+  const isSeedanceModel = /seedance/i.test(defaultBackend);
   const legacyPromptField: "video_prompt" | "keyframe_prompt" =
     beat.video_mode === "keyframe" ? "keyframe_prompt" : "video_prompt";
   const legacyPromptLabel =
@@ -390,75 +364,27 @@ export function VideoPane({
       ? (beat.keyframe_prompt ?? "")
       : (beat.video_prompt ?? ""),
   );
-  const showSeedance2ValueStyle =
-    showSeedance2Config && isSeedance2ValueBackend(defaultBackend);
   const seedance2ResolutionOptions = useMemo(
-    () => seedance2ResolutionOptionsForBackend(defaultBackend),
-    [defaultBackend],
+    () => seedance2ResolutionOptionsForBackend(selectedBackend),
+    [selectedBackend],
+  );
+  const seedance2RatioOptions = useMemo(
+    () => seedance2RatioOptionsForBackend(selectedBackend),
+    [selectedBackend],
+  );
+  const seedance2ModeOptions = useMemo(
+    () => seedance2ModeOptionsForBackend(selectedBackend),
+    [selectedBackend],
   );
   const seedance2DurationBounds = useMemo(
     () => seedance2DurationBoundsForBackend(selectedBackend),
     [selectedBackend],
   );
-  const happyHorseResolutionOptions = useMemo(
-    () => happyHorseResolutionOptionsForBackend(selectedBackend),
-    [selectedBackend],
-  );
-  const happyHorseRatioOptions = useMemo(
-    () => happyHorseRatioOptionsForBackend(selectedBackend),
-    [selectedBackend],
-  );
-  const grokVideoResolutionOptions = useMemo(
-    () => grokVideoResolutionOptionsForBackend(selectedBackend),
-    [selectedBackend],
-  );
-  const grokVideoRatioOptions = useMemo(
-    () => grokVideoRatioOptionsForBackend(selectedBackend),
-    [selectedBackend],
-  );
-  // seedance-1.5-pro：复用清晰度/时长控件（精品剧+解说剧），但不走 seedance2 多模态那套。
-  const isSd15ProConfig =
-    !showSeedance2Config && isSeedance15ProBackend(defaultBackend);
   const audioFloorSeconds =
     typeof beat.audio_duration_seconds === "number" &&
     beat.audio_duration_seconds > 0
       ? Math.ceil(beat.audio_duration_seconds)
       : null;
-  // 时长下限 = max(模型下限, 音频时长)；视频时长须 >= 音频时长。
-  const sd15DurationBounds = useMemo<Seedance2DurationBounds>(
-    () => ({
-      min: Math.max(seedance2DurationBounds.min, audioFloorSeconds ?? 0),
-      max: seedance2DurationBounds.max,
-    }),
-    [seedance2DurationBounds.min, seedance2DurationBounds.max, audioFloorSeconds],
-  );
-  const [sd15Resolution, setSd15Resolution] =
-    useState<Seedance2Resolution>("720p");
-  const [sd15Duration, setSd15Duration] = useState<number>(
-    seedance2DurationBounds.min,
-  );
-  useEffect(() => {
-    if (!isSd15ProConfig) return;
-    const fallbackRes = seedance2ResolutionOptions.includes("720p")
-      ? "720p"
-      : seedance2ResolutionOptions[0];
-    setSd15Resolution((prev) =>
-      seedance2ResolutionOptions.includes(prev)
-        ? prev
-        : normalizeSeedance2Resolution(fallbackRes),
-    );
-    // 默认时长 = 音频下限（视频须 >= 音频）；用户可在控件里上调。
-    setSd15Duration(
-      clampDuration(audioFloorSeconds ?? sd15DurationBounds.min, sd15DurationBounds),
-    );
-  }, [
-    isSd15ProConfig,
-    beat.beat_number,
-    audioFloorSeconds,
-    seedance2ResolutionOptions,
-    sd15DurationBounds.min,
-    sd15DurationBounds.max,
-  ]);
   useEffect(() => {
     setLegacyVideoPrompt(
       legacyPromptField === "keyframe_prompt"
@@ -489,13 +415,7 @@ export function VideoPane({
   const seedance2StatusData =
     seedance2Status.data?.ok === true ? seedance2Status.data.data : null;
   const seedance2AssetItems = seedance2StatusData?.assets.items ?? [];
-  const modelReferenceAssetItems = useMemo(
-    () =>
-      showHappyHorseConfig || showGrokVideoConfig
-        ? seedance2AssetItems.filter((asset) => asset.media_type === "image")
-        : seedance2AssetItems,
-    [seedance2AssetItems, showGrokVideoConfig, showHappyHorseConfig],
-  );
+  const modelReferenceAssetItems = seedance2AssetItems;
   const referenceCropImageItems = useMemo(
     () => {
       const imageAssets = seedance2AssetItems.filter(
@@ -504,12 +424,12 @@ export function VideoPane({
           asset.exists !== false &&
           Boolean(asset.url || asset.path),
       );
-      if (showSeedance2Config || showHappyHorseConfig || showGrokVideoConfig) {
+      if (showSeedance2Config) {
         return imageAssets;
       }
       return imageAssets.filter((asset) => asset.key === "first_frame");
     },
-    [seedance2AssetItems, showGrokVideoConfig, showHappyHorseConfig, showSeedance2Config],
+    [seedance2AssetItems, showSeedance2Config],
   );
   const seedance2ReferenceOptions = useMemo(
     () =>
@@ -544,18 +464,12 @@ export function VideoPane({
     [beat.seedance2_config_json, spec.renderAspect],
   );
   const [seedance2Draft, setSeedance2Draft] = useState(seedance2Config);
-  const videoPricingResolution =
-    showSeedance2Config || showHappyHorseConfig || showGrokVideoConfig
-      ? seedance2Draft.resolution
-      : isSd15ProConfig
-        ? sd15Resolution
-        : "720p";
-  const configuredVideoPricingQuantity =
-    showSeedance2Config || showHappyHorseConfig || showGrokVideoConfig
-      ? seedance2Draft.duration
-      : isSd15ProConfig
-        ? sd15Duration
-        : 5;
+  const videoPricingResolution = showSeedance2Config
+    ? seedance2Draft.resolution
+    : "720p";
+  const configuredVideoPricingQuantity = showSeedance2Config
+    ? seedance2Draft.duration
+    : 5;
   const videoPricingQuantity = Math.max(
     configuredVideoPricingQuantity,
     audioFloorSeconds ?? 0,
@@ -605,43 +519,25 @@ export function VideoPane({
     );
   }, [beat.beat_number, seedance2Config]);
   useEffect(() => {
-    if (!showSeedance2Config && !showHappyHorseConfig && !showGrokVideoConfig) return;
+    if (!showSeedance2Config) return;
     const current = seedance2DraftRef.current;
-    const next = showGrokVideoConfig
-      ? normalizeGrokVideoDraftForBackend(
-          current,
-          grokVideoResolutionOptions,
-          grokVideoRatioOptions,
-        )
-      : showHappyHorseConfig
-      ? normalizeHappyHorseDraftForBackend(
-          current,
-          happyHorseResolutionOptions,
-          happyHorseRatioOptions,
-        )
-      : normalizeSeedance2DraftForBackend(
-          current,
-          seedance2ResolutionOptions,
-          defaultBackend,
-          showSeedance2ValueStyle,
-        );
+    const next = normalizeSeedance2DraftForBackend(
+      current,
+      seedance2ResolutionOptions,
+      seedance2RatioOptions,
+      seedance2ModeOptions,
+    );
     if (sameSeedance2Config(current, next)) return;
     seedance2DraftRef.current = next;
     setSeedance2Draft(next);
   }, [
-    defaultBackend,
-    grokVideoRatioOptions,
-    grokVideoResolutionOptions,
-    showGrokVideoConfig,
-    happyHorseRatioOptions,
-    happyHorseResolutionOptions,
-    showHappyHorseConfig,
+    seedance2ModeOptions,
+    seedance2RatioOptions,
     seedance2ResolutionOptions,
     showSeedance2Config,
-    showSeedance2ValueStyle,
   ]);
   useEffect(() => {
-    if (!showSeedance2Config && !showHappyHorseConfig && !showGrokVideoConfig) return;
+    if (!showSeedance2Config) return;
     const current = seedance2DraftRef.current;
     const nextDuration = clampDuration(current.duration, seedance2DurationBounds);
     if (current.duration === nextDuration) return;
@@ -651,8 +547,6 @@ export function VideoPane({
   }, [
     seedance2DurationBounds.max,
     seedance2DurationBounds.min,
-    showGrokVideoConfig,
-    showHappyHorseConfig,
     showSeedance2Config,
   ]);
   const seedance2Dirty = !sameSeedance2Config(seedance2Draft, seedance2Config);
@@ -754,16 +648,12 @@ export function VideoPane({
 
   const handleRegen = async () => {
     try {
-      let happyHorseConfigJson: string | undefined;
-      let happyHorseDraft: Seedance2ConfigDraft | undefined;
-      let grokVideoConfigJson: string | undefined;
-      let grokVideoDraft: Seedance2ConfigDraft | undefined;
       if (showSeedance2Config) {
         const normalizedDraft = normalizeSeedance2DraftForBackend(
           seedance2DraftRef.current,
           seedance2ResolutionOptions,
-          defaultBackend,
-          showSeedance2ValueStyle,
+          seedance2RatioOptions,
+          seedance2ModeOptions,
         );
         if (!sameSeedance2Config(normalizedDraft, seedance2DraftRef.current)) {
           seedance2DraftRef.current = normalizedDraft;
@@ -779,60 +669,9 @@ export function VideoPane({
           if (!saved) return;
         }
       }
-      if (showHappyHorseConfig) {
-        const normalizedDraft = normalizeHappyHorseDraftForBackend(
-          seedance2DraftRef.current,
-          happyHorseResolutionOptions,
-          happyHorseRatioOptions,
-        );
-        if (!sameSeedance2Config(normalizedDraft, seedance2DraftRef.current)) {
-          seedance2DraftRef.current = normalizedDraft;
-          setSeedance2Draft(normalizedDraft);
-        }
-        happyHorseDraft = normalizedDraft;
-        happyHorseConfigJson = JSON.stringify(
-          serializeHappyHorseConfig(normalizedDraft, seedance2Config),
-        );
-      }
-      if (showGrokVideoConfig) {
-        const normalizedDraft = normalizeGrokVideoDraftForBackend(
-          seedance2DraftRef.current,
-          grokVideoResolutionOptions,
-          grokVideoRatioOptions,
-        );
-        if (!sameSeedance2Config(normalizedDraft, seedance2DraftRef.current)) {
-          seedance2DraftRef.current = normalizedDraft;
-          setSeedance2Draft(normalizedDraft);
-        }
-        grokVideoDraft = normalizedDraft;
-        grokVideoConfigJson = JSON.stringify(
-          serializeGrokVideoConfig(normalizedDraft, seedance2Config),
-        );
-      }
       const res = await regenerate.mutateAsync({
         beatNum: beat.beat_number,
         videoBackend: defaultBackend,
-        ...(showHappyHorseConfig && happyHorseDraft
-          ? {
-              resolution: happyHorseDraft.resolution,
-              duration: happyHorseDraft.duration,
-              ratio: happyHorseDraft.ratio,
-              mode: happyHorseDraft.mode,
-              seedance2ConfigJson: happyHorseConfigJson,
-            }
-          : {}),
-        ...(showGrokVideoConfig && grokVideoDraft
-          ? {
-              resolution: grokVideoDraft.resolution,
-              duration: grokVideoDraft.duration,
-              ratio: grokVideoDraft.ratio,
-              mode: grokVideoDraft.mode,
-              seedance2ConfigJson: grokVideoConfigJson,
-            }
-          : {}),
-        ...(isSd15ProConfig
-          ? { resolution: sd15Resolution, duration: sd15Duration }
-          : {}),
       });
       if (res.ok === false) {
         toast.error(res.error || t("episode.workbench.video.regenFailed"));
@@ -848,11 +687,7 @@ export function VideoPane({
     draft: Seedance2ConfigDraft,
     options: { silent?: boolean; suppressSuccess?: boolean } = {},
   ) => {
-    const nextConfig = showGrokVideoConfig
-      ? serializeGrokVideoConfig(draft, seedance2Config)
-      : showHappyHorseConfig
-      ? serializeHappyHorseConfig(draft, seedance2Config)
-      : serializeSeedance2Config(draft, seedance2Config);
+    const nextConfig = serializeSeedance2Config(draft, seedance2Config);
     const nextConfigJson = JSON.stringify(nextConfig);
     try {
       await updateBeat.mutateAsync({
@@ -897,11 +732,7 @@ export function VideoPane({
   ]);
   useEffect(() => {
     if (!showPromptConfig || !seedance2Dirty) return;
-    const nextConfig = showGrokVideoConfig
-      ? serializeGrokVideoConfig(seedance2Draft, seedance2Config)
-      : showHappyHorseConfig
-      ? serializeHappyHorseConfig(seedance2Draft, seedance2Config)
-      : serializeSeedance2Config(seedance2Draft, seedance2Config);
+    const nextConfig = serializeSeedance2Config(seedance2Draft, seedance2Config);
     const saveKey = getSeedance2ConfigSaveKey(beat.beat_number, nextConfig);
     if (lastSavedSeedance2ConfigKeyRef.current === saveKey) return;
     const timer = window.setTimeout(() => {
@@ -915,8 +746,6 @@ export function VideoPane({
     seedance2Config,
     seedance2Dirty,
     seedance2Draft,
-    showHappyHorseConfig,
-    showGrokVideoConfig,
     showPromptConfig,
     showSeedance2Config,
   ]);
@@ -955,27 +784,11 @@ export function VideoPane({
         res.data.seedance2_config_json,
         seedance2DefaultRatioForProjectAspect(spec.renderAspect),
       );
-      const nextDraft = showGrokVideoConfig
-        ? normalizeGrokVideoDraftForBackend(
-            parsedDraft,
-            grokVideoResolutionOptions,
-            grokVideoRatioOptions,
-          )
-        : showHappyHorseConfig
-        ? normalizeHappyHorseDraftForBackend(
-            parsedDraft,
-            happyHorseResolutionOptions,
-            happyHorseRatioOptions,
-          )
-        : parsedDraft;
+      const nextDraft = parsedDraft;
       seedance2DraftRef.current = nextDraft;
       setSeedance2Draft(nextDraft);
       void seedance2Status.refetch?.();
-      toast.success(
-        showHappyHorseConfig || showGrokVideoConfig
-          ? t("episode.workbench.video.seedance2SubjectPromptGenerated")
-          : t("episode.workbench.video.seedance2PromptGenerated"),
-      );
+      toast.success(t("episode.workbench.video.seedance2PromptGenerated"));
     } catch (error) {
       toast.error(backendErrorToastMessage(error, t));
     }
@@ -1523,7 +1336,6 @@ export function VideoPane({
         <div
           className={cn(
             "col-span-2 rounded-[10px] border border-white/[0.055] bg-white/[0.012] p-3",
-            showHappyHorseConfig && "order-3",
           )}
         >
           <Seedance2Field label={legacyPromptLabel} htmlFor={legacyPromptId}>
@@ -1568,174 +1380,8 @@ export function VideoPane({
         <div
           className={cn(
             "col-span-2 flex flex-wrap items-start gap-x-3 gap-y-2 pt-1",
-            showHappyHorseConfig && "order-2",
           )}
         >
-          {showHappyHorseConfig && (
-            <>
-              <VideoParamField
-                label={t("episode.workbench.video.mode")}
-                htmlFor={`happyhorse-${beat.beat_number}-mode`}
-              >
-                <Select
-                  value={seedance2Draft.mode}
-                  onValueChange={(v) =>
-                    updateSeedance2Mode(normalizeHappyHorseMode(v))
-                  }
-                >
-                  <SelectTrigger
-                    id={`happyhorse-${beat.beat_number}-mode`}
-                    className={cn("w-28", VIDEO_PARAM_CONTROL_CLASS)}
-                  >
-                    <span
-                      data-slot="select-value"
-                      className="flex flex-1 items-center gap-1.5 text-left"
-                    >
-                      {t(
-                        `episode.workbench.video.seedance2ModeLabels.${normalizeHappyHorseMode(
-                          seedance2Draft.mode,
-                        )}`,
-                      )}
-                    </span>
-                  </SelectTrigger>
-                  <SelectContent alignItemWithTrigger={false}>
-                    <SelectItem value="first_frame">
-                      {t("episode.workbench.video.seedance2ModeLabels.first_frame")}
-                    </SelectItem>
-                    <SelectItem value="multimodal_reference">
-                      {t("episode.workbench.video.seedance2ModeLabels.multimodal_reference")}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </VideoParamField>
-              <VideoParamField
-                label={t("episode.workbench.video.duration")}
-                htmlFor={`happyhorse-${beat.beat_number}-duration`}
-              >
-                <Input
-                  id={`happyhorse-${beat.beat_number}-duration`}
-                  aria-label={t("episode.workbench.video.duration")}
-                  type="number"
-                  min={seedance2DurationBounds.min}
-                  max={seedance2DurationBounds.max}
-                  value={seedance2Draft.duration}
-                  onChange={(e) =>
-                    updateSeedance2Draft(
-                      "duration",
-                      clampDuration(e.target.value, seedance2DurationBounds),
-                    )
-                  }
-                  className={cn("w-20", VIDEO_PARAM_CONTROL_CLASS)}
-                />
-              </VideoParamField>
-              <VideoParamField
-                label={t("episode.workbench.video.resolution")}
-                htmlFor={`happyhorse-${beat.beat_number}-resolution`}
-              >
-                <Select
-                  value={seedance2Draft.resolution}
-                  onValueChange={(v) =>
-                    updateSeedance2Draft(
-                      "resolution",
-                      normalizeSeedance2Resolution(v, happyHorseResolutionOptions[0]),
-                    )
-                  }
-                >
-                  <SelectTrigger
-                    id={`happyhorse-${beat.beat_number}-resolution`}
-                    className={cn("w-24", VIDEO_PARAM_CONTROL_CLASS)}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent alignItemWithTrigger={false}>
-                    {happyHorseResolutionOptions.map((resolution) => (
-                      <SelectItem key={resolution} value={resolution}>
-                        {resolution}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </VideoParamField>
-              <VideoParamField
-                label={t("episode.workbench.video.ratio")}
-                htmlFor={`happyhorse-${beat.beat_number}-ratio`}
-              >
-                <Select
-                  value={seedance2Draft.ratio}
-                  onValueChange={(v) =>
-                    updateSeedance2Draft("ratio", normalizeHappyHorseRatio(v))
-                  }
-                >
-                  <SelectTrigger
-                    id={`happyhorse-${beat.beat_number}-ratio`}
-                    className={cn("w-24", VIDEO_PARAM_CONTROL_CLASS)}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent alignItemWithTrigger={false}>
-                    {happyHorseRatioOptions.map((ratio) => (
-                      <SelectItem key={ratio} value={ratio}>
-                        {ratio}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </VideoParamField>
-            </>
-          )}
-          {isSd15ProConfig && (
-            <>
-              <VideoParamField
-                label={t("episode.workbench.video.duration")}
-                htmlFor={`sd15-${beat.beat_number}-duration`}
-              >
-                <Input
-                  id={`sd15-${beat.beat_number}-duration`}
-                  aria-label={t("episode.workbench.video.duration")}
-                  type="number"
-                  min={sd15DurationBounds.min}
-                  max={sd15DurationBounds.max}
-                  value={sd15Duration}
-                  onChange={(e) =>
-                    setSd15Duration(
-                      clampDuration(e.target.value, sd15DurationBounds),
-                    )
-                  }
-                  className={cn("w-20", VIDEO_PARAM_CONTROL_CLASS)}
-                />
-              </VideoParamField>
-              <VideoParamField
-                label={t("episode.workbench.video.resolution")}
-                htmlFor={`sd15-${beat.beat_number}-resolution`}
-              >
-                <Select
-                  value={sd15Resolution}
-                  onValueChange={(v) =>
-                    setSd15Resolution(
-                      normalizeSeedance2Resolution(
-                        v,
-                        seedance2ResolutionOptions[0],
-                      ),
-                    )
-                  }
-                >
-                  <SelectTrigger
-                    id={`sd15-${beat.beat_number}-resolution`}
-                    className={cn("w-24", VIDEO_PARAM_CONTROL_CLASS)}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent alignItemWithTrigger={false}>
-                    {seedance2ResolutionOptions.map((resolution) => (
-                      <SelectItem key={resolution} value={resolution}>
-                        {resolution}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </VideoParamField>
-            </>
-          )}
           <VideoParamField label="" hiddenLabel>
             {regenTask.started ? (
               <Button
@@ -1782,7 +1428,6 @@ export function VideoPane({
         <div
           className={cn(
             "col-span-2 rounded-[10px] border border-white/[0.055] bg-white/[0.012]",
-            showHappyHorseConfig && "order-1",
           )}
         >
           <div className="flex items-center gap-2 px-3 py-2">
@@ -1881,11 +1526,9 @@ export function VideoPane({
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
             <Settings2 className="size-3.5 text-muted-foreground/78" />
             <Label className="text-xs font-medium text-foreground/82">
-              {showGrokVideoConfig
-                ? t("episode.workbench.video.grokVideoInspector")
-                : showHappyHorseConfig
-                ? t("episode.workbench.video.happyHorseInspector")
-                : t("episode.workbench.video.seedance2Inspector")}
+              {isSeedanceModel
+                ? t("episode.workbench.video.seedance2Inspector")
+                : t("episode.workbench.video.videoInspector")}
             </Label>
             <Seedance2SummaryPill
               active={seedance2StatusData?.media.render_ready ?? !!beat.frame_url}
@@ -1967,7 +1610,9 @@ export function VideoPane({
                 ref={seedance2UploadInputRef}
                 type="file"
                 className="hidden"
-                accept={showHappyHorseConfig || showGrokVideoConfig ? "image/*" : "image/*,audio/*"}
+                accept={
+                  selectedBackend?.reference_audio_max ? "image/*,audio/*" : "image/*"
+                }
                 onChange={(event) => {
                   const file = event.target.files?.[0];
                   if (file) void handleSeedance2AssetUpload(file);
@@ -2165,11 +1810,7 @@ export function VideoPane({
               <Select
                 value={seedance2Draft.mode}
                 onValueChange={(v) =>
-                  updateSeedance2Mode(
-                    showHappyHorseConfig || showGrokVideoConfig
-                      ? normalizeHappyHorseMode(v)
-                      : normalizeSeedance2Mode(v),
-                  )
+                  updateSeedance2Mode(normalizeSeedance2Mode(v))
                 }
               >
                 <SelectTrigger
@@ -2181,28 +1822,16 @@ export function VideoPane({
                     className="flex flex-1 items-center gap-1.5 text-left"
                   >
                     {t(
-                      `episode.workbench.video.seedance2ModeLabels.${
-                        showHappyHorseConfig
-                          ? normalizeHappyHorseMode(seedance2Draft.mode)
-                          : showGrokVideoConfig
-                          ? normalizeHappyHorseMode(seedance2Draft.mode)
-                          : seedance2Draft.mode
-                      }`,
+                      `episode.workbench.video.seedance2ModeLabels.${seedance2Draft.mode}`,
                     )}
                   </span>
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  <SelectItem value="first_frame">
-                    {t("episode.workbench.video.seedance2ModeLabels.first_frame")}
-                  </SelectItem>
-                  {!showHappyHorseConfig && !showGrokVideoConfig && (
-                    <SelectItem value="first_last_frame">
-                      {t("episode.workbench.video.seedance2ModeLabels.first_last_frame")}
+                  {seedance2ModeOptions.map((mode) => (
+                    <SelectItem key={mode} value={mode}>
+                      {t(`episode.workbench.video.seedance2ModeLabels.${mode}`)}
                     </SelectItem>
-                  )}
-                  <SelectItem value="multimodal_reference">
-                    {t("episode.workbench.video.seedance2ModeLabels.multimodal_reference")}
-                  </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </Seedance2Field>
@@ -2235,14 +1864,7 @@ export function VideoPane({
                 onValueChange={(v) =>
                   updateSeedance2Draft(
                     "resolution",
-                    normalizeSeedance2Resolution(
-                      v,
-                      showGrokVideoConfig
-                        ? grokVideoResolutionOptions[0]
-                        : showHappyHorseConfig
-                        ? happyHorseResolutionOptions[0]
-                        : seedance2ResolutionOptions[0],
-                    ),
+                    normalizeSeedance2Resolution(v, seedance2ResolutionOptions[0]),
                   )
                 }
               >
@@ -2253,12 +1875,7 @@ export function VideoPane({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  {(showHappyHorseConfig
-                    ? happyHorseResolutionOptions
-                    : showGrokVideoConfig
-                    ? grokVideoResolutionOptions
-                    : seedance2ResolutionOptions
-                  ).map((resolution) => (
+                  {seedance2ResolutionOptions.map((resolution) => (
                     <SelectItem key={resolution} value={resolution}>
                       {resolution}
                     </SelectItem>
@@ -2275,11 +1892,7 @@ export function VideoPane({
                 onValueChange={(v) =>
                   updateSeedance2Draft(
                     "ratio",
-                    showGrokVideoConfig
-                      ? normalizeGrokVideoRatio(v)
-                      : showHappyHorseConfig
-                      ? normalizeHappyHorseRatio(v)
-                      : normalizeSeedance2Ratio(v),
+                    normalizeSeedance2Ratio(v),
                   )
                 }
               >
@@ -2290,12 +1903,7 @@ export function VideoPane({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  {(showHappyHorseConfig
-                    ? happyHorseRatioOptions
-                    : showGrokVideoConfig
-                    ? grokVideoRatioOptions
-                    : (["9:16", "16:9", "1:1", "4:3", "3:4", "21:9"] as const)
-                  ).map((ratio) => (
+                  {seedance2RatioOptions.map((ratio) => (
                     <SelectItem key={ratio} value={ratio}>
                       {ratio}
                     </SelectItem>
@@ -2313,43 +1921,6 @@ export function VideoPane({
                 label={t("episode.workbench.video.returnLastFrame")}
                 onChange={(checked) => updateSeedance2Draft("return_last_frame", checked)}
               />
-            )}
-            {showSeedance2ValueStyle && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] text-muted-foreground/80">
-                  {t("episode.workbench.video.seedance2GuidanceStyle")}
-                </span>
-                <div
-                  role="radiogroup"
-                  aria-label={t("episode.workbench.video.seedance2GuidanceStyle")}
-                  className="inline-flex items-center gap-1"
-                >
-                  {(["anime", "realistic"] as const).map((style) => {
-                    const active = seedance2Draft.scene_optimize === style;
-                    return (
-                      <button
-                        key={style}
-                        type="button"
-                        role="radio"
-                        aria-checked={active}
-                        className={cn(
-                          SEEDANCE2_SEGMENTED_OPTION_CLASS,
-                          active
-                            ? "border-cyan-400/45 bg-cyan-400/12 text-cyan-100"
-                            : "border-white/[0.075] bg-white/[0.018] text-muted-foreground/75 hover:border-white/[0.14] hover:bg-white/[0.045] hover:text-foreground",
-                        )}
-                        onClick={() =>
-                          updateSeedance2Draft("scene_optimize", style)
-                        }
-                      >
-                        {t(
-                          `episode.workbench.video.seedance2SceneOptimizeLabels.${style}`,
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
             )}
           </div>
           {showSeedance2Config && seedance2Draft.return_last_frame && (
@@ -2485,11 +2056,9 @@ export function VideoPane({
                     htmlFor={`${seedance2Id}-prompt`}
                     className="text-[11px] text-muted-foreground/78"
                   >
-                    {showGrokVideoConfig
-                      ? t("episode.workbench.video.grokPromptLabel")
-                      : showHappyHorseConfig
-                      ? t("episode.workbench.video.subjectPromptLabel")
-                      : t("episode.workbench.video.seedance2Prompt")}
+                    {isSeedanceModel
+                      ? t("episode.workbench.video.seedance2Prompt")
+                      : t("episode.workbench.video.subjectPromptLabel")}
                   </Label>
                 </div>
                 <MentionTextarea
@@ -2550,11 +2119,7 @@ export function VideoPane({
                   ) : (
                     <WandSparkles className="size-3" />
                   )}
-                  {showGrokVideoConfig
-                    ? t("episode.workbench.video.generateGrokPrompt")
-                    : showHappyHorseConfig
-                    ? t("episode.workbench.video.generateSubjectPrompt")
-                    : t("episode.workbench.video.seedance2GeneratePrompt")}
+                  {t("episode.workbench.video.seedance2GeneratePrompt")}
                   <CreditCostInline
                     display={seedance2PromptCostDisplay}
                     promotion={seedance2PromptCost.data?.data.promotion}
@@ -2606,7 +2171,7 @@ export function VideoPane({
       <Seedance2AssetCropDialog
         intent={seedance2CropIntent}
         targetCropAspect={
-          showSeedance2Config || showHappyHorseConfig || showGrokVideoConfig
+          showSeedance2Config
             ? seedance2Draft.ratio
             : videoInputCropAspectForProjectAspect(spec.renderAspect)
         }
@@ -3142,16 +2707,6 @@ function parseSeedance2Config(
   return defaultSeedance2Config({}, defaultRatio);
 }
 
-function isSeedanceReferenceCropBackend(value: string | null | undefined): boolean {
-  const model = seedance2ModelFromBackend(value);
-  return (
-    model === "seedance-1.0-pro-fast" ||
-    model === "seedance-1.0-pro" ||
-    model === "seedance_1.0_pro_fast" ||
-    isSeedance15ProBackend(value)
-  );
-}
-
 function seedance2DefaultRatioForProjectAspect(
   aspect: "2:3" | "16:9",
 ): Seedance2ConfigDraft["ratio"] {
@@ -3238,46 +2793,42 @@ function normalizeSeedance2Mode(value: unknown): Seedance2ConfigDraft["mode"] {
   return "multimodal_reference";
 }
 
-function isSeedance2ValueBackend(value: string | null | undefined): boolean {
-  const text = String(value ?? "").trim().toLowerCase();
-  return (
-    text === "newapi_seedance-2.0-value" ||
-    text === "newapi_seedance-2.0-fast-value" ||
-    text === "huimeng_seedance-2.0-value" ||
-    text === "huimeng_seedance-2.0-fast-value"
-  );
-}
-
-function seedance2ModelFromBackend(value: string | null | undefined): string {
-  const text = String(value ?? "").trim().toLowerCase();
-  for (const prefix of ["newapi_", "huimeng_", "huimengi_"]) {
-    if (text.startsWith(prefix)) return text.slice(prefix.length);
-  }
-  return text;
-}
-
-// seedance-1.5-pro（有声）走非 seedance2 生成器路径，但同样需要清晰度/时长控件（精品剧+解说剧）。
-function isSeedance15ProBackend(value: string | null | undefined): boolean {
-  const model = seedance2ModelFromBackend(value);
-  return model === "seedance-1.5-pro" || model === "seedance_pro";
-}
+const SEEDANCE2_RATIO_FALLBACK = ["9:16", "16:9", "1:1", "4:3", "3:4", "21:9"] as const;
+const SEEDANCE2_MODE_FALLBACK: readonly Seedance2ConfigDraft["mode"][] = [
+  "first_frame",
+  "first_last_frame",
+  "multimodal_reference",
+];
 
 function seedance2ResolutionOptionsForBackend(
-  value: string | null | undefined,
+  backend: VideoBackendOption | null | undefined,
 ): readonly Seedance2Resolution[] {
-  const model = seedance2ModelFromBackend(value);
-  return (
-    SEEDANCE2_RESOLUTION_OPTIONS_BY_MODEL[
-      model as keyof typeof SEEDANCE2_RESOLUTION_OPTIONS_BY_MODEL
-    ] ?? SEEDANCE2_DEFAULT_RESOLUTION_OPTIONS
-  );
+  const options = backend?.resolution_options?.filter(Boolean);
+  return options?.length ? options : SEEDANCE2_DEFAULT_RESOLUTION_OPTIONS;
+}
+
+function seedance2RatioOptionsForBackend(
+  backend: VideoBackendOption | null | undefined,
+): readonly Seedance2ConfigDraft["ratio"][] {
+  const options = backend?.ratio_options?.filter(isSeedance2Ratio);
+  return options?.length ? options : SEEDANCE2_RATIO_FALLBACK;
+}
+
+// Beat modes the backend option supports; text_to_video has no beat control.
+function seedance2ModeOptionsForBackend(
+  backend: VideoBackendOption | null | undefined,
+): readonly Seedance2ConfigDraft["mode"][] {
+  const supported = backend?.supported_modes;
+  if (!supported?.length) return SEEDANCE2_MODE_FALLBACK;
+  const options = SEEDANCE2_MODE_FALLBACK.filter((mode) => supported.includes(mode));
+  return options.length ? options : SEEDANCE2_MODE_FALLBACK;
 }
 
 function normalizeSeedance2DraftForBackend(
   draft: Seedance2ConfigDraft,
   resolutionOptions: readonly Seedance2Resolution[],
-  backend: string | null | undefined,
-  isValueStyle: boolean,
+  ratioOptions: readonly Seedance2ConfigDraft["ratio"][],
+  modeOptions: readonly Seedance2ConfigDraft["mode"][],
 ): Seedance2ConfigDraft {
   const fallbackResolution = resolutionOptions.includes("720p")
     ? "720p"
@@ -3285,170 +2836,19 @@ function normalizeSeedance2DraftForBackend(
   const resolution = resolutionOptions.includes(draft.resolution)
     ? draft.resolution
     : fallbackResolution;
-  const sceneOptimize = isValueStyle
-    ? draft.scene_optimize || defaultSeedance2ValueSceneOptimize(backend)
-    : "";
-  if (draft.resolution === resolution && draft.scene_optimize === sceneOptimize) {
-    return draft;
-  }
-  return {
-    ...draft,
-    resolution,
-    scene_optimize: sceneOptimize,
-  };
-}
-
-function happyHorseResolutionOptionsForBackend(
-  backend: VideoBackendOption | null | undefined,
-): readonly Seedance2Resolution[] {
-  const options = backend?.resolution_options?.filter(
-    (value): value is Seedance2Resolution =>
-      value === "720p" || value === "1080p",
-  );
-  return options?.length ? options : HAPPYHORSE_RESOLUTION_OPTIONS;
-}
-
-function happyHorseRatioOptionsForBackend(
-  backend: VideoBackendOption | null | undefined,
-): readonly HappyHorseRatio[] {
-  const options = backend?.ratio_options?.filter(
-    (value): value is HappyHorseRatio =>
-      value === "16:9" ||
-      value === "9:16" ||
-      value === "1:1" ||
-      value === "4:3" ||
-      value === "3:4",
-  );
-  return options?.length ? options : HAPPYHORSE_RATIO_OPTIONS;
-}
-
-function grokVideoResolutionOptionsForBackend(
-  backend: VideoBackendOption | null | undefined,
-): readonly Seedance2Resolution[] {
-  const options = backend?.resolution_options?.filter(
-    (value): value is Seedance2Resolution => value === "720p" || value === "480p",
-  );
-  return options?.length ? options : GROK_VIDEO_RESOLUTION_OPTIONS;
-}
-
-function grokVideoRatioOptionsForBackend(
-  backend: VideoBackendOption | null | undefined,
-): readonly GrokVideoRatio[] {
-  const options = backend?.ratio_options?.filter(
-    (value): value is GrokVideoRatio =>
-      value === "16:9" ||
-      value === "9:16" ||
-      value === "1:1" ||
-      value === "2:3" ||
-      value === "3:2",
-  );
-  return options?.length ? options : GROK_VIDEO_RATIO_OPTIONS;
-}
-
-function normalizeHappyHorseMode(value: unknown): Seedance2ConfigDraft["mode"] {
-  return value === "first_frame" ? "first_frame" : "multimodal_reference";
-}
-
-function normalizeHappyHorseRatio(
-  value: unknown,
-  fallback: HappyHorseRatio = "16:9",
-): HappyHorseRatio {
-  return HAPPYHORSE_RATIO_OPTIONS.includes(value as HappyHorseRatio)
-    ? (value as HappyHorseRatio)
-    : fallback;
-}
-
-function normalizeGrokVideoRatio(
-  value: unknown,
-  fallback: GrokVideoRatio = "16:9",
-): GrokVideoRatio {
-  return GROK_VIDEO_RATIO_OPTIONS.includes(value as GrokVideoRatio)
-    ? (value as GrokVideoRatio)
-    : fallback;
-}
-
-function normalizeHappyHorseDraftForBackend(
-  draft: Seedance2ConfigDraft,
-  resolutionOptions: readonly Seedance2Resolution[],
-  ratioOptions: readonly HappyHorseRatio[],
-): Seedance2ConfigDraft {
-  const fallbackResolution = resolutionOptions.includes("1080p")
-    ? "1080p"
-    : resolutionOptions[0] || "720p";
-  const resolution = resolutionOptions.includes(draft.resolution)
-    ? draft.resolution
-    : fallbackResolution;
-  const fallbackRatio = ratioOptions[0] || "16:9";
-  const ratio = ratioOptions.includes(draft.ratio as HappyHorseRatio)
-    ? draft.ratio
-    : fallbackRatio;
-  const mode = normalizeHappyHorseMode(draft.mode);
+  const ratio = ratioOptions.includes(draft.ratio) ? draft.ratio : ratioOptions[0];
+  const mode = modeOptions.includes(draft.mode)
+    ? draft.mode
+    : modeOptions[modeOptions.length - 1];
   if (
-    draft.mode === mode &&
     draft.resolution === resolution &&
     draft.ratio === ratio &&
-    draft.generate_audio === false &&
-    draft.return_last_frame === false &&
-    draft.scene_optimize === "" &&
-    draft.human_review === false
+    draft.mode === mode &&
+    draft.scene_optimize === ""
   ) {
     return draft;
   }
-  return {
-    ...draft,
-    mode,
-    mode_user_set: true,
-    resolution,
-    ratio,
-    generate_audio: false,
-    generate_audio_user_set: false,
-    return_last_frame: false,
-    scene_optimize: "",
-    human_review: false,
-    human_review_user_set: false,
-  };
-}
-
-function normalizeGrokVideoDraftForBackend(
-  draft: Seedance2ConfigDraft,
-  resolutionOptions: readonly Seedance2Resolution[],
-  ratioOptions: readonly GrokVideoRatio[],
-): Seedance2ConfigDraft {
-  const fallbackResolution = resolutionOptions.includes("720p")
-    ? "720p"
-    : resolutionOptions[0] || "720p";
-  const resolution = resolutionOptions.includes(draft.resolution)
-    ? draft.resolution
-    : fallbackResolution;
-  const fallbackRatio = ratioOptions[0] || "16:9";
-  const ratio = ratioOptions.includes(draft.ratio as GrokVideoRatio)
-    ? draft.ratio
-    : fallbackRatio;
-  const mode = normalizeHappyHorseMode(draft.mode);
-  if (
-    draft.mode === mode &&
-    draft.resolution === resolution &&
-    draft.ratio === ratio &&
-    draft.generate_audio === false &&
-    draft.return_last_frame === false &&
-    draft.scene_optimize === "" &&
-    draft.human_review === false
-  ) {
-    return draft;
-  }
-  return {
-    ...draft,
-    mode,
-    mode_user_set: true,
-    resolution,
-    ratio,
-    generate_audio: false,
-    generate_audio_user_set: false,
-    return_last_frame: false,
-    scene_optimize: "",
-    human_review: false,
-    human_review_user_set: false,
-  };
+  return { ...draft, resolution, ratio, mode, scene_optimize: "" };
 }
 
 function seedance2DurationBoundsForBackend(
@@ -3469,21 +2869,10 @@ function videoBackendDisplayLabel(
   if (!text) return "";
   const exact = labels.get(text);
   if (exact) return exact;
-  const model = seedance2ModelFromBackend(text);
-  if (model.startsWith("seedance-2.0")) {
-    return `Seedance ${model.slice("seedance-".length)}`;
-  }
   return text
-    .replace(/^newapi_/, "")
-    .replace(/^huimengi?_/, "")
+    .replace(/^higgsfield:/, "")
+    .replace(/\?.*$/, "")
     .replace(/_/g, " ");
-}
-
-function defaultSeedance2ValueSceneOptimize(
-  value: string | null | undefined,
-): Seedance2ConfigDraft["scene_optimize"] {
-  const text = String(value ?? "").trim().toLowerCase();
-  return text.includes("fast-value") ? "realistic" : "anime";
 }
 
 function normalizeSeedance2SceneOptimize(
@@ -3497,8 +2886,7 @@ function normalizeSeedance2Resolution(
   value: unknown,
   fallback: Seedance2Resolution = "720p",
 ): Seedance2Resolution {
-  if (value === "480p" || value === "720p" || value === "1080p") return value;
-  return fallback;
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
 function normalizeSeedance2TextOverlayKind(value: unknown): string {
@@ -3527,19 +2915,21 @@ function normalizeSeedance2Ratio(
   value: unknown,
   fallback: Seedance2ConfigDraft["ratio"] = "9:16",
 ): Seedance2ConfigDraft["ratio"] {
-  if (
+  return isSeedance2Ratio(value) ? value : fallback;
+}
+
+function isSeedance2Ratio(value: unknown): value is Seedance2ConfigDraft["ratio"] {
+  return (
     value === "9:16" ||
     value === "16:9" ||
     value === "1:1" ||
     value === "4:3" ||
     value === "3:4" ||
+    value === "4:5" ||
     value === "21:9" ||
     value === "2:3" ||
     value === "3:2"
-  ) {
-    return value;
-  }
-  return fallback;
+  );
 }
 
 function clampDuration(
@@ -3618,46 +3008,6 @@ function serializeSeedance2Config(
           ? "manual"
           : ""
         : draft.prompt_source,
-  };
-}
-
-function serializeHappyHorseConfig(
-  draft: Seedance2ConfigDraft,
-  previous: Seedance2ConfigDraft,
-): Record<string, unknown> {
-  const config = serializeSeedance2Config(draft, previous);
-  return {
-    ...config,
-    mode: normalizeHappyHorseMode(draft.mode),
-    mode_user_set: true,
-    resolution: draft.resolution === "720p" ? "720p" : "1080p",
-    ratio: normalizeHappyHorseRatio(draft.ratio),
-    generate_audio: false,
-    generate_audio_user_set: false,
-    return_last_frame: false,
-    scene_optimize: "",
-    human_review: false,
-    human_review_user_set: false,
-  };
-}
-
-function serializeGrokVideoConfig(
-  draft: Seedance2ConfigDraft,
-  previous: Seedance2ConfigDraft,
-): Record<string, unknown> {
-  const config = serializeSeedance2Config(draft, previous);
-  return {
-    ...config,
-    mode: normalizeHappyHorseMode(draft.mode),
-    mode_user_set: true,
-    resolution: draft.resolution === "480p" ? "480p" : "720p",
-    ratio: normalizeGrokVideoRatio(draft.ratio),
-    generate_audio: false,
-    generate_audio_user_set: false,
-    return_last_frame: false,
-    scene_optimize: "",
-    human_review: false,
-    human_review_user_set: false,
   };
 }
 

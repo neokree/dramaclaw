@@ -30,7 +30,7 @@ beforeAll(async () => {
         translation: {
           characters: {
             voiceSamples: {
-              title: "声线管理 (IndexTTS2)",
+              title: "声线管理",
               hint: "通常只需上传默认声线；只有年龄变体需要不同声音时再覆盖。",
               defaultRequired: "默认（必填）",
               ageDefaultRequired: "{{age}}（默认 · 必填）",
@@ -151,7 +151,7 @@ describe("CharacterVoicePanel", () => {
 
     const { container } = renderPanel({ name: "秦", age_group: "youth" });
 
-    expect(await screen.findByText("声线管理 (IndexTTS2)")).toBeInTheDocument();
+    expect(await screen.findByText("声线管理")).toBeInTheDocument();
     expect(await screen.findByText("青年（默认 · 必填）")).toBeInTheDocument();
     expect(screen.getByText("幼年（可选覆盖）")).toBeInTheDocument();
     expect(screen.getAllByText("→ 继承默认").length).toBeGreaterThanOrEqual(2);

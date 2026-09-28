@@ -5,7 +5,7 @@
  * 「没有模型选择器」的图片能力面板（360 全景、宫格动作）如何解析模型。
  *
  * 这类面板不让用户挑模型 / 尺寸 / 画质，由调用方按功能规则选定目录模型
- * （例如 360 固定 LingShan-G2，宫格使用目录默认模型）。之前报价和提交各写各的：
+ * （例如 360 取能出 2:1 的默认模型，宫格使用目录默认模型）。之前报价和提交各写各的：
  * 报价按选定模型 + 收敛后的 size/quality 算，提交却
  * 一个都不带，后端于是用自己的 `FREEZONE_DEFAULT_IMAGE_MODEL` 和固定 2K 去跑。
  * 结果是「目录首模型 ≠ 后端默认模型」或「该模型不配 2K」时，界面上标的价格、
@@ -33,9 +33,8 @@ export interface FixedFeatureSubmitFields {
   /**
    * 裸 `apiModel`，不带 provider 前缀。
    *
-   * 这两条老路由各自推断 provider 的方式不同（scene-360 恒定按 newapi 走，
-   * template-edit 才认 `provider/model`），带前缀在 scene-360 那边会被整串当成
-   * 模型名。统一送裸名，provider 交给后端按各自的老规则定。
+   * 这两条老路由都按目录条目反推 provider（template-edit 也认 `provider/model`），
+   * 带前缀在 scene-360 那边会被整串当成模型名。统一送裸名（目录 id）。
    */
   model?: string;
   /** 目录身份。带上后端才会按目录定价规则计费，与报价口径一致。 */

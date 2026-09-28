@@ -30,7 +30,7 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
 }
 
-describe("IndexTTS2 audio query contract", () => {
+describe("beat audio query contract", () => {
   it("quotes the exact selected Beat quantity through the audio feature endpoint", async () => {
     let receivedBody: unknown = undefined;
     server.use(
@@ -71,7 +71,7 @@ describe("IndexTTS2 audio query contract", () => {
     expect(result.current.data?.data.cost).toBe(6);
   });
 
-  it("posts selected beat audio generation to /audio/generate as an async IndexTTS2 task", async () => {
+  it("posts selected beat audio generation to /audio/generate as an async beat audio task", async () => {
     let requestedPath = "";
     let receivedBody: unknown = undefined;
     server.use(
@@ -109,7 +109,7 @@ describe("IndexTTS2 audio query contract", () => {
     expect(result.current.data?.task_type).toBe("audio_generation_indextts2");
   });
 
-  it("treats single beat regeneration as an async IndexTTS2 task", async () => {
+  it("treats single beat regeneration as an async beat audio task", async () => {
     let requestedPath = "";
     server.use(
       http.post(

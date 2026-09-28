@@ -29,6 +29,7 @@ import { RedrawOverlay } from './RedrawOverlay';
 import { EraseOverlay } from './EraseOverlay';
 import { Scene360Overlay } from './Scene360Overlay';
 import { UpscaleEditorOverlay } from './UpscaleEditorOverlay';
+import { DEFAULT_SHARED_MODEL_ID } from './ProviderModelPicker';
 import { VideoUpscaleEditorOverlay } from './VideoUpscaleEditorOverlay';
 import { OutpaintEditorOverlay } from './OutpaintEditorOverlay';
 import { RotateEditorOverlay } from './RotateEditorOverlay';
@@ -439,7 +440,7 @@ export const SelectedNodeOverlay = memo(() => {
           isGenerating: false,
           // Persist enough to (re-)run the upscale and to drive the always-attached panel.
           upscaleSourceUrl: sourceImageUrl,
-          upscaleModelId: 'huimeng/gpt-image-2',
+          upscaleModelId: DEFAULT_SHARED_MODEL_ID,
           upscaleImageSize: '2K',
           upscaleScaleFactor: 2,
         },

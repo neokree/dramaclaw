@@ -13,7 +13,7 @@ export const portraitFromRefCapability: GenerationCapability = {
   category: "character",
   descriptionKey: `${P}.description`,
   outputKind: "identity",
-  model: "openai/gpt-image-2",
+  model: "higgsfield/higgsfield:gpt_image_2",
   aspectRatio: "3:4",
   imageSize: "2K",
   inputs: [
@@ -114,7 +114,7 @@ Output requirements:
     return {
       prompt,
       referenceUrls: inputUrls,
-      model: "openai/gpt-image-2",
+      model: "higgsfield/higgsfield:gpt_image_2",
       aspectRatio: "3:4",
       imageSize: "2K",
       quality: "medium",
@@ -130,7 +130,7 @@ export const characterMultiViewCapability: GenerationCapability = {
   category: "character",
   descriptionKey: `${M}.description`,
   outputKind: "identity",
-  model: "openai/gpt-image-2",
+  model: "higgsfield/higgsfield:gpt_image_2",
   aspectRatio: "16:9",
   imageSize: "2K",
   inputs: [
@@ -217,7 +217,7 @@ Output requirements:
     return {
       prompt,
       referenceUrls: inputUrls,
-      model: "openai/gpt-image-2",
+      model: "higgsfield/higgsfield:gpt_image_2",
       aspectRatio: "16:9",
       imageSize: "2K",
       quality: "medium",

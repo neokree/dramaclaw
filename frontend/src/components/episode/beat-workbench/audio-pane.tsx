@@ -69,7 +69,7 @@ function audioPrereqMessage(error: string, t: (key: string) => string): string {
 }
 // i18n-exempt-end
 
-/** 音频 sub-tab — per-beat IndexTTS2 task dispatch and playback. */
+/** 音频 sub-tab — per-beat voice audio (Higgsfield) task dispatch and playback. */
 export function AudioPane({
   beat,
   project,

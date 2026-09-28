@@ -306,7 +306,7 @@ function useScriptStorySubmit(
       return;
     }
 
-    // 同一个 story-script 接口支持三种输入，按上游连线类型分流（后端默认 newapi，
+    // 同一个 story-script 接口支持三种输入，按上游连线类型分流（后端用 TEXT_ENGINE 选的文本引擎，
     // 前端不传 / 不展示 provider/model）：
     //  - 文本节点  → source_text
     //  - 视频节点  → video_url (+ duration_sec)

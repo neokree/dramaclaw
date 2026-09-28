@@ -9,24 +9,24 @@ import { queryKeys } from "@/lib/query-keys";
 import type { ErrorResponse, OkResponse, TaskResponse } from "@/types/api";
 import type { Beat } from "@/types/episode";
 
-export const DEFAULT_VIDEO_BACKEND = "huimeng_seedance-1.0-pro-fast";
+export const DEFAULT_VIDEO_BACKEND = "higgsfield:seedance_2_0?mode=fast";
 
 export interface VideoBackendOption {
   value: string;
   label: string;
   is_default: boolean;
+  /** Multi-reference beat flow; true for every Higgsfield model. */
   is_seedance2: boolean;
-  is_happyhorse?: boolean;
-  is_grok_video?: boolean;
-  dialogue_only: boolean;
   min_duration?: number | null;
   max_duration?: number | null;
+  duration_options?: number[] | null;
   resolution_options?: string[] | null;
   ratio_options?: string[] | null;
   supported_modes?: string[] | null;
   reference_image_max?: number | null;
   reference_video_max?: number | null;
   reference_audio_max?: number | null;
+  supports_audio?: boolean;
 }
 
 export interface NarratorVoiceStatusData {
@@ -729,7 +729,7 @@ export function useRegenerateBeatVideo(project: string, episode: number) {
       beatNum: number;
       videoBackend?: string;
       use_director_render?: boolean;
-      // seedance-1.5-pro 等非 seedance2 后端的清晰度/时长（视频时长须 >= 音频，后端兜底）。
+      // Per-beat resolution/duration overrides (video must be >= audio; backend enforces).
       resolution?: string;
       duration?: number;
       ratio?: string;

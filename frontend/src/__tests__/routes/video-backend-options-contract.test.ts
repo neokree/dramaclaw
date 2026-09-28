@@ -15,28 +15,25 @@ describe("video backend options alignment", () => {
     expect(videoPane).toContain("useVideoBackends");
   });
 
-  it("uses the backend capabilities for dialogue-only blocking", () => {
-    const videoPane = read("src/components/episode/beat-workbench/video-pane.tsx");
-
-    expect(videoPane).toContain("dialogue_only");
-  });
-
-  it("supports the Grok Video inspector from backend capabilities", () => {
+  it("reads capabilities from the backend option, not model names", () => {
     const videoPane = read("src/components/episode/beat-workbench/video-pane.tsx");
     const videoQueries = read("src/lib/queries/video.ts");
 
-    expect(videoQueries).toContain("is_grok_video");
-    expect(videoPane).toContain("showGrokVideoConfig");
-    expect(videoPane).toContain("grokVideoInspector");
-    expect(videoPane).toContain("3:2");
+    for (const field of ["supported_modes", "resolution_options", "ratio_options"]) {
+      expect(videoPane).toContain(field);
+    }
+    for (const retired of ["dialogue_only", "is_grok_video", "is_happyhorse"]) {
+      expect(videoQueries).not.toContain(retired);
+      expect(videoPane).not.toContain(retired);
+    }
+    expect(videoPane).not.toMatch(/newapi_|huimeng/);
   });
 
-  it("defaults to the ST2 canonical video backend instead of legacy comfyui", () => {
+  it("defaults to the Higgsfield Seedance 2.0 fast backend", () => {
     const beatsRoute = read("src/routes/_app/projects.$project/episodes.$episode/beats.lazy.tsx");
     const videoQueries = read("src/lib/queries/video.ts");
 
     expect(beatsRoute).toContain("DEFAULT_VIDEO_BACKEND");
-    expect(videoQueries).toContain("huimeng_seedance-1.0-pro-fast");
-    expect(videoQueries).not.toContain('videoBackend ?? "comfyui"');
+    expect(videoQueries).toContain('"higgsfield:seedance_2_0?mode=fast"');
   });
 });

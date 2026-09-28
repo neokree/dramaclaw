@@ -40,7 +40,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useAppStore } from "@/stores/app-store";
 import { authRequired, isCeRuntime, phoneOtpEntryVisible } from "@/lib/runtime-config";
 import { resetUserSessionState } from "@/lib/reset-region-state";
-import { useModelGatewayConfig } from "@/lib/queries/model-gateway";
+import { useEnginesStatus } from "@/lib/queries/model-gateway";
 import { useOrgBranding } from "@/lib/queries/org-branding";
 import { useAccountSecurity } from "@/lib/queries/auth";
 import { useReleaseNotifications } from "@/lib/queries/release-notifications";
@@ -119,7 +119,7 @@ export function Header({ ambientBackground = false }: { ambientBackground?: bool
   const displayName = accountSecurity.data?.phone_masked ?? storedDisplayName ?? username ?? "User";
   const avatarInitial = displayName.slice(0, 1).toUpperCase();
   const activeLanguage = normalize(i18n.resolvedLanguage ?? i18n.language);
-  const modelGatewayConfig = useModelGatewayConfig(ceRuntime);
+  const enginesStatus = useEnginesStatus(ceRuntime);
   const releaseNotifications = useReleaseNotifications(i18n.resolvedLanguage ?? i18n.language);
   const releaseFeed = releaseNotifications.data?.data;
   const announcements = useAnnouncements();
@@ -132,12 +132,15 @@ export function Header({ ambientBackground = false }: { ambientBackground?: bool
   void releaseNotificationStateVersion;
   const hasUnreadNotification =
     shouldShowUpgradeNudge(releaseFeed) || announcementUnreadCount(announcementIds) > 0;
-  const gatewayConfig = modelGatewayConfig.data?.data;
+  const engineStatus = enginesStatus.data;
+  // Warn when the configured text engine is down or no image engine answers.
   const hasSettingsWarning = Boolean(
     ceRuntime &&
-      gatewayConfig &&
-      (gatewayConfig.effective.configured === false ||
-        gatewayConfig.mediaRelay?.configured === false),
+      engineStatus &&
+      (engineStatus.engines[engineStatus.textEngine as "mtplx"]?.available === false ||
+        !(["higgsfield", "drawthings", "openrouter"] as const).some(
+          (id) => engineStatus.engines[id]?.available,
+        )),
   );
   const settingsWarningBubble = useFloatingBubblePosition(
     settingsAnchorRef,

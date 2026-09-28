@@ -31,7 +31,7 @@ DONE_OK = "completed"
 DONE_FAILED = {"failed", "nsfw", "canceled", "cancelled", "error", "rejected"}
 CATALOG_TTL_SECONDS = 24 * 3600
 DEFAULT_VIDEO_MODEL = "seedance_2_0?mode=fast"
-DEFAULT_IMAGE_MODEL = "nano_banana_pro"
+DEFAULT_IMAGE_MODEL = "nano_banana_flash"
 DEFAULT_TTS_MODEL = "text2speech_v2"
 DEFAULT_MUSIC_MODEL = "sonilo_music"
 DEFAULT_SFX_MODEL = "mirelo_text_to_audio"

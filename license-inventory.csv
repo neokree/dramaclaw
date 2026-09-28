@@ -1655,6 +1655,7 @@ src/novelvideo/engines/h3c.py,Elastic-2.0,2026 SuperTale contributors,REUSE.toml
 src/novelvideo/engines/higgsfield.py,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
 src/novelvideo/engines/image.py,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
 src/novelvideo/engines/mtplx.py,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
+src/novelvideo/engines/openrouter_image.py,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
 src/novelvideo/env.py,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
 src/novelvideo/export/__init__.py,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation
 src/novelvideo/export/episode_export.py,Elastic-2.0,2026 SuperTale contributors,REUSE.toml aggregate annotation

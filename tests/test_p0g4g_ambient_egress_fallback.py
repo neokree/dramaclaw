@@ -61,24 +61,16 @@ def _organization_context() -> TrustedEgressContext:
 
 
 def test_platform_scope_is_not_adopted_as_an_egress_context() -> None:
-    """回落只补组织这一支——平台身份在这些闸门里与 `None` 同义。
-
-    否则修 fail-open 会修出 fail-closed 的误伤：`IndexTTS2FalClient.generate`
-    对「有身份且非组织」直接判 `ORG_EGRESS_DENIED`，把平台身份回落进去，
-    平台自己的语音合成就被自己的组织闸门拒了。
-    """
+    """回落只补组织这一支——平台身份在这些闸门里与 `None` 同义。"""
 
     from novelvideo.egress_context import (
         ambient_egress_context,
         ambient_organization_egress_context,
     )
-    from novelvideo.generators.indextts2_fal import IndexTTS2FalClient
 
     with model_gateway_request_scope(_platform_context()):
         assert ambient_egress_context() is not None
         assert ambient_organization_egress_context() is None
-        client = IndexTTS2FalClient()
-    assert client.egress_context is None
 
 
 def test_subprocess_model_child_denies_org_without_explicit_context() -> None:
@@ -145,17 +137,6 @@ def test_character_generator_uses_request_scoped_credentials_by_default() -> Non
         generator = NanoBananaCharacterGenerator()
     assert generator.provider == "newapi"
     assert generator.api_key == "request-scoped"
-
-
-def test_indextts2_client_blanks_platform_key_without_explicit_context() -> None:
-    """漏传参数不该让组织的语音合成落在平台 FAL/newapi 密钥上。"""
-
-    from novelvideo.generators.indextts2_fal import IndexTTS2FalClient
-
-    with model_gateway_request_scope(_organization_context()):
-        client = IndexTTS2FalClient()
-    assert client.api_key == ""
-    assert client.endpoint == ""
 
 
 @pytest.mark.asyncio
@@ -246,42 +227,6 @@ async def test_freezone_gen_denies_volcengine_without_explicit_context(
                 provider="volcengine",
             )
     assert excinfo.value.code == "ORG_EGRESS_DENIED"
-
-
-@pytest.mark.asyncio
-async def test_beat_audio_builds_org_client_without_explicit_context(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """整批语音漏传参数时会用平台客户端——必须回落到 newapi 组织客户端。"""
-
-    from novelvideo.audio import indextts2_beat_audio_task as task
-    from novelvideo.generators import indextts2_fal
-
-    seen: dict[str, object] = {}
-
-    class _FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            seen.update(kwargs)
-
-    class _StopHere(RuntimeError):
-        pass
-
-    class _Store:
-        async def get_beats_as_dicts(self, episode: int) -> list[dict[str, object]]:
-            raise _StopHere()
-
-    monkeypatch.setattr(indextts2_fal, "IndexTTS2FalClient", _FakeClient)
-    with model_gateway_request_scope(_organization_context()):
-        with pytest.raises(_StopHere):
-            await task.run_indextts2_beat_audio_generation(
-                store=_Store(),
-                username="user-1",
-                project="project-1",
-                episode=1,
-                beat_numbers=[1],
-            )
-    assert seen.get("provider") == "newapi"
-    assert type(seen.get("egress_context")) is TrustedEgressContext
 
 
 @pytest.mark.asyncio

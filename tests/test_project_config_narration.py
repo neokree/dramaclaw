@@ -111,16 +111,6 @@ def test_indextts2_beat_audio_task_module_imports():
     assert hasattr(mod, "run_indextts2_beat_audio_generation")
 
 
-def test_fal_config_constants_exposed():
-    from novelvideo import config as cfg
-
-    assert hasattr(cfg, "FAL_API_KEY")
-    assert hasattr(cfg, "INDEXTTS2_FAL_ENDPOINT")
-    assert hasattr(cfg, "INDEXTTS2_TIMEOUT_SECONDS")
-    assert isinstance(cfg.INDEXTTS2_TIMEOUT_SECONDS, float)
-    assert cfg.INDEXTTS2_FAL_ENDPOINT.startswith("https://")
-
-
 def test_output_dir_alias_present_for_monkeypatching():
     """Source-branch tests monkeypatch ``project_config.OUTPUT_DIR`` to redirect roots."""
     import novelvideo.project_config as pc

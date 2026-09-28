@@ -1306,10 +1306,10 @@ async def test_freezone_audio_generation_enqueues_two_feature_billings(
     assert music_billing == {
         "feature_key": "freezone.audio_music",
         "operation": "music",
-        "model": "LingShan-MU-11",
+        "model": "sonilo_music",
         "music_length_ms": 30_500,
         "pricing_kind": "audio",
-        "pricing_model": "LingShan-MU-11",
+        "pricing_model": "sonilo_music",
         "pricing_params": {},
         "pricing_quantity": 31,
         "pricing_metrics": {

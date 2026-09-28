@@ -84,6 +84,10 @@ async def test_audio_runner_fails_when_no_usable_audio_was_generated(monkeypatch
 
 
 class FakeGenerator:
+    """Behaves like HiggsfieldTTSClient: each call pays one job into `ledger`."""
+
+    ledger = None
+
     def __init__(self, fail_beats=None):
         self.calls = []
         self.fail_beats = set(fail_beats or [])
@@ -100,8 +104,14 @@ class FakeGenerator:
                 "emotion_prompt": emotion_prompt,
             }
         )
+        if self.ledger:
+            self.ledger.accepted(f"job-{beat_num}", 2.5)
         if beat_num in self.fail_beats:
+            if self.ledger:
+                self.ledger.finish(f"failed beat {beat_num}")
             return TTSResult(success=False, error=f"failed beat {beat_num}")
+        if self.ledger:
+            self.ledger.finish()
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         Path(output_path).write_bytes(f"audio-{beat_num}".encode())
         return TTSResult(
@@ -289,26 +299,31 @@ async def test_indextts2_selected_runner_generates_narration_and_dialogue(
 
     with sqlite3.connect(get_audio_request_usage_db_path(project_dir)) as conn:
         rows = conn.execute("""
-            SELECT provider, model_name, task_type, scope, episode, status
+            SELECT request_id, provider, model_name, task_type, scope, episode,
+                   status, cost_credits
             FROM audio_request_usage
             ORDER BY scope
             """).fetchall()
     assert rows == [
         (
-            "newapi",
-            "index-tts-2",
+            "job-1",
+            "higgsfield",
+            "seed_audio",
             "audio_generation_indextts2",
             "ep001:beat_01:__narrator__",
             1,
             "completed",
+            2.5,
         ),
         (
-            "newapi",
-            "index-tts-2",
+            "job-2",
+            "higgsfield",
+            "seed_audio",
             "audio_generation_indextts2",
             "ep001:beat_02:谢铮_青年时期",
             1,
             "completed",
+            2.5,
         ),
     ]
 

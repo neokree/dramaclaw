@@ -308,20 +308,26 @@ async def test_generation_credit_cost_route_rejects_blank_model():
 
 @pytest.mark.asyncio
 async def test_generation_credit_cost_route_resolves_beat_tts(monkeypatch):
-    from novelvideo import config
     from novelvideo.api.routes import model_credits
+    from novelvideo.engines import audio
 
-    monkeypatch.setattr(config, "INDEXTTS2_RECORD_MODEL", "index-tts-2")
+    quotes = []
 
-    patch_quote(monkeypatch, model_credits, expected_model="index-tts-2", cost=3)
+    async def fake_quote(kind, amount):
+        quotes.append((kind, amount))
+        return 1.5
+
+    monkeypatch.setattr(audio, "quote", fake_quote)
 
     result = await model_credits.get_generation_credit_cost(
         kind="beat_tts",
         value="",
+        quantity=120,
         user={"user_id": "usr_1"},
     )
 
-    assert result == {"ok": True, "data": {"cost": 3, "display": "3"}}
+    assert quotes == [("tts", 120)]
+    assert result == {"ok": True, "data": {"cost": 1.5, "display": "1.5"}}
 
 
 @pytest.mark.asyncio
@@ -364,25 +370,39 @@ async def test_generation_credit_cost_route_prices_audio_feature_by_model(monkey
 @pytest.mark.asyncio
 async def test_generation_credit_cost_route_resolves_freezone_audio_music(monkeypatch):
     from novelvideo.api.routes import model_credits
+    from novelvideo.engines import audio
+    from novelvideo.engines._proc import EngineError
 
-    patch_quote_expect(
-        monkeypatch,
-        model_credits,
-        expected_kind="audio",
-        expected_model="LingShan-MU-11",
-        expected_params={},
-        expected_quantity=30,
-        cost=90,
+    quotes = []
+
+    async def fake_quote(kind, amount):
+        quotes.append((kind, amount))
+        return 9.0
+
+    monkeypatch.setattr(audio, "quote", fake_quote)
+
+    by_quantity = await model_credits.get_generation_credit_cost(
+        kind="freezone_audio_music", value="", quantity=30, user={"user_id": "usr_1"}
     )
-
-    result = await model_credits.get_generation_credit_cost(
+    by_length = await model_credits.get_generation_credit_cost(
         kind="freezone_audio_music",
         value="",
-        quantity=30,
+        params='{"music_length_ms":30500}',
         user={"user_id": "usr_1"},
     )
 
-    assert result == {"ok": True, "data": {"cost": 90, "display": "90"}}
+    assert quotes == [("music", 30), ("music", 31)]
+    assert by_quantity == by_length == {"ok": True, "data": {"cost": 9.0, "display": "9"}}
+
+    async def signed_out(kind, amount):
+        raise EngineError("Higgsfield non è autenticato")
+
+    monkeypatch.setattr(audio, "quote", signed_out)
+    with pytest.raises(HTTPException) as exc:
+        await model_credits.get_generation_credit_cost(
+            kind="freezone_audio_music", value="", quantity=30, user={"user_id": "usr_1"}
+        )
+    assert exc.value.status_code == 503
 
 
 @pytest.mark.asyncio
@@ -442,7 +462,7 @@ async def test_generation_credit_cost_route_prices_freezone_audio_music_by_featu
             "operation": "music",
             "music_length_ms": 30_500,
             "pricing_kind": "audio",
-            "pricing_model": "LingShan-MU-11",
+            "pricing_model": "sonilo_music",
             "pricing_params": {},
             "pricing_quantity": 31,
         },

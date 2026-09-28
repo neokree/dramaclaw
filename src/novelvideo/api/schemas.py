@@ -1664,7 +1664,7 @@ class FreezoneAudioMusicRequest(BaseModel):
         description="音乐描述 prompt。",
         examples=["cinematic rain-soaked suspense music"],
     )
-    model: str = Field(default="LingShan-MU-11", description="音乐模型，默认 LingShan-MU-11。")
+    model: str = Field(default="sonilo_music", description="Higgsfield 音乐模型，默认 sonilo_music。")
     response_format: Literal["mp3", "opus", "pcm", "ulaw", "alaw"] = Field(
         default="mp3",
         description="音频返回格式。mp3 会自动映射为 mp3_44100_128。",

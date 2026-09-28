@@ -205,7 +205,9 @@ def _generation_credit_cost_model(kind: str, value: str) -> str:
 
         return INDEXTTS2_RECORD_MODEL.strip()
     if kind == "freezone_audio_music":
-        return "LingShan-MU-11"
+        from novelvideo.engines.higgsfield import DEFAULT_MUSIC_MODEL
+
+        return DEFAULT_MUSIC_MODEL
     if kind == "freezone_image_reverse_prompt":
         from novelvideo.freezone.vision_gateway import resolve_freezone_vision_model
 
@@ -413,11 +415,11 @@ def freezone_audio_music_billing_params(params: dict) -> dict:
         pricing_quantity = freezone_audio_music_billing_seconds(
             int(params.get("music_length_ms") or 0)
         )
+    from novelvideo.engines.higgsfield import DEFAULT_MUSIC_MODEL
+
     pricing_model = str(
-        params.get("pricing_model")
-        or params.get("model")
-        or "LingShan-MU-11"
-    ).strip() or "LingShan-MU-11"
+        params.get("pricing_model") or params.get("model") or DEFAULT_MUSIC_MODEL
+    ).strip() or DEFAULT_MUSIC_MODEL
     return {
         **params,
         "pricing_kind": "audio",
@@ -845,6 +847,21 @@ def _default_billing_params(
     return explicit_params
 
 
+async def _higgsfield_audio_credit_cost(kind: str, quantity: int) -> dict:
+    """Higgsfield credits (`higgsfield generate cost`): speech of `quantity`
+    characters, or music of `quantity` seconds."""
+    from novelvideo.engines import audio
+    from novelvideo.engines._proc import EngineError
+
+    try:
+        credits = await audio.quote(
+            "music" if kind == "freezone_audio_music" else "tts", quantity
+        )
+    except EngineError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return {"ok": True, "data": {"cost": credits, "display": f"{credits:g}"}}
+
+
 @router.get("/generation-credit-cost")
 async def get_generation_credit_cost(
     kind: GenerationCreditCostKind = Query(...),
@@ -857,6 +874,14 @@ async def get_generation_credit_cost(
     user: dict = Depends(get_api_user),
 ) -> dict:
     """Return display-ready credit cost for one generation action or model."""
+    if kind in {"beat_tts", "freezone_audio_music"}:
+        audio_params = _parse_billing_params(params)
+        amount = _clean_quantity(quantity)
+        if kind == "freezone_audio_music" and (
+            audio_params.get("pricing_quantity") or audio_params.get("music_length_ms")
+        ):
+            amount = freezone_audio_music_billing_params(audio_params)["pricing_quantity"]
+        return await _higgsfield_audio_credit_cost(kind, amount)
     model = _generation_credit_cost_model(kind, value)
     if not model:
         raise HTTPException(

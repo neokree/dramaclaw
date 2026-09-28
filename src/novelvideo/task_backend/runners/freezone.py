@@ -123,12 +123,10 @@ FREEZONE_LEAF_EGRESS: dict[str, LeafEgressRule] = {
     "generate_freezone_story_script_with_vision": LeafEgressRule(
         "novelvideo.freezone.text_node", LeafEgress.NETWORK, "EG-18a"
     ),
-    # EG-15a `audio.tts.gateway`（:46，`gateway-routed`）
+    # EG-15a：语音与音乐都经本机 Higgsfield CLI（`engines/audio.py`）出网。
     "generate_freezone_audio_speech": LeafEgressRule(
         "novelvideo.freezone.audio_node", LeafEgress.NETWORK, "EG-15a"
     ),
-    # 音乐与语音是同一个出网点的两个一跳调用方：都经 `_write_newapi_audio_speech`，
-    # claim 的 capability 也都是 `audio.tts.gateway`（`audio_node.py:558`）。
     "generate_freezone_audio_eleven_music": LeafEgressRule(
         "novelvideo.freezone.audio_node", LeafEgress.NETWORK, "EG-15a"
     ),
@@ -1386,7 +1384,7 @@ async def _run_freezone_audio_eleven_music_async(
         project_dir=project_dir,
         job_id=job_id,
         prompt=str(payload.get("input") or ""),
-        model=str(payload.get("model") or "LingShan-MU-11"),
+        model=str(payload.get("model") or ""),
         response_format=str(payload.get("response_format") or "mp3"),
         music_length_ms=int(payload.get("music_length_ms") or 30_000),
         force_instrumental=bool(payload.get("force_instrumental", True)),

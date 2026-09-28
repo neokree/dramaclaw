@@ -97,12 +97,9 @@ async def _run_indextts2_audio(
             "progress_callback": on_progress,
             "log_callback": on_log,
         }
-        egress_context = _extract_trusted_egress_context(envelope)
-        # 与 runners/freezone.py 的 _call_freezone_leaf 同理：只有组织任务携带受信任的
-        # 组织出网身份走网关；平台与本地任务保持无组织上下文的直连语义，否则
-        # IndexTTS2FalClient.generate 会把非组织身份判为 ORG_EGRESS_DENIED。
-        if egress_context is not None and egress_context.is_organization:
-            generation_kwargs["egress_context"] = egress_context
+        # Validates the envelope; Higgsfield runs on the local CLI account, so no
+        # organization identity is passed on.
+        _extract_trusted_egress_context(envelope)
         result = await run_indextts2_beat_audio_generation(
             **generation_kwargs,
         )

@@ -1,24 +1,20 @@
-"""Shared IndexTTS2 beat audio generation for video workbenches."""
+"""Shared beat audio generation (Higgsfield, reference voices) for video workbenches.
+
+Names keep the `indextts2` prefix: the task type is part of the API contract.
+"""
 
 from __future__ import annotations
 
 import hashlib
 import importlib
-import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Awaitable, Callable, Literal
 
-from novelvideo.audio_request_usage import (
-    record_audio_generation_attempt,
-    update_audio_generation_attempt,
-)
+from novelvideo.audio_request_usage import HiggsfieldLedger
 from novelvideo.config import INDEXTTS2_RECORD_MODEL, INDEXTTS2_RECORD_PROVIDER
 from novelvideo.egress_context import TrustedEgressContext
-from novelvideo.shared.billing_errors import (
-    is_fatal_billing_error,
-    is_insufficient_credits_error,
-)
+from novelvideo.shared.billing_errors import is_fatal_billing_error
 from novelvideo.seedance2_i2v.models import parse_seedance2_config
 from novelvideo.seedance2_i2v.voice_audio_records import (
     classify_seedance2_voice_audio,
@@ -155,18 +151,6 @@ def _beat_number(beat: dict) -> int:
 
 def _audio_usage_scope(episode: int, beat_num: int, speaker: str) -> str:
     return f"ep{episode:03d}:beat_{beat_num:02d}:{speaker}"
-
-
-def _audio_usage_request_id(
-    *,
-    episode: int,
-    beat_num: int,
-    speaker: str,
-    text_sha256: str,
-    voice_sha256: str,
-) -> str:
-    stable = f"{episode}:{beat_num}:{speaker}:{text_sha256}:{voice_sha256}"
-    return f"indextts2:{uuid.uuid5(uuid.NAMESPACE_URL, stable).hex}"
 
 
 def _is_narrated_project(store, username: str, project: str) -> bool:
@@ -442,19 +426,13 @@ async def run_indextts2_beat_audio_generation(
     log_callback: LogCallback | None = None,
     egress_context: TrustedEgressContext | None = None,
 ) -> IndexTTS2BeatAudioTaskResult:
-    """Generate selected beat MP3s with IndexTTS2 character/narrator references."""
+    """Generate selected beat MP3s in the character/narrator reference voices."""
 
-    if egress_context is None:
-        from novelvideo.egress_context import ambient_organization_egress_context
+    del egress_context  # ponytail: Higgsfield runs on the local CLI account, no org gateway
+    if generator is None:
+        from novelvideo.generators.higgsfield_tts import HiggsfieldTTSClient
 
-        egress_context = ambient_organization_egress_context()
-    if generator is None and egress_context is not None:
-        from novelvideo.generators.indextts2_fal import IndexTTS2FalClient
-
-        generator = IndexTTS2FalClient(
-            provider="newapi",
-            egress_context=egress_context,
-        )
+        generator = HiggsfieldTTSClient()
 
     normalized_mode = _normalize_mode(mode)
     result = IndexTTS2BeatAudioTaskResult(mode=normalized_mode)
@@ -465,7 +443,7 @@ async def run_indextts2_beat_audio_generation(
     force_redo = normalized_mode in {"redo_selected", "redo_all"}
 
     await _maybe_call(
-        log_callback, f"IndexTTS2 audio task started: {len(target_beats)} beats"
+        log_callback, f"Audio task started: {len(target_beats)} beats"
     )
 
     for index, beat in enumerate(target_beats, start=1):
@@ -540,6 +518,14 @@ async def run_indextts2_beat_audio_generation(
                 result.skipped_existing += 1
                 continue
 
+            generator.ledger = HiggsfieldLedger(
+                store.project_dir,
+                task_type="audio_generation_indextts2",
+                scope=_audio_usage_scope(episode, beat_num, speaker),
+                model=INDEXTTS2_RECORD_MODEL,
+                episode=episode,
+                speaker=speaker,
+            )
             if is_narration:
                 item_result = await generate_seedance2_narration_audio(
                     beat=beat,
@@ -561,51 +547,13 @@ async def run_indextts2_beat_audio_generation(
                     audio_url_builder=audio_url_builder,
                 )
 
-            request_id = _audio_usage_request_id(
-                episode=episode,
-                beat_num=beat_num,
-                speaker=speaker,
-                text_sha256=text_sha256,
-                voice_sha256=voice_sha256,
-            )
-            record_audio_generation_attempt(
-                project_output_dir=store.project_dir,
-                request_id=request_id,
-                provider=INDEXTTS2_RECORD_PROVIDER,
-                model_name=INDEXTTS2_RECORD_MODEL,
-                task_type="audio_generation_indextts2",
-                scope=_audio_usage_scope(episode, beat_num, speaker),
-                episode=episode,
-                speaker=speaker,
-            )
             if item_result is None:
-                update_audio_generation_attempt(
-                    project_output_dir=store.project_dir,
-                    request_id=request_id,
-                    status="failed",
-                    error_message="声线缺失",
-                )
                 raise ValueError("声线缺失")
             if not item_result.success:
-                update_audio_generation_attempt(
-                    project_output_dir=store.project_dir,
-                    request_id=request_id,
-                    status="failed",
-                    error_message=item_result.error or "IndexTTS2 generation failed",
-                )
-                if is_insufficient_credits_error(message=item_result.error or ""):
-                    raise RuntimeError(
-                        item_result.error or "IndexTTS2 generation failed"
-                    )
-                raise RuntimeError(item_result.error or "IndexTTS2 generation failed")
+                raise RuntimeError(item_result.error or "audio generation failed")
 
             result.generated += 1
             result.generated_beats.append(beat_num)
-            update_audio_generation_attempt(
-                project_output_dir=store.project_dir,
-                request_id=request_id,
-                status="completed",
-            )
             upsert_seedance2_voice_audio_record(
                 db_path=store.db_path,
                 episode_number=episode,
@@ -636,7 +584,7 @@ async def run_indextts2_beat_audio_generation(
     )
     await _maybe_call(
         log_callback,
-        "IndexTTS2 audio task finished: "
+        "Audio task finished: "
         f"generated={result.generated}, "
         f"skipped={skipped_total} "
         f"(existing={result.skipped_existing}, empty={result.skipped_empty}, "

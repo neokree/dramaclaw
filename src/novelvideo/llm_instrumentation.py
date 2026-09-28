@@ -337,7 +337,6 @@ def _normalize_recorded_model_name(model: str) -> str:
         "SCENE_ASSET_MODEL",
         "NEWAPI_VIDEO_MODEL",
         "DEFAULT_VIDEO_MODEL",
-        "INDEXTTS2_NEWAPI_MODEL",
     ):
         configured = os.environ.get(env_key, "").strip()
         if not configured:

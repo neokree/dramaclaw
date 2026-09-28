@@ -88,8 +88,8 @@ def ambient_organization_egress_context() -> TrustedEgressContext | None:
     """同上，但只在作用域身份是**组织**时回落，否则仍返回 `None`。
 
     多数闸门只分「组织 / 其余」两支，平台身份在那里与 `None` 同义；但有几处
-    把「有身份且非组织」当作错误（如 `generators/indextts2_fal.py` 的 `generate`
-    在 `self.egress_context` 非组织时直接判 `ORG_EGRESS_DENIED`）。若回落把平台
+    把「有身份且非组织」当作错误（如 `generators/tts_generator.py` 的
+    `create_tts_generator` 对非组织身份判 `ORG_SERVICE_EGRESS_DENIED`）。若回落把平台
     身份塞进去，平台流量会被自己的组织闸门拒掉——修 fail-open 反倒修出 fail-closed
     的误伤。回落只补组织这一支，平台与个人路径逐字不变。
     """

@@ -425,20 +425,13 @@ OSS_STATIC_PRESIGN_EXPIRES = int(os.environ.get("OSS_STATIC_PRESIGN_EXPIRES", "3
 
 
 # =============================================================================
-# IndexTTS2 配置
+# 音频（声线 / 音乐 / 音效）：Higgsfield，见 engines/audio.py
 # =============================================================================
 
-INDEXTTS2_PROVIDER = (
-    os.environ.get("INDEXTTS2_PROVIDER", "newapi").strip().lower() or "newapi"
-)
-if INDEXTTS2_PROVIDER not in {"newapi", "fal"}:
-    INDEXTTS2_PROVIDER = "newapi"
-FAL_API_KEY = os.environ.get("FAL_API_KEY", "") or os.environ.get("FAL_KEY", "")
-INDEXTTS2_FAL_ENDPOINT = os.environ.get(
-    "INDEXTTS2_FAL_ENDPOINT",
-    "https://fal.run/fal-ai/index-tts-2/text-to-speech",
-)
-INDEXTTS2_TIMEOUT_SECONDS = float(os.environ.get("INDEXTTS2_TIMEOUT_SECONDS", "1800"))
+# Beat speech in a reference voice runs on Higgsfield seed_audio. The names keep
+# the INDEXTTS2 prefix for the voice-audio records and billing params that use them.
+INDEXTTS2_RECORD_PROVIDER = "higgsfield"
+INDEXTTS2_RECORD_MODEL = "seed_audio"
 
 NEWAPI_BASE_URL = os.environ.get("NEWAPI_BASE_URL", "")
 NEWAPI_API_KEY = os.environ.get("NEWAPI_API_KEY", "")
@@ -497,11 +490,6 @@ def get_newapi_runtime_credentials(
     return api_key, base_url
 
 
-INDEXTTS2_NEWAPI_MODEL = os.environ.get("INDEXTTS2_NEWAPI_MODEL", "index-tts-2")
-INDEXTTS2_RECORD_PROVIDER = "newapi" if INDEXTTS2_PROVIDER == "newapi" else "fal.ai"
-INDEXTTS2_RECORD_MODEL = (
-    INDEXTTS2_NEWAPI_MODEL if INDEXTTS2_PROVIDER == "newapi" else "IndexTTS2"
-)
 NEWAPI_IMAGE_MODEL = os.environ.get("NEWAPI_IMAGE_MODEL", "LingShan-G2")
 NEWAPI_NANOBANANA2_MODEL = os.environ.get("NEWAPI_NANOBANANA2_MODEL", "LingShan-NB-2")
 SCENE_MASTER_IMAGE_PROVIDER = (

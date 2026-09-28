@@ -1,6 +1,6 @@
 """OI-48 块⑥：整批语音的退款正确性压在一条没人守护的隐含不变量上。
 
-链路：`indextts2_fal.py` 判 `ORG_EGRESS_DENIED`
+链路：TTS 客户端对整批返回失败（历史上是 `ORG_EGRESS_DENIED`）
   → `indextts2_beat_audio_task.py:596 raise`
   → `:622` 吞进 `result.failed`
   → `task_backend/runners/audio.py:106` 只在 `generated == 0 and failed` 时抛
@@ -45,34 +45,6 @@ def _organization_context() -> TrustedEgressContext:
             org_id="org-1",
         ),
     )
-
-
-@pytest.mark.asyncio
-async def test_org_denial_is_uniform_across_beat_level_inputs(tmp_path) -> None:
-    """齐一性的来源：拒绝只取决于 (context, provider)，与 beat 级输入无关。
-
-    两者在一次整批生成里恒定，所以拒绝对每个 beat 齐一，`generated` 必为 0，
-    `runners/audio.py:106` 因而总能触发退款。若哪天判据开始读 beat 级输入
-    （文本、声线、输出路径），齐一性即告破裂，这条断言会转红——那时
-    `generated > 0` 会绕开退款条件。
-    """
-
-    from novelvideo.generators.indextts2_fal import IndexTTS2FalClient
-
-    # provider 与组织身份不符 → 组织必须被拒。
-    client = IndexTTS2FalClient(provider="fal", egress_context=_organization_context())
-
-    verdicts = []
-    for index, text in enumerate(("hello", "a much longer line of dialogue", "")):
-        result = await client.generate(
-            prompt=text,
-            audio_url=f"https://example.invalid/voice-{index}.wav",
-            output_path=tmp_path / f"beat-{index}.mp3",
-            emotion_prompt="calm" if index % 2 else "",
-        )
-        verdicts.append((result.success, result.error))
-
-    assert verdicts == [(False, "ORG_EGRESS_DENIED")] * 3
 
 
 def test_refund_requires_the_whole_batch_to_fail() -> None:

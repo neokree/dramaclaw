@@ -1,4 +1,4 @@
-"""Seedance 2.0 dialogue audio preparation via IndexTTS2.
+"""Seedance 2.0 dialogue audio preparation: speech in each character's reference voice.
 
 This module is intentionally separate from the global TTS pipeline. It only
 supports the Seedance 2.0 workbench flow: create/refresh the current beat MP3
@@ -378,9 +378,9 @@ async def generate_seedance2_narration_audio(
         )
 
     if generator is None:
-        from novelvideo.generators.indextts2_fal import IndexTTS2FalClient
+        from novelvideo.generators.higgsfield_tts import HiggsfieldTTSClient
 
-        generator = IndexTTS2FalClient()
+        generator = HiggsfieldTTSClient()
 
     builder = audio_url_builder or build_reference_audio_url
     output_path = beat_audio_path(project_dir, episode, beat_num)
@@ -396,25 +396,9 @@ async def generate_seedance2_narration_audio(
     return maybe_result
 
 
-MAX_REFERENCE_AUDIO_BYTES = 5_000_000
-
-
 def build_reference_audio_url(audio_path: Path) -> str:
-    """Return an IndexTTS2-readable data URL for a local reference audio file.
-
-    Reference audio still follows the v2.0 flow and travels as an inline
-    ``data:`` URL. We cap raw audio at 5 MB and ask the user to re-encode
-    anything larger to mono/16k MP3.
-    """
-    from novelvideo.generators.huimengi import local_file_to_data_url
-
-    size = Path(audio_path).stat().st_size
-    if size > MAX_REFERENCE_AUDIO_BYTES:
-        raise ValueError(
-            f"Reference audio {Path(audio_path).name} is {size} bytes "
-            f"(> {MAX_REFERENCE_AUDIO_BYTES}). Re-encode to mono/16k MP3 before use."
-        )
-    return local_file_to_data_url(str(audio_path))
+    """The reference sample as the Higgsfield CLI takes it: a local path it uploads."""
+    return str(audio_path)
 
 
 VoiceTier = Literal["identity_override", "age_group_preset", "character_default"]
@@ -537,7 +521,7 @@ async def generate_seedance2_dialogue_audio(
     audio_url_builder: AudioUrlBuilder | None = None,
     emotion_prompt: str = "",
 ) -> TTSResult | None:
-    """Generate the current Seedance 2.0 dialogue beat audio with IndexTTS2.
+    """Generate the current Seedance 2.0 dialogue beat audio in the speaker's voice.
 
     Returns ``None`` when the beat is not a dialogue candidate or has no
     configured reference sample, so callers can present UI-only guidance without
@@ -558,9 +542,9 @@ async def generate_seedance2_dialogue_audio(
         return TTSResult(success=False, error=f"Reference audio not found: {reference_path}")
 
     if generator is None:
-        from novelvideo.generators.indextts2_fal import IndexTTS2FalClient
+        from novelvideo.generators.higgsfield_tts import HiggsfieldTTSClient
 
-        generator = IndexTTS2FalClient()
+        generator = HiggsfieldTTSClient()
 
     builder = audio_url_builder or build_reference_audio_url
     output_path = beat_audio_path(store.project_dir, episode, beat_num)
@@ -595,9 +579,9 @@ async def generate_seedance2_dialogue_audio_for_voice(
         return result
 
     if generator is None:
-        from novelvideo.generators.indextts2_fal import IndexTTS2FalClient
+        from novelvideo.generators.higgsfield_tts import HiggsfieldTTSClient
 
-        generator = IndexTTS2FalClient()
+        generator = HiggsfieldTTSClient()
 
     for beat_num, beat in targets:
         output_path = beat_audio_path(store.project_dir, episode, beat_num)

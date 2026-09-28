@@ -187,6 +187,7 @@ def m04_client_factory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     from novelvideo.api.routes import characters, generation, projects, props, styles
     from novelvideo.services.style_service import StyleService
 
+    monkeypatch.setattr("novelvideo.engines.higgsfield.voices", lambda: [])
     store = _M04Store()
     project_dir = tmp_path / "output" / "alice" / _PROJECT
     state_dir = tmp_path / "state" / "alice" / _PROJECT
@@ -626,7 +627,7 @@ def test_m04_l2_exercises_all_57_endpoint_contracts(m04_client_factory):
         client.post(f"/api/v1/projects/{_PROJECT}/tts/preview", json={"text": "hello"}).status_code
         == 410
     )
-    assert client.get(f"/api/v1/projects/{_PROJECT}/tts/voices").status_code == 410
+    assert client.get(f"/api/v1/projects/{_PROJECT}/tts/voices").json() == []
     _assert_ok(client.post(f"/api/v1/projects/{_PROJECT}/episodes/1/audio/generate", json={}))
     _assert_ok(client.post(f"/api/v1/projects/{_PROJECT}/episodes/1/beats/1/audio"))
 
@@ -684,7 +685,6 @@ def test_m04_legacy_tts_routes_return_410_with_indextts2_hint(m04_client_factory
     responses = [
         client.post(f"/api/v1/projects/{_PROJECT}/episodes/1/tts/generate", json={}),
         client.post(f"/api/v1/projects/{_PROJECT}/tts/preview", json={"text": "hello"}),
-        client.get(f"/api/v1/projects/{_PROJECT}/tts/voices"),
     ]
 
     for response in responses:

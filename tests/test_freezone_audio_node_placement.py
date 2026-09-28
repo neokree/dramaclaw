@@ -150,7 +150,7 @@ def _projection_payload(fields: dict, *, version: int = CURRENT_PROJECTION_VERSI
 
 
 def _stub_tts(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(audio_node, "IndexTTS2FalClient", FakeTTSGenerator)
+    monkeypatch.setattr(audio_node, "HiggsfieldTTSClient", FakeTTSGenerator)
     monkeypatch.setattr(
         audio_node, "build_reference_audio_url", lambda path: f"data://{Path(path).name}"
     )

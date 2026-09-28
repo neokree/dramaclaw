@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -25,7 +26,8 @@ CREATE TABLE IF NOT EXISTS audio_request_usage (
     accepted_at TEXT NOT NULL,
     completed_at TEXT,
     updated_at TEXT NOT NULL,
-    error_message TEXT
+    error_message TEXT,
+    cost_credits REAL
 );
 CREATE INDEX IF NOT EXISTS idx_audio_request_usage_scope
 ON audio_request_usage(task_type, scope, accepted_at DESC);
@@ -33,7 +35,16 @@ ON audio_request_usage(task_type, scope, accepted_at DESC);
 
 _SCHEMA_COMPONENT = "audio_request_usage"
 # MIGRATION CONTRACT: increment this whenever _SCHEMA_SQL changes.
-_SCHEMA_VERSION = 1
+_SCHEMA_VERSION = 2
+
+logger = logging.getLogger(__name__)
+
+
+def _initialize(conn: sqlite3.Connection) -> None:
+    conn.executescript(_SCHEMA_SQL)
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(audio_request_usage)")}
+    if "cost_credits" not in columns:  # v1 -> v2: Higgsfield credits per job
+        conn.execute("ALTER TABLE audio_request_usage ADD COLUMN cost_credits REAL")
 
 
 def get_audio_request_usage_db_path(project_output_dir: str | Path) -> Path:
@@ -55,7 +66,7 @@ def _connect(project_output_dir: str | Path):
         db_path,
         component=_SCHEMA_COMPONENT,
         version=_SCHEMA_VERSION,
-        initialize=lambda schema_conn: schema_conn.executescript(_SCHEMA_SQL),
+        initialize=_initialize,
     )
     conn = sqlite3.connect(db_path, timeout=10, check_same_thread=False)
     configure_sqlite_connection(conn, set_journal_mode=False)
@@ -76,6 +87,7 @@ def record_audio_generation_attempt(
     scope: str,
     episode: int | None = None,
     speaker: str | None = None,
+    cost_credits: float | None = None,
 ) -> None:
     now = datetime.now().isoformat()
     with _connect(project_output_dir) as conn:
@@ -83,8 +95,8 @@ def record_audio_generation_attempt(
             """
             INSERT INTO audio_request_usage (
                 request_id, provider, model_name, task_type, scope,
-                episode, speaker, status, accepted_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'accepted', ?, ?)
+                episode, speaker, status, accepted_at, updated_at, cost_credits
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'accepted', ?, ?, ?)
             ON CONFLICT(request_id) DO NOTHING
             """,
             (
@@ -97,6 +109,7 @@ def record_audio_generation_attempt(
                 speaker,
                 now,
                 now,
+                cost_credits,
             ),
         )
 
@@ -142,3 +155,56 @@ def count_audio_scope_attempts(
             tuple(params),
         ).fetchone()
     return int(row[0] or 0) if row else 0
+
+
+class HiggsfieldLedger:
+    """Writes each paid Higgsfield audio job to the project ledger as it is accepted.
+
+    `accepted` is the `on_accepted(job_id, credits)` callback of the Higgsfield
+    engine; `finish` marks those jobs completed or failed. A failed write is
+    logged, never raised: the job is already paid for.
+    """
+
+    def __init__(
+        self,
+        project_output_dir: str | Path,
+        *,
+        task_type: str,
+        scope: str,
+        model: str,
+        episode: int | None = None,
+        speaker: str | None = None,
+    ) -> None:
+        self.project_output_dir = project_output_dir
+        self.task_type, self.scope, self.model = task_type, scope, model
+        self.episode, self.speaker = episode, speaker
+        self.jobs: list[str] = []
+
+    def accepted(self, job_id: str, credits: float) -> None:
+        self.jobs.append(job_id)
+        try:
+            record_audio_generation_attempt(
+                project_output_dir=self.project_output_dir,
+                request_id=job_id,
+                provider="higgsfield",
+                model_name=self.model,
+                task_type=self.task_type,
+                scope=self.scope,
+                episode=self.episode,
+                speaker=self.speaker,
+                cost_credits=credits,
+            )
+        except Exception:  # noqa: BLE001
+            logger.warning("could not record Higgsfield audio job %s", job_id, exc_info=True)
+
+    def finish(self, error: str | None = None) -> None:
+        for job_id in self.jobs:
+            try:
+                update_audio_generation_attempt(
+                    project_output_dir=self.project_output_dir,
+                    request_id=job_id,
+                    status="failed" if error else "completed",
+                    error_message=error,
+                )
+            except Exception:  # noqa: BLE001
+                logger.warning("could not update Higgsfield audio job %s", job_id, exc_info=True)

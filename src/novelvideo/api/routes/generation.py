@@ -1869,11 +1869,27 @@ async def preview_tts(
 
 @router.get("/projects/{project}/tts/voices")
 async def list_tts_voices(project: str, user: dict = Depends(get_api_user)):
-    """Legacy voice listing endpoint removed after IndexTTS2 cutover."""
-    raise HTTPException(
-        status_code=status.HTTP_410_GONE,
-        detail="Legacy /tts/voices was removed. IndexTTS2 voice options are project assets.",
-    )
+    """Higgsfield voices (`higgsfield voices list`): presets and cloned "element" voices."""
+    import asyncio
+
+    from novelvideo.engines import higgsfield
+    from novelvideo.engines._proc import EngineError
+
+    try:
+        voices = await asyncio.to_thread(higgsfield.voices)
+    except (EngineError, OSError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return [
+        {
+            "name": str(v.get("name") or v.get("id") or ""),
+            "short_name": str(v.get("id") or ""),
+            "gender": "",
+            "locale": "",
+            "voice_type": str(v.get("voice_type") or "preset"),
+        }
+        for v in voices
+        if v.get("id")
+    ]
 
 
 # ── 草图 ──────────────────────────────────────────────────────────────────────

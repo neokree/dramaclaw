@@ -1016,11 +1016,28 @@ async def test_legacy_tts_preview_endpoint_is_gone():
 
 
 @pytest.mark.asyncio
-async def test_legacy_tts_voices_endpoint_is_gone():
+async def test_tts_voices_lists_higgsfield_voices(monkeypatch):
     from novelvideo.api.routes import generation
+    from novelvideo.engines import higgsfield
 
-    with pytest.raises(HTTPException) as exc:
-        await generation.list_tts_voices(project="demo", user={"username": "alice"})
+    monkeypatch.setattr(
+        higgsfield,
+        "voices",
+        lambda: [
+            {"id": "v-1", "name": "Grady", "voice_type": "preset"},
+            {"id": "v-2", "name": "Pablo-ES", "voice_type": "element"},
+        ],
+    )
 
-    assert exc.value.status_code == 410
-    assert "IndexTTS2" in str(exc.value.detail)
+    voices = await generation.list_tts_voices(project="demo", user={"username": "alice"})
+
+    assert voices == [
+        {"name": "Grady", "short_name": "v-1", "gender": "", "locale": "", "voice_type": "preset"},
+        {
+            "name": "Pablo-ES",
+            "short_name": "v-2",
+            "gender": "",
+            "locale": "",
+            "voice_type": "element",
+        },
+    ]

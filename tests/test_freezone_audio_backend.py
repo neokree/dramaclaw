@@ -5,10 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-import respx
-from httpx import Response
 
-from novelvideo import config
 from novelvideo.api.routes import freezone as freezone_routes
 from novelvideo.freezone import audio_node
 from novelvideo.freezone.audio_node import (
@@ -20,11 +17,13 @@ from novelvideo.freezone.audio_node import (
     resolve_user_audio_voice,
     user_audio_voices_index_path,
 )
-from novelvideo.model_gateway_settings import save_custom_newapi_gateway
 
 
 class FakeTTSGenerator:
     calls = []
+
+    def __init__(self, *_args, **_kwargs) -> None:
+        pass
 
     async def generate(self, *, prompt, audio_url, output_path, emotion_prompt=""):
         from novelvideo.generators.tts_generator import TTSResult
@@ -40,13 +39,6 @@ class FakeTTSGenerator:
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         Path(output_path).write_bytes(b"generated-audio")
         return TTSResult(success=True, audio_path=str(output_path), duration_seconds=1.25)
-
-
-def _isolate_settings_db(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(config, "STATE_DIR", str(tmp_path / "state"))
-    monkeypatch.setenv("ST_EDITION", "ce")
-    monkeypatch.delenv("ST_CONTROL_PLANE_DSN", raising=False)
-    monkeypatch.delenv("MODEL_GATEWAY_MODE", raising=False)
 
 
 class FakeProjectStore:
@@ -111,41 +103,6 @@ def test_user_audio_voice_is_account_scoped_and_resolvable(
     assert resolved.audio_path.exists()
     assert resolved.audio_path.read_bytes() == b"fake-audio-bytes"
     assert len(resolved.sha256) == 64
-
-
-@pytest.mark.asyncio
-async def test_newapi_audio_uses_saved_custom_gateway_before_env(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _isolate_settings_db(monkeypatch, tmp_path)
-    monkeypatch.setenv("NEWAPI_API_KEY", "sk-env-secret")
-    monkeypatch.setenv("NEWAPI_BASE_URL", "https://env.example/v1")
-    save_custom_newapi_gateway(
-        base_url="https://custom.example",
-        api_key="sk-custom-secret",
-        activate=True,
-    )
-
-    with respx.mock(assert_all_called=True) as router:
-        route = router.post("https://custom.example/v1/audio/speech").mock(
-            return_value=Response(
-                200,
-                content=b"audio-bytes",
-                headers={"content-type": "audio/mpeg"},
-            )
-        )
-
-        output_path = tmp_path / "audio.mp3"
-        await audio_node._write_newapi_audio_speech(
-            output_path=output_path,
-            model="LingShan-MU-11",
-            input_text="quiet piano",
-        )
-
-    assert output_path.read_bytes() == b"audio-bytes"
-    request = route.calls.last.request
-    assert request.headers["authorization"] == "Bearer sk-custom-secret"
 
 
 def test_create_user_audio_voice_rejects_unsupported_extension(
@@ -498,7 +455,7 @@ async def test_freezone_audio_speech_drama_first_person_uses_project_narrator(
     narrator.write_bytes(b"project-narrator-reference")
     narrator_sha = file_sha256(narrator)
     monkeypatch.setattr("novelvideo.project_config.OUTPUT_DIR", tmp_path / "state")
-    monkeypatch.setattr(audio_node, "IndexTTS2FalClient", FakeTTSGenerator)
+    monkeypatch.setattr(audio_node, "HiggsfieldTTSClient", FakeTTSGenerator)
     monkeypatch.setattr(
         audio_node,
         "build_reference_audio_url",
@@ -542,19 +499,24 @@ async def test_freezone_audio_speech_drama_first_person_uses_project_narrator(
 
 
 @pytest.mark.asyncio
-async def test_freezone_audio_eleven_music_uses_newapi_music_metadata(
+async def test_freezone_audio_music_runs_sonilo_on_higgsfield_and_records_credits(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    import sqlite3
+
+    from novelvideo.audio_request_usage import get_audio_request_usage_db_path
+
     calls: list[dict] = []
 
-    async def fake_write_newapi_audio_speech(**kwargs):
-        calls.append(kwargs)
-        output_path = Path(kwargs["output_path"])
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_bytes(b"music")
+    async def fake_music(prompt, out, *, duration, model=None, on_accepted=None):
+        calls.append({"prompt": prompt, "out": out, "duration": duration, "model": model})
+        on_accepted("job-music", 12.0)
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        Path(out).write_bytes(b"music")
+        return Path(out)
 
-    monkeypatch.setattr(audio_node, "_write_newapi_audio_speech", fake_write_newapi_audio_speech)
+    monkeypatch.setattr(audio_node.audio, "music", fake_music)
     monkeypatch.setattr(audio_node, "_duration_ms", lambda _path: 0)
 
     result = await audio_node.generate_freezone_audio_eleven_music(
@@ -562,28 +524,27 @@ async def test_freezone_audio_eleven_music_uses_newapi_music_metadata(
         job_id="music-1",
         prompt="Mysterious original soundtrack, rainforest.",
         music_length_ms=30_000,
-        force_instrumental=True,
-        respect_sections_durations=True,
-        output_format="mp3_44100_128",
+        model="LingShan-MU-11",  # legacy default still queued in old payloads
     )
 
-    assert result.model == "LingShan-MU-11"
+    assert result.model == "sonilo_music"
     assert result.duration_ms == 30_000
-    assert result.voice_source == "LingShan-MU-11"
     assert calls == [
         {
-            "output_path": freezone_audio_eleven_music_output_path(tmp_path, "music-1"),
-            "model": "LingShan-MU-11",
-            "input_text": "Mysterious original soundtrack, rainforest.",
-            "response_format": "mp3",
-            "metadata": {
-                "music_length_ms": 30_000,
-                "force_instrumental": True,
-                "respect_sections_durations": True,
-                "output_format": "mp3_44100_128",
-            },
-            "timeout_seconds": 900.0,
+            "prompt": "Mysterious original soundtrack, rainforest.",
+            "out": freezone_audio_eleven_music_output_path(tmp_path, "music-1"),
+            "duration": 30.0,
+            "model": "sonilo_music",
         }
+    ]
+    with sqlite3.connect(get_audio_request_usage_db_path(tmp_path)) as conn:
+        rows = conn.execute(
+            "SELECT request_id, provider, model_name, task_type, scope, status, cost_credits"
+            " FROM audio_request_usage"
+        ).fetchall()
+    assert rows == [
+        ("job-music", "higgsfield", "sonilo_music", "freezone_audio_music", "music-1",
+         "completed", 12.0)
     ]
 
 

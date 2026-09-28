@@ -108,7 +108,9 @@ async def _run_single_video_async(
         ShotReference,
         create_video_generator,
     )
-    from novelvideo.seedance2_i2v.pipeline import is_huimeng_seedance2_backend
+    from novelvideo.seedance2_i2v.pipeline import (
+        is_seedance2_backend as _is_seedance2,
+    )
     from novelvideo.utils.path_resolver import PathResolver
 
     beat = config.get("beat", {})
@@ -116,12 +118,12 @@ async def _run_single_video_async(
     video_mode = config.get("video_mode", "first_frame")
     prompt = config.get("prompt", "")
     video_duration = config.get("video_duration", 5.0)
-    backend_str = config.get("video_backend", "comfyui")
+    backend_str = config.get("video_backend")
     last_frame_path = config.get("last_frame_path")
     seedance2_config = config.get("seedance2_config") or beat.get(
         "seedance2_config_json"
     )
-    is_seedance2_backend = is_huimeng_seedance2_backend(backend_str)
+    is_seedance2_backend = _is_seedance2(backend_str)
 
     paths = PathResolver(output_dir, episode)
     videos_dir = paths.videos_dir()
@@ -131,7 +133,6 @@ async def _run_single_video_async(
     egress_context = envelope.get("__trusted_egress_context")
     if egress_context is not None:
         gen_kwargs["egress_context"] = egress_context
-    # 非 seedance2 后端（含 seedance-1.5-pro）的清晰度走构造参数透传；
     # seedance2 的清晰度在 prepare 阶段并入 seedance2_config，无需在此重复。
     single_resolution = config.get("resolution")
     if single_resolution and not is_seedance2_backend:
@@ -869,26 +870,8 @@ async def _run_freezone_video_gen_async(
         logs=["开始 freezone 视频生成"],
     )
 
-    trusted_context = envelope.get("__trusted_egress_context")
-    video_leaf = run_freezone_video_gen
-    trusted_kwargs: dict[str, Any] = {}
-    if trusted_context is not None and trusted_context.billing_principal.kind in {
-        "organization",
-        "local",
-    }:
-        from novelvideo.freezone.video_node import run_trusted_freezone_video_gen
-
-        video_leaf = run_trusted_freezone_video_gen
-        trusted_kwargs = {
-            "egress_context": trusted_context,
-            "task_type": str(envelope.get("task_type") or "freezone_video_gen"),
-            "episode": int(envelope.get("episode") or 0),
-            "beat_num": int(envelope.get("beat_num") or 0),
-            "scope": str(envelope.get("scope") or job_id),
-        }
-
     try:
-        out_path = await video_leaf(
+        out_path = await run_freezone_video_gen(
             project_dir=project_dir,
             job_id=job_id,
             prompt=str(payload.get("prompt") or ""),
@@ -905,7 +888,6 @@ async def _run_freezone_video_gen_async(
             gen_mode=payload.get("gen_mode") or None,
             model_params=payload.get("model_params") or None,
             request_schema=payload.get("request_schema") or None,
-            **trusted_kwargs,
         )
     except Exception as exc:
         user_hint = _omni_video_edit_hint(payload, exc)

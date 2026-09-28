@@ -229,7 +229,7 @@ class GlobalOptimizeRequest(BaseModel):
 
 class VideoGenerateRequest(BaseModel):
     resolution: str = "720x1280"
-    video_backend: str = "newapi_seedance-1.0-pro-fast"
+    video_backend: str = ""  # empty = the configured default engine
     use_director_render: bool = False
 
 
@@ -237,18 +237,17 @@ class VideoBackendOption(BaseModel):
     value: str
     label: str
     is_default: bool = False
-    is_seedance2: bool = False
-    is_happyhorse: bool = False
-    is_grok_video: bool = False
-    dialogue_only: bool = False
+    is_seedance2: bool = False  # multi-reference beat flow (every Higgsfield model)
     min_duration: Optional[int] = None
     max_duration: Optional[int] = None
+    duration_options: Optional[list[int]] = None
     resolution_options: Optional[list[str]] = None
     ratio_options: Optional[list[str]] = None
     supported_modes: Optional[list[str]] = None
     reference_image_max: Optional[int] = None
     reference_video_max: Optional[int] = None
     reference_audio_max: Optional[int] = None
+    supports_audio: bool = False
 
 
 class VideoComposeRequest(BaseModel):
@@ -351,7 +350,7 @@ class InsertManualShotRequest(BaseModel):
 
 class SingleVideoRequest(BaseModel):
     resolution: str = "720x1280"
-    video_backend: str = "newapi_seedance-1.0-pro-fast"
+    video_backend: str = ""  # empty = the configured default engine
     use_director_render: bool = False
     seedance2_config_json: Optional[str] = None
     mode: Optional[str] = None

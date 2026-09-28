@@ -646,6 +646,9 @@ async def _slow_video(
     await _run_cmd(cmd, cwd=project_dir, egress_context=egress_context)
 
 
+_UPSCALE_HEIGHTS = {"720p": 720, "1080p": 1080, "2k": 1440, "4k": 2160}
+
+
 async def _run_video_processing_model(
     *,
     project_dir: Path,
@@ -661,34 +664,31 @@ async def _run_video_processing_model(
     request_schema: Optional[dict[str, Any]],
     egress_context: TrustedEgressContext | None,
 ) -> None:
-    from novelvideo.generators.video_generator import (
-        ShotReference,
-        create_video_generator,
-    )
+    """Upscale / frame-rate conversion, done locally with ffmpeg.
 
-    generator = create_video_generator(
-        backend=backend,
-        resolution=resolution,
-        generate_audio=False,
-        model_params=model_params,
-        request_schema=request_schema,
+    ponytail: lanczos + minterpolate, no AI upscaler. Plug a model here when
+    one of the local engines grows a video-enhancement mode.
+    """
+    if mode == "video_upscale":
+        height = _UPSCALE_HEIGHTS.get(str(resolution).lower(), 1080)
+        video_filter = f"scale=-2:{height}:flags=lanczos"
+    elif mode == "video_frame_rate":
+        fps = float(processing_metadata.get("target_fps") or 30)
+        video_filter = (
+            f"minterpolate=fps={fps:g}:mi_mode=mci"
+            if processing_metadata.get("smart_interpolation")
+            else f"fps={fps:g}"
+        )
+    else:
+        raise ValueError(f"unsupported video processing mode: {mode}")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    await _run_cmd(
+        ["ffmpeg", "-y", "-i", str(source_path), "-vf", video_filter,
+         "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+         "-c:a", "copy", "-movflags", "+faststart", str(output_path)],
+        cwd=project_dir,
         egress_context=egress_context,
     )
-    result = await generator.generate(
-        image_path=None,
-        prompt="",
-        output_path=str(output_path),
-        aspect_ratio="auto",
-        duration=max(1, math.ceil(duration)),
-        references=[ShotReference("video", str(source_path), "源视频")],
-        gen_mode=mode,
-        processing_metadata=processing_metadata,
-        egress_context=egress_context,
-        task_type="freezone_video_upscale",
-        project_output_dir=str(project_dir),
-    )
-    if not result or result.status.value != "done":
-        raise RuntimeError(result.error if result else f"{mode} failed")
     if not output_path.exists():
         raise RuntimeError(f"{mode} completed without an output file")
 
@@ -754,8 +754,6 @@ async def _run_model_video_enhancement(
         if factor > 1 and effective_target_fps is None:
             effective_target_fps = max(1, round(float(probe["fps"]), 3))
         if effective_target_fps is not None:
-            if not frame_rate_backend:
-                raise RuntimeError("video frame-rate model is not configured")
             framed = work_dir / "03_frame_rate.mp4"
             await _run_video_processing_model(
                 project_dir=project_dir,
@@ -785,7 +783,7 @@ async def _run_model_video_enhancement(
         out.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(current), str(out))
         return out, {
-            "backend": "gateway",
+            "backend": "ffmpeg",
             "resolution": resolution,
             "target_fps": effective_target_fps,
             "slowdown": slowdown,
@@ -1626,28 +1624,20 @@ async def run_freezone_video_gen(
     generate_audio: bool = False,
     human_review: bool = False,
     scene_optimize: str | None = None,
-    backend: str = "huimeng_seedance-2.0-fast",
+    backend: str = "",
     last_frame_path: Optional[str] = None,
     audio_setting: Optional[str] = None,
     gen_mode: Optional[str] = None,
     model_params: Optional[dict[str, Any]] = None,
     request_schema: Optional[dict[str, Any]] = None,
 ) -> Path:
-    """Freezone 文生视频。
-
-    统一承接 Freezone 视频生成，支持：
-    - 纯 prompt 文生视频
-    - prompt + 角色参考图
-    - 首帧 / 尾帧参考
-    - 原生音频开关（由具体模型决定）
-    """
+    """Freezone video: prompt, optional first/last frame (role 首帧/尾帧) and references."""
     out = outputs_dir(project_dir, "freezone_video_gen") / f"{job_id}.mp4"
     out.parent.mkdir(parents=True, exist_ok=True)
 
     from novelvideo.generators.video_generator import (
         ShotReference,
         create_video_generator,
-        parse_newapi_video_backend,
     )
 
     references = [
@@ -1659,74 +1649,18 @@ async def run_freezone_video_gen(
         for item in (reference_items or [])
         if str(item.get("path") or "").strip()
     ]
-    from novelvideo.freezone.video_node import is_freezone_seedance2_backend
-
-    video_gen = create_video_generator(
-        backend=backend,
-        resolution=resolution,
-        generate_audio=generate_audio,
-        model_params=model_params,
-        request_schema=request_schema,
+    video_gen = create_video_generator(backend=backend, resolution=resolution)
+    result = await video_gen.generate(
+        image_path=None,
+        prompt=prompt,
+        output_path=str(out),
+        aspect_ratio=aspect_ratio,
+        duration=float(duration_seconds),
+        last_frame_path=last_frame_path,
+        references=references,
+        audio_setting=audio_setting or ("on" if generate_audio else "off"),
+        gen_mode=gen_mode,
     )
-    if backend == "seedance_2":
-        result = await video_gen.generate(
-            prompt=prompt,
-            output_path=str(out),
-            references=references,
-            duration=float(duration_seconds),
-            audio=bool(generate_audio),
-            human_review=bool(human_review),
-            aspect_ratio=aspect_ratio,
-            resolution=resolution,
-        )
-    else:
-        normalized_mode = {
-            "firstLastFrame": "first_last_frame",
-            "imageToVideo": "image_reference",
-            "imageReference": "image_reference",
-        }.get(str(gen_mode or "").strip(), str(gen_mode or "").strip())
-        if normalized_mode in {"first_frame", "first_last_frame"}:
-            first_image_ref = next(
-                (
-                    ref
-                    for ref in references
-                    if ref.type == "image" and "首帧" in str(ref.role or "")
-                ),
-                None,
-            )
-        else:
-            first_image_ref = next((ref for ref in references if ref.type == "image"), None)
-        if (
-            (first_image_ref is None or not first_image_ref.path)
-            and not str(backend).startswith("huimeng_")
-            and not parse_newapi_video_backend(backend)
-            and not is_freezone_seedance2_backend(backend)
-        ):
-            raise RuntimeError(
-                f"backend {backend} requires a first-frame image reference"
-            )
-        extra_kwargs: dict[str, object] = {}
-        if audio_setting:
-            extra_kwargs["audio_setting"] = audio_setting
-        result = await video_gen.generate(
-            image_path=(
-                first_image_ref.path
-                if first_image_ref and first_image_ref.path
-                else None
-            ),
-            prompt=prompt,
-            output_path=str(out),
-            aspect_ratio=aspect_ratio,
-            duration=float(duration_seconds),
-            last_frame_path=last_frame_path,
-            references=references,
-            human_review=bool(human_review),
-            seedance2_config=(
-                {"scene_optimize": scene_optimize} if scene_optimize else None
-            ),
-            gen_mode=gen_mode,
-            **extra_kwargs,
-        )
     if not result or result.status.value != "done":
         err = result.error if result else "unknown error"
         raise RuntimeError(f"freezone video generation failed: {err}")

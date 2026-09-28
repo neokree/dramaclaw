@@ -5,65 +5,29 @@ from __future__ import annotations
 import math
 
 
-def parse_video_duration_bounds(raw: str) -> dict[str, tuple[int, int]]:
-    bounds: dict[str, tuple[int, int]] = {}
-    for item in str(raw or "").split(","):
-        entry = item.strip()
-        if not entry or ":" not in entry or "-" not in entry:
-            continue
-        model, raw_bounds = entry.split(":", 1)
-        raw_min, raw_max = raw_bounds.split("-", 1)
-        try:
-            min_seconds = int(raw_min.strip())
-            max_seconds = int(raw_max.strip())
-        except ValueError:
-            continue
-        if min_seconds > 0 and max_seconds >= min_seconds:
-            bounds[model.strip()] = (min_seconds, max_seconds)
-    return bounds
-
-
-def _gateway_model_from_backend(backend: str | None) -> str:
-    from novelvideo.config import NEWAPI_VIDEO_MODEL
-
-    value = str(backend or "").strip()
-    lowered = value.lower()
-    if lowered == "newapi":
-        return NEWAPI_VIDEO_MODEL
-    for prefix in ("newapi_", "huimeng_", "huimengi_"):
-        if lowered.startswith(prefix):
-            return value[len(prefix) :].strip()
-    return ""
-
-
 def video_duration_bounds_for_backend(
     backend: str | None,
 ) -> tuple[int | None, int | None]:
-    """Return the provider duration bounds used by the selected backend."""
-    from novelvideo.config import NEWAPI_VIDEO_DURATION_BOUNDS
+    """Seconds the selected video engine accepts."""
+    from novelvideo.engines import higgsfield
+    from novelvideo.engines._proc import EngineError
+    from novelvideo.generators.video_generator import video_engine
 
-    model = _gateway_model_from_backend(backend)
-    configured = parse_video_duration_bounds(NEWAPI_VIDEO_DURATION_BOUNDS)
-    if model:
-        bounds = configured.get(model)
-        if bounds:
-            return bounds
-        lowered_model = model.lower()
-        if lowered_model == "seedance-2.0-mini":
-            return (4, 15)
-        if lowered_model == "happyhorse-1.0":
-            return (3, 15)
-        if lowered_model == "grok-video-channel":
-            return (6, 30)
-
-    legacy_bounds = {
-        "seedance_fast": (4, 12),
-        "seedance_pro": (4, 12),
-        "seedance_pro_silent": (4, 12),
-        "seedance_2": (5, 15),
-        "grok_720": (1, 15),
-    }
-    return legacy_bounds.get(str(backend or "").strip().lower(), (None, None))
+    engine, job_type = video_engine(backend)
+    if engine == "h3c":
+        return (1, 15)  # frames are rounded up to 5 + 17n at 24 fps
+    if engine != "higgsfield" or not job_type:
+        return (None, None)
+    try:
+        spec = higgsfield.param_specs(higgsfield.schema(job_type)).get("duration") or {}
+    except (EngineError, OSError, ValueError):
+        spec = {}
+    enum = sorted(int(v) for v in spec.get("enum") or [])
+    if enum:
+        return (enum[0], enum[-1])
+    # ponytail: bounds of integer durations are not in the schema; Seedance's are
+    # measured, and `generate` moves any other model's duration inside its bounds.
+    return (higgsfield.MIN_SECONDS, higgsfield.MAX_SECONDS)
 
 
 def normalize_video_duration_for_backend(

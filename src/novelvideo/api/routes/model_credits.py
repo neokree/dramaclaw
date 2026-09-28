@@ -171,68 +171,19 @@ def _image_selection_cost_model(selection: str) -> str:
 
 
 def _video_backend_cost_model(backend: str) -> str:
+    """The canonical backend id is the model key (Higgsfield prices its own jobs)."""
     clean_backend = backend.strip()
     if not clean_backend:
         raise HTTPException(status_code=400, detail="video backend is required")
-
-    from novelvideo.generators.huimengi import parse_huimeng_video_backend
     from novelvideo.generators.video_generator import (
-        VideoBackend,
-        newapi_video_backend_options,
-        parse_newapi_video_backend,
+        normalize_video_backend,
+        video_backend_options,
     )
 
-    newapi_model = parse_newapi_video_backend(clean_backend)
-    huimeng_model = parse_huimeng_video_backend(clean_backend)
-    backend_enum: VideoBackend | None = None
-    if not newapi_model and not huimeng_model:
-        try:
-            backend_enum = VideoBackend(clean_backend)
-        except ValueError:
-            from novelvideo.generators.huimengi import huimeng_video_backend_options
-
-            clean_backend = _resolve_labeled_value(
-                clean_backend,
-                {
-                    **newapi_video_backend_options(),
-                    **huimeng_video_backend_options(),
-                },
-                label_name="video backend",
-            )
-            newapi_model = parse_newapi_video_backend(clean_backend)
-            huimeng_model = parse_huimeng_video_backend(clean_backend)
-
-    if newapi_model:
-        return newapi_model
-    if huimeng_model:
-        return huimeng_model
-
-    if backend_enum is None:
-        try:
-            backend_enum = VideoBackend(clean_backend)
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=400, detail="invalid video backend"
-            ) from exc
-
-    if backend_enum == VideoBackend.SEEDANCE_FAST:
-        from novelvideo.config import SEEDANCE_FAST_MODEL
-
-        return SEEDANCE_FAST_MODEL
-    if backend_enum in {VideoBackend.SEEDANCE_PRO, VideoBackend.SEEDANCE_PRO_SILENT}:
-        from novelvideo.config import SEEDANCE_PRO_MODEL
-
-        return SEEDANCE_PRO_MODEL
-    if backend_enum == VideoBackend.SEEDANCE_2:
-        from novelvideo.generators.video_generator import Seedance2VideoGenerator
-
-        return Seedance2VideoGenerator.MODEL
-    if backend_enum == VideoBackend.GROK_720:
-        from novelvideo.generators.video_generator import GrokVideoGenerator
-
-        return GrokVideoGenerator.MODEL
-
-    raise HTTPException(status_code=400, detail="video backend has no credit model")
+    for value, label in video_backend_options().items():
+        if label.casefold() == clean_backend.casefold():
+            return value
+    return normalize_video_backend(clean_backend)
 
 
 def _generation_credit_cost_model(kind: str, value: str) -> str:

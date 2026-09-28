@@ -84,41 +84,6 @@ VIDEO_CAMERA_TEMPLATES: list[dict[str, str]] = [
     },
 ]
 
-LEGACY_FREEZONE_VIDEO_BACKEND_ALIASES: dict[str, str] = {
-    "huimeng_seedance20_fast": "newapi_seedance-2.0-fast",
-    "huimeng_seedance-2.0-fast": "newapi_seedance-2.0-fast",
-    "seedance_2": "newapi_seedance-2.0-fast",
-    "huimeng_seedance10_fast": "newapi_seedance-1.0-pro-fast",
-    "huimeng_seedance-1.0-pro-fast": "newapi_seedance-1.0-pro-fast",
-    "seedance_fast": "newapi_seedance-1.0-pro-fast",
-    "huimeng_seedance15_pro": "newapi_seedance-1.5-pro",
-    "huimeng_seedance-1.5-pro": "newapi_seedance-1.5-pro",
-    "seedance_pro": "newapi_seedance-1.5-pro",
-    "seedance_pro_silent": "newapi_seedance-1.5-pro",
-}
-
-LEGACY_FREEZONE_VIDEO_LABEL_ALIASES: dict[str, str] = {
-    "huimeng seedance 2.0 fast": "newapi_seedance-2.0-fast",
-    "huimeng seedance 1.0 pro fast": "newapi_seedance-1.0-pro-fast",
-    "huimeng seedance 1.5 pro": "newapi_seedance-1.5-pro",
-    "seedance 1.0 fast": "newapi_seedance-1.0-pro-fast",
-    "seedance 1.5 有声": "newapi_seedance-1.5-pro",
-    "seedance 1.5 无声": "newapi_seedance-1.5-pro",
-}
-
-FREEZONE_DEFAULT_VIDEO_BACKEND = "newapi_seedance-2.0-fast"
-FREEZONE_NEWAPI_VIDEO_BACKENDS = {
-    "newapi_seedance-2.0",
-    "newapi_seedance-2.0-fast",
-    "newapi_seedance-2.0-value",
-    "newapi_seedance-2.0-fast-value",
-    "newapi_seedance-1.0-pro-fast",
-    "newapi_seedance-1.5-pro",
-    "newapi_happyhorse-1.0",
-}
-FREEZONE_DISABLED_VIDEO_BACKENDS = {"newapi_grok-video-channel"}
-
-
 def get_video_camera_templates() -> list[dict[str, str]]:
     return [dict(item) for item in VIDEO_CAMERA_TEMPLATES]
 
@@ -148,60 +113,20 @@ def normalize_video_resolution(value: str | None) -> str:
     return text
 
 
-FREEZONE_SEEDANCE2_RESOLUTION_OPTIONS_BY_MODEL: dict[str, tuple[str, ...]] = {
-    "seedance-2.0-fast": ("480p", "720p"),
-    "seedance-2.0": ("480p", "720p", "1080p"),
-    "seedance-2.0-value": ("720p", "1080p"),
-    "seedance-2.0-fast-value": ("720p", "1080p"),
-}
-FREEZONE_DEFAULT_VIDEO_RESOLUTION_OPTIONS = ("480p", "720p", "1080p")
-FREEZONE_DEFAULT_SEEDANCE2_RESOLUTION_OPTIONS = ("480p", "720p")
-FREEZONE_HAPPYHORSE_RESOLUTION_OPTIONS = ("720p", "1080p")
-FREEZONE_GROK_VIDEO_CHANNEL_RESOLUTION_OPTIONS = ("720p", "480p")
-
-
-def _freezone_video_model_from_backend(backend: str | None) -> str:
-    text = str(backend or "").strip().lower()
-    for prefix in ("newapi_", "huimeng_", "huimengi_"):
-        if text.startswith(prefix):
-            return text[len(prefix) :].strip()
-    return text
-
 
 def freezone_video_resolution_options(backend: str | None) -> tuple[str, ...]:
-    model = _freezone_video_model_from_backend(backend)
-    if model == "grok-video-channel":
-        return FREEZONE_GROK_VIDEO_CHANNEL_RESOLUTION_OPTIONS
-    if model == "happyhorse-1.0":
-        return FREEZONE_HAPPYHORSE_RESOLUTION_OPTIONS
-    if model.startswith("seedance-2.0"):
-        return FREEZONE_SEEDANCE2_RESOLUTION_OPTIONS_BY_MODEL.get(
-            model,
-            FREEZONE_DEFAULT_SEEDANCE2_RESOLUTION_OPTIONS,
-        )
-    return FREEZONE_DEFAULT_VIDEO_RESOLUTION_OPTIONS
+    from novelvideo.engines import higgsfield
+    from novelvideo.generators.video_generator import video_engine
 
-
-def is_freezone_seedance2_value_backend(backend: str | None) -> bool:
-    model = _freezone_video_model_from_backend(backend)
-    return model in {"seedance-2.0-value", "seedance-2.0-fast-value"}
-
-
-def default_freezone_seedance2_scene_optimize(backend: str | None) -> str:
-    model = _freezone_video_model_from_backend(backend)
-    return "realistic" if model == "seedance-2.0-fast-value" else "anime"
-
-
-def normalize_freezone_seedance2_scene_optimize(
-    backend: str | None,
-    value: str | None,
-) -> str:
-    if not is_freezone_seedance2_value_backend(backend):
-        return ""
-    text = str(value or "").strip().lower()
-    if text in {"anime", "realistic"}:
-        return text
-    return default_freezone_seedance2_scene_optimize(backend)
+    engine, job_type = video_engine(backend)
+    if engine != "higgsfield" or not job_type:
+        return ("720p",)  # h3 renders its own canvas; the montage scales it
+    try:
+        specs = higgsfield.param_specs(higgsfield.schema(job_type))
+    except Exception:  # noqa: BLE001 - catalog offline: let the engine decide
+        return ("720p",)
+    options = (specs.get("resolution") or specs.get("quality") or {}).get("enum") or []
+    return tuple(options) or ("720p",)
 
 
 def normalize_video_resolution_for_backend(
@@ -210,28 +135,9 @@ def normalize_video_resolution_for_backend(
     configured_options: list[str] | tuple[str, ...] | None = None,
 ) -> str:
     resolution = normalize_video_resolution(value)
-    configured = tuple(
-        str(option).strip()
-        for option in (configured_options or ())
-        if str(option).strip()
-    )
-    if configured:
-        matched = next(
-            (option for option in configured if option.lower() == resolution.lower()),
-            None,
-        )
-        if matched is not None:
-            return normalize_video_resolution(matched)
-        preferred = next(
-            (option for option in configured if option.lower() == "720p"),
-            None,
-        )
-        return normalize_video_resolution(preferred or configured[0])
-    options = freezone_video_resolution_options(backend)
+    options = tuple(configured_options or ()) or freezone_video_resolution_options(backend)
     if resolution in options:
         return resolution
-    if "720p" in options:
-        return "720p"
     return options[0]
 
 
@@ -241,134 +147,70 @@ def freezone_video_duration_bounds(
     return video_duration_bounds_for_backend(backend)
 
 
-def _freezone_newapi_video_options() -> dict[str, str]:
-    from novelvideo.generators.video_generator import newapi_video_backend_options
-
-    options = {
-        key: value
-        for key, value in newapi_video_backend_options().items()
-        if key in FREEZONE_NEWAPI_VIDEO_BACKENDS
-    }
-    options.setdefault("newapi_happyhorse-1.0", "HappyHorse 1.0")
-    if FREEZONE_DEFAULT_VIDEO_BACKEND not in options:
-        return options
-    ordered = {FREEZONE_DEFAULT_VIDEO_BACKEND: options[FREEZONE_DEFAULT_VIDEO_BACKEND]}
-    ordered.update(
-        (key, value)
-        for key, value in options.items()
-        if key != FREEZONE_DEFAULT_VIDEO_BACKEND
-    )
-    return ordered
-
-
 def get_freezone_video_model_options() -> list[dict[str, Any]]:
+    from novelvideo.generators.video_generator import video_backend_catalog
+
     data: list[dict[str, Any]] = []
-    for backend, label in _freezone_newapi_video_options().items():
-        duration_bounds = freezone_video_duration_bounds(backend)
-        item = {
-            "id": backend,
-            "providerId": "newapi",
-            "provider": "newapi",
-            "apiModel": backend,
-            "api_model": backend,
-            "label": label,
-            "backend": backend,
-            "resolutionOptions": list(freezone_video_resolution_options(backend)),
-            "resolution_options": list(freezone_video_resolution_options(backend)),
-            "minDuration": duration_bounds[0],
-            "min_duration": duration_bounds[0],
-            "maxDuration": duration_bounds[1],
-            "max_duration": duration_bounds[1],
-        }
-        if is_freezone_seedance2_value_backend(backend):
-            item.update(
-                {
-                    "sceneOptimizeOptions": ["anime", "realistic"],
-                    "scene_optimize_options": ["anime", "realistic"],
-                    "defaultSceneOptimize": default_freezone_seedance2_scene_optimize(
-                        backend
-                    ),
-                    "default_scene_optimize": default_freezone_seedance2_scene_optimize(
-                        backend
-                    ),
-                }
-            )
-        data.append(item)
+    for model in video_backend_catalog():
+        backend = model["backend"]
+        low, high = freezone_video_duration_bounds(backend)
+        resolutions = model["resolutions"] or list(freezone_video_resolution_options(backend))
+        provider = "h3c" if backend == "h3c" else "higgsfield"
+        data.append(
+            {
+                "id": backend,
+                "providerId": provider,
+                "provider": provider,
+                "apiModel": backend,
+                "api_model": backend,
+                "label": model["label"],
+                "backend": backend,
+                "resolutionOptions": resolutions,
+                "resolution_options": resolutions,
+                "aspectRatios": model["aspect_ratios"],
+                "aspect_ratios": model["aspect_ratios"],
+                "durationOptions": model["durations"],
+                "duration_options": model["durations"],
+                "minDuration": low,
+                "min_duration": low,
+                "maxDuration": high,
+                "max_duration": high,
+                "capabilities": {
+                    key: model[key]
+                    for key in (
+                        "start_image", "end_image", "image_references",
+                        "video_references", "audio_references", "audio",
+                    )
+                },
+            }
+        )
     return data
 
 
 def get_freezone_video_model_names() -> list[str]:
-    return list(_freezone_newapi_video_options().keys())
+    from novelvideo.generators.video_generator import video_backend_options
+
+    return list(video_backend_options())
 
 
 def resolve_freezone_video_backend(model: str | None) -> str:
+    """Backend id for a model id or label; retired ids fall back to the default."""
+    from novelvideo.generators.video_generator import (
+        normalize_video_backend,
+        video_backend_options,
+    )
+
     text = str(model or "").strip()
-    options = _freezone_newapi_video_options()
-    if not text:
-        return (
-            FREEZONE_DEFAULT_VIDEO_BACKEND
-            if FREEZONE_DEFAULT_VIDEO_BACKEND in options
-            else next(iter(options))
-        )
-    if text in options:
-        return text
-    if text in FREEZONE_DISABLED_VIDEO_BACKENDS:
-        raise ValueError(f"unknown video model: {text}")
-
-    folded = text.casefold()
-    for backend, label in options.items():
-        if label.casefold() == folded:
+    for backend, label in video_backend_options().items():
+        if label.casefold() == text.casefold():
             return backend
-
-    alias = LEGACY_FREEZONE_VIDEO_BACKEND_ALIASES.get(text)
-    if alias:
-        return alias
-    label_alias = LEGACY_FREEZONE_VIDEO_LABEL_ALIASES.get(folded)
-    if label_alias:
-        return label_alias
-
-    from novelvideo.generators.video_generator import parse_newapi_video_backend
-
-    if (
-        parse_newapi_video_backend(text)
-        and text not in FREEZONE_DISABLED_VIDEO_BACKENDS
-    ):
-        return text
-    raise ValueError(f"unknown video model: {text}")
+    return normalize_video_backend(text)
 
 
 def is_freezone_seedance2_backend(backend: str | None) -> bool:
-    text = str(backend or "").strip()
-    if text == "seedance_2":
-        return True
+    from novelvideo.seedance2_i2v.pipeline import is_seedance2_backend
 
-    from novelvideo.generators.huimengi import parse_huimeng_video_backend
-    from novelvideo.generators.video_generator import parse_newapi_video_backend
-
-    model = parse_newapi_video_backend(text) or parse_huimeng_video_backend(text)
-    return bool(model and model.startswith("seedance-2.0"))
-
-
-def is_freezone_seedance_backend(backend: str | None) -> bool:
-    """任何代际的 Seedance（1.0/1.5/2.x）——参考图尺寸规则只对它们成立。"""
-    text = str(backend or "").strip()
-    if text in {"seedance_2", "seedance_fast"}:
-        return True
-
-    from novelvideo.generators.huimengi import parse_huimeng_video_backend
-    from novelvideo.generators.video_generator import parse_newapi_video_backend
-
-    model = parse_newapi_video_backend(text) or parse_huimeng_video_backend(text)
-    return bool(model and model.startswith("seedance"))
-
-
-def is_freezone_happyhorse_backend(backend: str | None) -> bool:
-    from novelvideo.generators.video_generator import parse_newapi_video_backend
-
-    model = parse_newapi_video_backend(backend) or _freezone_video_model_from_backend(
-        backend
-    )
-    return model == "happyhorse-1.0"
+    return is_seedance2_backend(backend)
 
 
 def _coarse_mark_region(mark: dict[str, Any]) -> str:
@@ -684,88 +526,6 @@ def validate_omni_reference_image_dimensions(
             + ", ".join(bad_aspect)
         )
 
-
-async def run_trusted_freezone_video_gen(
-    *,
-    project_dir: Path,
-    job_id: str,
-    prompt: str,
-    egress_context: object,
-    task_type: str,
-    episode: int,
-    beat_num: int,
-    scope: str,
-    reference_items: list[dict[str, str]] | None = None,
-    aspect_ratio: str = "16:9",
-    resolution: str = "720p",
-    duration_seconds: int = 5,
-    generate_audio: bool = False,
-    human_review: bool = False,
-    scene_optimize: str | None = None,
-    backend: str = "newapi_seedance-2.0-fast",
-    last_frame_path: str | None = None,
-    audio_setting: str | None = None,
-    gen_mode: str | None = None,
-    model_params: dict[str, Any] | None = None,
-    request_schema: dict[str, Any] | None = None,
-) -> Path:
-    """Run the Freezone video leaf without losing its verified egress context."""
-
-    from novelvideo.freezone.jobs import outputs_dir
-    from novelvideo.generators.video_generator import (
-        ShotReference,
-        VideoGenStatus,
-        create_video_generator,
-    )
-
-    output_path = outputs_dir(project_dir, "freezone_video_gen") / f"{job_id}.mp4"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    references = [
-        ShotReference(
-            str(item.get("type") or "image"),
-            str(item.get("path") or ""),
-            str(item.get("role") or ""),
-        )
-        for item in (reference_items or [])
-        if str(item.get("path") or "").strip()
-    ]
-    generator = create_video_generator(
-        backend=backend,
-        resolution=resolution,
-        generate_audio=generate_audio,
-        model_params=model_params,
-        request_schema=request_schema,
-        egress_context=egress_context,
-    )
-    first_image = next((ref for ref in references if ref.type == "image"), None)
-    generate_kwargs: dict[str, Any] = {
-        "image_path": first_image.path if first_image is not None else None,
-        "prompt": prompt,
-        "output_path": str(output_path),
-        "aspect_ratio": aspect_ratio,
-        "duration": float(duration_seconds),
-        "last_frame_path": last_frame_path,
-        "references": references,
-        "human_review": bool(human_review),
-        "seedance2_config": (
-            {"scene_optimize": scene_optimize} if scene_optimize else None
-        ),
-        "gen_mode": gen_mode,
-        "egress_context": egress_context,
-        "task_type": task_type,
-        "episode": episode,
-        "beat_num": beat_num,
-        "scope": scope,
-    }
-    if audio_setting:
-        generate_kwargs["audio_setting"] = audio_setting
-    result = await generator.generate(**generate_kwargs)
-    if not result or result.status is not VideoGenStatus.DONE:
-        error = result.error if result else "video generation failed"
-        raise RuntimeError(f"freezone video generation failed: {error}")
-    if not output_path.exists():
-        raise RuntimeError("video generation returned success without output")
-    return output_path
 
 # 全能参考音频时长：厂商（doubao-seedance-2-0 / r2v）有**两条互相独立**的规则，
 # 两条都以 400 打回，只卡其中一条就等于没卡：

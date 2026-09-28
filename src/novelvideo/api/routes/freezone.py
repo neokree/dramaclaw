@@ -293,14 +293,11 @@ from novelvideo.freezone.video_node import (
     get_freezone_video_model_options,
     get_video_camera_template,
     get_video_camera_templates,
-    is_freezone_happyhorse_backend,
     is_freezone_seedance2_backend,
-    is_freezone_seedance_backend,
     library_folder_keys,
     load_video_character_folders,
     load_video_character_library,
     sync_mainline_assets_into_library,
-    normalize_freezone_seedance2_scene_optimize,
     normalize_video_aspect_ratio,
     normalize_video_duration_for_backend,
     normalize_video_resolution_for_backend,
@@ -548,9 +545,7 @@ async def _start_or_enqueue_freezone_video_gen(
         "duration_seconds": effective_duration_seconds,
         "generate_audio": effective_generate_audio,
         "human_review": human_review,
-        "scene_optimize": normalize_freezone_seedance2_scene_optimize(
-            backend, scene_optimize
-        ),
+        "scene_optimize": "",
         "backend": backend,
         "last_frame_path": last_frame_path,
         "audio_setting": audio_setting or "",
@@ -7825,40 +7820,16 @@ def _start_freezone_image_reverse_prompt_task(
 
 
 async def _ee_media_model_catalog(media_type: str) -> list[dict[str, Any]] | None:
-    """Use EE catalog or the CE-local catalog when custom NewAPI is active."""
+    """EE catalog port when registered, else the installed engines' catalog."""
     from novelvideo.ports.registry import PortNotRegistered, get_port
 
     try:
         catalog = get_port("media_model_catalog")
     except PortNotRegistered:
-        from novelvideo.model_gateway_settings import (
-            MODE_CUSTOM,
-            MODE_HYBRID,
-            get_ce_media_model_catalog,
-            get_effective_newapi_config,
-            get_official_media_model_catalog,
-        )
-        from novelvideo.shared.runtime_env import is_ce_effective
+        from novelvideo.media_catalog import media_model_catalog
+        from novelvideo.utils.async_ops import call_blocking
 
-        if is_ce_effective():
-            mode = get_effective_newapi_config().mode
-            if mode == MODE_CUSTOM:
-                return _merge_media_model_catalog_defaults(
-                    _static_media_model_catalog(media_type),
-                    get_ce_media_model_catalog(media_type, include_disabled=True),
-                )
-            if mode == MODE_HYBRID:
-                local = get_ce_media_model_catalog(
-                    media_type,
-                    provider="comfyui",
-                    include_disabled=True,
-                )
-                return _merge_media_model_catalog_defaults(
-                    _static_media_model_catalog(media_type),
-                    local,
-                )
-            return get_official_media_model_catalog(media_type)
-        return None
+        return await call_blocking(media_model_catalog, media_type)
     return await catalog.list_models(media_type)
 
 
@@ -7946,45 +7917,6 @@ async def _require_scoped_media_model(
     if entry is None:
         raise _media_model_unavailable(media_type, catalog)
     return entry
-
-
-def _static_media_model_catalog(media_type: str) -> list[dict[str, Any]]:
-    from novelvideo.model_gateway_settings import get_official_media_model_catalog
-
-    return get_official_media_model_catalog(media_type)
-
-
-def _merge_media_model_catalog_defaults(
-    defaults: list[dict[str, Any]], configured: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
-    """Overlay CE mappings on the existing mainline capabilities."""
-    merged: list[dict[str, Any]] = []
-    consumed: set[int] = set()
-    for base in defaults:
-        base_id = _catalog_entry_id(base)
-        match_index = next(
-            (
-                index
-                for index, item in enumerate(configured)
-                if index not in consumed
-                and base_id
-                and _catalog_entry_id(item) == base_id
-            ),
-            None,
-        )
-        if match_index is None:
-            merged.append(base)
-            continue
-        consumed.add(match_index)
-        override = configured[match_index]
-        if override.get("enabled") is not False:
-            merged.append({**base, **override})
-    merged.extend(
-        item
-        for index, item in enumerate(configured)
-        if index not in consumed and item.get("enabled") is not False
-    )
-    return merged
 
 
 def _catalog_entry_identifiers(entry: dict[str, Any]) -> set[str]:
@@ -9128,15 +9060,8 @@ async def freezone_video_i2v(
         raise HTTPException(400, "at least one valid image_url is required")
     if len(source_paths) != len(body.image_urls):
         raise HTTPException(400, "some image_urls could not be resolved")
-    if capabilities is None and (
-        len(source_paths) > 1
-        and not is_freezone_seedance2_backend(backend)
-        and not is_freezone_happyhorse_backend(backend)
-    ):
-        raise HTTPException(
-            400,
-            "multiple image references currently only support Seedance 2.0 or HappyHorse models",
-        )
+    if capabilities is None and len(source_paths) > 1:
+        raise HTTPException(400, "multiple image references require a model from the catalog")
 
     reference_items = [
         {"type": "image", "path": path, "role": "图片参考"}
@@ -9360,14 +9285,8 @@ async def freezone_video_omni_gen(
     mode_enabled = _catalog_mode_enabled(capabilities, "all_reference")
     if mode_enabled is False:
         raise HTTPException(400, "this model does not support omni reference mode")
-    if mode_enabled is None and is_freezone_happyhorse_backend(backend):
-        raise HTTPException(
-            400, "HappyHorse video does not support omni reference mode"
-        )
     if mode_enabled is None and not is_freezone_seedance2_backend(backend):
-        raise HTTPException(
-            400, "omni video currently only supports Seedance 2.0 models"
-        )
+        raise HTTPException(400, "omni video requires a Higgsfield model")
 
     raw_reference_items = [item.model_dump() for item in body.references]
     reference_limits = _catalog_reference_limits(
@@ -9549,9 +9468,7 @@ async def freezone_video_edit(
         requester_user_id=ctx.requester_user_id,
     )
     mode_enabled = _catalog_mode_enabled(capabilities, "video_edit")
-    if mode_enabled is False or (
-        mode_enabled is None and not is_freezone_happyhorse_backend(backend)
-    ):
+    if not mode_enabled:
         raise HTTPException(400, "this model does not support video_edit mode")
 
     if not body.video_url.strip():

@@ -157,9 +157,9 @@ def _default_project_config() -> dict:
     from novelvideo.config import (
         DEFAULT_RENDER_IMAGE_SELECTION,
         DEFAULT_SKETCH_IMAGE_SELECTION,
-        VIDEO_BACKEND,
         VIDEO_RESOLUTION,
     )
+    from novelvideo.generators.video_generator import normalize_video_backend
 
     return {
         "spine_template": "drama",
@@ -168,7 +168,7 @@ def _default_project_config() -> dict:
         "ethnicity": "Chinese",
         "scene_grouping": False,
         "character_grouping": False,
-        "video_backend": VIDEO_BACKEND,
+        "video_backend": normalize_video_backend(None),
         "video_resolution": VIDEO_RESOLUTION,
         "use_director_render": False,
         "sketch_image_selection": DEFAULT_SKETCH_IMAGE_SELECTION,
@@ -218,16 +218,10 @@ def _effective_project_config(
     for legacy_tts_key in ("tts_provider", "tts_model", "tts_voice"):
         result.pop(legacy_tts_key, None)
 
-    from novelvideo.config import VIDEO_BACKEND
+    from novelvideo.generators.video_generator import normalize_video_backend
 
-    if (
-        os.environ.get("VIDEO_BACKEND")
-        and os.environ.get("MIGRATE_LEGACY_VIDEO_BACKEND_DEFAULT", "true").lower()
-        in {"1", "true", "yes", "on"}
-        and str(config.get("video_backend") or "").strip() == "comfyui"
-        and VIDEO_BACKEND != "comfyui"
-    ):
-        result["video_backend"] = VIDEO_BACKEND
+    # Retired engines (newapi_*, huimeng_*, comfyui, ...) move to the default one.
+    result["video_backend"] = normalize_video_backend(result.get("video_backend"))
 
     available = _available_style_labels_for_config(
         result,

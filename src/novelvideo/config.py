@@ -762,59 +762,10 @@ def _csv_env(name: str, default: str) -> list[str]:
     return [item for item in values if item]
 
 
-# newAPI 视频网关。VIDEO_BACKEND 使用 newapi_<model> 时会通过 NEWAPI_BASE_URL 调用。
-NEWAPI_VIDEO_MODELS = _csv_env(
-    "NEWAPI_VIDEO_MODELS",
-    "seedance-1.0-pro-fast,seedance-1.5-pro,seedance-2.0,seedance-2.0-fast,seedance-2.0-value,seedance-2.0-fast-value,happyhorse-1.0,seedance-2.0-mini",
-)
-DEFAULT_VIDEO_MODEL = os.environ.get(
-    "DEFAULT_VIDEO_MODEL",
-    os.environ.get("NEWAPI_VIDEO_MODEL", NEWAPI_VIDEO_MODELS[0]),
-).strip()
-NEWAPI_VIDEO_MODEL = os.environ.get("NEWAPI_VIDEO_MODEL", DEFAULT_VIDEO_MODEL).strip()
-NEWAPI_VIDEO_RESOLUTION = os.environ.get("NEWAPI_VIDEO_RESOLUTION", "720p")
-NEWAPI_VIDEO_AUDIO_MODELS = _csv_env(
-    "NEWAPI_VIDEO_AUDIO_MODELS",
-    "seedance-1.5-pro,seedance-2.0,seedance-2.0-fast,seedance-2.0-value,seedance-2.0-fast-value,seedance-2.0-mini",
-)
-NEWAPI_VIDEO_DURATION_BOUNDS = os.environ.get(
-    "NEWAPI_VIDEO_DURATION_BOUNDS",
-    "seedance-1.0-pro-fast:2-12,seedance-1.5-pro:4-12,seedance-2.0:4-15,seedance-2.0-fast:4-15,seedance-2.0-value:4-15,seedance-2.0-fast-value:4-15,happyhorse-1.0:3-15,seedance-2.0-mini:4-15",
-).strip()
+# 视频生成后端: higgsfield:<job_type>[?preset] (默认 Seedance 2.0 Fast), h3c, mock.
+# 模型目录来自 `higgsfield model list`，见 novelvideo.engines.higgsfield。
+VIDEO_BACKEND = os.environ.get("VIDEO_BACKEND", "")
 
-# 视频生成后端: newapi_seedance-1.0-pro-fast (默认), newapi_seedance-2.0-fast,
-# comfyui, seedance_fast, seedance_pro, seedance_pro_silent, grok_720
-VIDEO_BACKEND = os.environ.get("VIDEO_BACKEND", f"newapi_{DEFAULT_VIDEO_MODEL}")
-
-# Seedance 模型（火山方舟）
-SEEDANCE_FAST_MODEL = os.environ.get(
-    "SEEDANCE_FAST_MODEL", "doubao-seedance-1-0-pro-fast-251015"
-)
-SEEDANCE_PRO_MODEL = os.environ.get(
-    "SEEDANCE_PRO_MODEL", "doubao-seedance-1-5-pro-251215"
-)
-
-# HuiMeng 视频聚合 API
-HUIMENGI_BASE_URL = os.environ.get("HUIMENGI_BASE_URL", "https://api.huimengi.com")
-HUIMENGI_VIDEO_RESOLUTION = os.environ.get("HUIMENGI_VIDEO_RESOLUTION", "720p")
-HUIMENGI_VIDEO_GENERATE_AUDIO = os.environ.get(
-    "HUIMENGI_VIDEO_GENERATE_AUDIO", "false"
-).lower() in ("true", "1", "yes")
-
-# ComfyUI 本地视频生成服务
-COMFYUI_VIDEO_URL = os.environ.get("COMFYUI_VIDEO_URL", "http://localhost:9527")
-
-# ComfyUI 工作流类型: gguf (低显存，~8GB) 或 fp8 (高质量，~16GB)
-# - gguf: 使用 GGUF 量化模型，适合显存较小的 GPU
-# - fp8: 使用 fp8 精度模型，质量更好，支持 FLF (首尾帧) 模式
-COMFYUI_WORKFLOW = os.environ.get("COMFYUI_WORKFLOW", "gguf")
-
-# ComfyUI 是否使用 SSL（HTTPS/WSS），云服务器通常需要开启
-COMFYUI_USE_SSL = os.environ.get("COMFYUI_USE_SSL", "false").lower() in (
-    "true",
-    "1",
-    "yes",
-)
 
 # 默认视频分辨率（竖屏）
 VIDEO_RESOLUTION = os.environ.get("VIDEO_RESOLUTION", "720x1280")
@@ -831,17 +782,10 @@ def get_video_generation_config() -> dict:
     resolution = VIDEO_RESOLUTION_PRESETS.get(
         VIDEO_RESOLUTION, VIDEO_RESOLUTION_PRESETS["720x1280"]
     )
+    from novelvideo.generators.video_generator import normalize_video_backend
+
     return {
-        "backend": VIDEO_BACKEND,
-        "huimengi_base_url": HUIMENGI_BASE_URL,
-        "huimengi_video_resolution": HUIMENGI_VIDEO_RESOLUTION,
-        "newapi_base_url": NEWAPI_BASE_URL,
-        "newapi_video_models": list(NEWAPI_VIDEO_MODELS),
-        "newapi_video_model": NEWAPI_VIDEO_MODEL,
-        "newapi_video_resolution": NEWAPI_VIDEO_RESOLUTION,
-        "comfyui_url": COMFYUI_VIDEO_URL,
-        "comfyui_workflow": COMFYUI_WORKFLOW,
-        "comfyui_use_ssl": COMFYUI_USE_SSL,
+        "backend": normalize_video_backend(VIDEO_BACKEND),
         "resolution": VIDEO_RESOLUTION,
         "width": resolution["width"],
         "height": resolution["height"],

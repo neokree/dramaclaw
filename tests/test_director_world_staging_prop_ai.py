@@ -36,7 +36,7 @@ def test_create_staging_prop_agent_uses_request_model_config(monkeypatch) -> Non
         "api_key": "request-key",
         "base_url": "https://request.example/v1",
         "timeout_seconds": 45.0,
-        "profile": None,
+        "profile": config._get_newapi_text_model_profile("request-model"),
     }
     assert captured["agent_model"] is model_instance
 
@@ -58,12 +58,13 @@ def test_generate_ai_staging_prop_uses_director_world_shape_hints(monkeypatch) -
         }
 
     monkeypatch.setattr(staging_prop_ai, "run_staging_prop_agent", fake_run_staging_prop_agent)
+    monkeypatch.setenv("TEXT_ENGINE", "openrouter")
 
     result = staging_prop_ai.generate_ai_staging_prop(
         {
             "api_key": "test-key",
             "base_url": "http://example.test/v1",
-            "model": "test-model",
+            "model": "test/model",
             "scene_id": "面馆",
             "user_hint": "让男青年骑一匹马",
             "crosshair_target": {"position": [1, 0, 2]},
@@ -71,10 +72,10 @@ def test_generate_ai_staging_prop_uses_director_world_shape_hints(monkeypatch) -
     )
 
     assert result["ok"] is True
-    assert result["model"] == "test-model"
+    assert result["model"] == "test/model"
     assert result["prop"]["shape_hint"] == "quadruped_mount"
     assert result["prop"]["attachment_points"][0]["kind"] == "mount"
-    assert captured["model"] == "test-model"
+    assert captured["model"] == "test/model"
     assert "让男青年骑一匹马" in captured["task"]
 
 
@@ -93,9 +94,13 @@ def test_generate_ai_staging_prop_falls_back_to_shape_hint_inference(monkeypatch
     assert result["prop"]["relation_intent"] == "mount_actor"
 
 
-def test_resolve_model_config_defaults_to_staging_prop_dc_alias(monkeypatch) -> None:
-    monkeypatch.delenv("STAGING_PROP_MODEL", raising=False)
+def test_resolve_model_config_uses_mtplx_text_engine_by_default(monkeypatch) -> None:
+    from novelvideo.engines import mtplx
 
-    model, _api_key, _base_url = staging_prop_ai.resolve_model_config({})
+    monkeypatch.setenv("STAGING_PROP_MODEL", "DC-staging-prop-planner-LLM")
 
-    assert model == "DC-staging-prop-planner-LLM"
+    model, api_key, base_url = staging_prop_ai.resolve_model_config({})
+
+    assert model == mtplx.model_id()
+    assert base_url == mtplx.base_url()
+    assert api_key

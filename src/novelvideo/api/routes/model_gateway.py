@@ -510,6 +510,20 @@ async def get_model_gateway_config() -> dict[str, Any]:
     }
 
 
+@router.get("/engines")
+async def get_engines_status() -> dict[str, Any]:
+    """Read-only reachability of the local/remote engines, for the settings UI."""
+    from novelvideo.media_catalog import engines_status
+
+    return {
+        "ok": True,
+        "data": {
+            "textEngine": app_config.get_text_engine(),
+            "engines": await engines_status(),
+        },
+    }
+
+
 def _require_ce_media_catalog_management() -> None:
     if not is_ce_effective():
         raise PermissionError("official media catalog management is only available in CE")

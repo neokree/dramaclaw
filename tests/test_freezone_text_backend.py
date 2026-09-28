@@ -163,7 +163,11 @@ async def test_generate_freezone_text_returns_configured_model_and_text(
 
     model, text = await generate_freezone_text(prompt="  写一段雨夜重逢的短故事  ")
 
-    assert model == FREEZONE_TEXT_WRITER_MODEL == "DC-freezone-text-writer-LLM"
+    from novelvideo.engines import mtplx
+
+    # The reported model is the one the text engine actually runs.
+    assert FREEZONE_TEXT_WRITER_MODEL == "DC-freezone-text-writer-LLM"
+    assert model == mtplx.model_id()
     assert text.startswith("雨落在旧车站")
 
 

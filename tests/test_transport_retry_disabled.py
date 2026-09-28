@@ -224,20 +224,12 @@ def _counting_transport(built: list, monkeypatch):
     return spy, calls
 
 
-def _gateway_model(delegate_factory):
-    from novelvideo.model_gateway_runtime import create_request_scoped_gateway_model
+def _gateway_model(delegate_factory, monkeypatch):
+    """The text-engine model (TEXT_ENGINE, default MTPLX) built through the spy."""
+    import novelvideo.config as config
 
-    return create_request_scoped_gateway_model(
-        model_name="gpt-test",
-        capability="text.generate",
-        timeout_seconds=12.0,
-        profile=None,
-        delegate_factory=delegate_factory,
-        platform_credential_factory=lambda: (
-            "platform-key",
-            "https://platform.test/v1",
-        ),
-    )
+    monkeypatch.setattr(config, "_newapi_text_openai_model", delegate_factory)
+    return config.get_newapi_text_pydantic_model("RETRY_OFF_MODEL", "gpt-test")
 
 
 def _one_message():
@@ -255,7 +247,7 @@ def test_gateway_platform_branch_disables_retry(monkeypatch, branch):
 
     built: list = []
     spy, calls = _counting_transport(built, monkeypatch)
-    model = _gateway_model(spy)
+    model = _gateway_model(spy, monkeypatch)
     messages, params = _one_message()
 
     async def drive():
@@ -275,21 +267,16 @@ def test_gateway_platform_branch_disables_retry(monkeypatch, branch):
     assert len(calls) == 1 + EXPECTED_MAX_RETRIES
 
 
-def test_gateway_organization_branch_disables_retry(monkeypatch):
-    """The org submit closure must never re-send: one claim, one egress."""
+def test_gateway_organization_scope_disables_retry(monkeypatch):
+    """Text ignores the org gateway now, but must still never re-send."""
 
     import novelvideo.model_gateway_runtime as runtime
     from pydantic_ai.exceptions import ModelHTTPError
 
     built: list = []
     spy, calls = _counting_transport(built, monkeypatch)
-    model = _gateway_model(spy)
+    model = _gateway_model(spy, monkeypatch)
     messages, params = _one_message()
-
-    async def fake_execute(*, capability, business_task_id, request_digest, submit):
-        return await submit(_org_credential())
-
-    monkeypatch.setattr(runtime, "execute_organization_gateway_request", fake_execute)
 
     async def drive():
         with runtime.model_gateway_request_scope(_org_context()):

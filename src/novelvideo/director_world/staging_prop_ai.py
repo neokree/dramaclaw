@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import json
 import math
-import os
 import re
 import sys
 from typing import Any
@@ -231,20 +230,20 @@ def resolve_model_config(
     from novelvideo.task_backend.subprocesses import require_direct_model_egress_allowed
 
     require_direct_model_egress_allowed(egress_context)
-    from novelvideo.config import get_newapi_runtime_credentials
+    from novelvideo.config import get_newapi_text_model_name, get_text_engine_credentials
 
-    model = (
-        str(request.get("model") or "").strip()
-        or os.environ.get("STAGING_PROP_MODEL")
-        or STAGING_PROP_MODEL
+    model = get_newapi_text_model_name(
+        "STAGING_PROP_MODEL",
+        STAGING_PROP_MODEL,
+        str(request.get("model") or "").strip() or None,
     )
-    api_key, base_url = get_newapi_runtime_credentials(
-        api_key_override=str(request.get("api_key") or "").strip() or None,
-        base_url_override=str(request.get("base_url") or "").strip() or None,
-        env_api_key="MODEL_API_KEY",
-        env_base_url="MODEL_BASE_URL",
+    # Runs right before the call (own subprocess): start MTPLX here if needed.
+    api_key, base_url = get_text_engine_credentials()
+    return (
+        model,
+        str(request.get("api_key") or "").strip() or api_key,
+        str(request.get("base_url") or "").strip() or base_url,
     )
-    return model, api_key, base_url or "http://localhost:3000/v1"
 
 
 def create_staging_prop_agent(

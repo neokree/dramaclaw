@@ -87,7 +87,8 @@ async def test_vision_gateway_uses_pydantic_agent_and_logical_model(
         return TestModel(custom_output_text="视觉解析结果")
 
     monkeypatch.setattr(config, "get_newapi_text_pydantic_model", fake_get_model)
-    monkeypatch.setenv("FREEZONE_VISION_MODEL", "custom-vision-model")
+    monkeypatch.setenv("TEXT_ENGINE", "openrouter")
+    monkeypatch.setenv("FREEZONE_VISION_MODEL", "test/custom-vision-model")
 
     model, output = await call_freezone_vision_model(
         prompt="分析图片",
@@ -95,10 +96,10 @@ async def test_vision_gateway_uses_pydantic_agent_and_logical_model(
         timeout_seconds=FREEZONE_VIDEO_ANALYSIS_TIMEOUT_SECONDS,
     )
 
-    assert model == "custom-vision-model"
+    assert model == "test/custom-vision-model"
     assert output == "视觉解析结果"
     assert captured["model_env"] == "FREEZONE_VISION_MODEL"
-    assert captured["model_name_override"] == "custom-vision-model"
+    assert captured["model_name_override"] == "test/custom-vision-model"
     assert (
         captured["timeout_seconds_override"] == FREEZONE_VIDEO_ANALYSIS_TIMEOUT_SECONDS
     )

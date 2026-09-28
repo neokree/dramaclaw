@@ -531,7 +531,9 @@ async def test_generation_credit_cost_route_resolves_freezone_image_reverse_prom
 ):
     from novelvideo.api.routes import model_credits
 
-    monkeypatch.setenv("FREEZONE_VISION_MODEL", "freezone-vision-model")
+    monkeypatch.setenv("FREEZONE_VISION_MODEL", "test/freezone-vision-model")
+
+    monkeypatch.setenv("TEXT_ENGINE", "openrouter")
     patch_quote_expect(
         monkeypatch,
         model_credits,
@@ -542,7 +544,7 @@ async def test_generation_credit_cost_route_resolves_freezone_image_reverse_prom
             "billable_chars": 1_201,
             "pricing_quantity": 1_201,
             "pricing_kind": "text",
-            "pricing_model": "freezone-vision-model",
+            "pricing_model": "test/freezone-vision-model",
             "pricing_params": {},
         },
         expected_quantity=1_201,
@@ -568,12 +570,14 @@ async def test_generation_credit_cost_route_resolves_freezone_image_reverse_prom
 async def test_generation_credit_cost_route_resolves_style_analyzer(monkeypatch):
     from novelvideo.api.routes import model_credits
 
-    monkeypatch.setenv("STYLE_ANALYZER_MODEL", "style-analyzer-model")
+    monkeypatch.setenv("STYLE_ANALYZER_MODEL", "test/style-analyzer-model")
+
+    monkeypatch.setenv("TEXT_ENGINE", "openrouter")
     patch_quote_expect(
         monkeypatch,
         model_credits,
         expected_kind="text",
-        expected_model="style-analyzer-model",
+        expected_model="test/style-analyzer-model",
         expected_params={},
         expected_quantity=1,
         cost=7,
@@ -1200,7 +1204,9 @@ async def test_generation_credit_cost_route_prices_style_analysis_feature_by_mod
 ):
     from novelvideo.api.routes import model_credits
 
-    monkeypatch.setenv("STYLE_ANALYZER_MODEL", "style-analyzer-model")
+    monkeypatch.setenv("STYLE_ANALYZER_MODEL", "test/style-analyzer-model")
+
+    monkeypatch.setenv("TEXT_ENGINE", "openrouter")
     patch_quote_expect(
         monkeypatch,
         model_credits,
@@ -1208,7 +1214,7 @@ async def test_generation_credit_cost_route_prices_style_analysis_feature_by_mod
         expected_model="mainline.style_analysis",
         expected_params={
             "pricing_kind": "text",
-            "pricing_model": "style-analyzer-model",
+            "pricing_model": "test/style-analyzer-model",
             "pricing_params": {},
             "pricing_quantity": 1,
         },

@@ -40,9 +40,10 @@ _CONFIG_YAML_TEMPLATE = """# DramaClaw-managed hermes config.
 #
 # Edit with care; this file may be regenerated.
 #
-# Model routes through the selected NewAPI gateway (OpenAI-compatible), unified
-# with the video/image generators. The endpoint is non-secret workspace config;
-# DramaClaw injects the key into the worker process as NEWAPI_API_KEY.
+# Model routes through the DramaClaw text engine (TEXT_ENGINE: local MTPLX or
+# OpenRouter, OpenAI-compatible). The endpoint is non-secret workspace config;
+# DramaClaw injects the key into the worker process as NEWAPI_API_KEY (legacy
+# env name, kept so existing workspaces need no migration).
 
 custom_providers:
   - name: dramaclaw
@@ -117,45 +118,37 @@ def _root_value(*names: str) -> str:
     return ""
 
 
-def _effective_newapi_gateway() -> tuple[str, str]:
-    """Return effective NewAPI ``(api_key, base_url)`` for Hermes.
+def _text_engine(*, start: bool = False) -> tuple[str, str]:
+    """Return the text engine ``(api_key, base_url)`` used by Hermes."""
+    from novelvideo.config import get_text_engine_credentials
 
-    CE resolves the UI-selected gateway from settings.db. EE has no CE settings
-    database and therefore resolves its deployment-level NEWAPI_API_KEY and the
-    fixed official gateway URL.
-    """
-    from novelvideo.model_gateway_settings import get_effective_newapi_config
-    from novelvideo.official_defaults import OFFICIAL_NEWAPI_BASE_URL
-
-    gateway = get_effective_newapi_config(
-        official_base_url=OFFICIAL_NEWAPI_BASE_URL,
-        official_api_key=os.environ.get("NEWAPI_API_KEY", ""),
-    )
-    return gateway.api_key, gateway.base_url
+    return get_text_engine_credentials(start=start)
 
 
 def _newapi_base_url() -> str:
-    return _effective_newapi_gateway()[1]
+    return _text_engine()[1]
 
 
 def effective_gateway_fingerprint() -> str:
     """Return a non-secret fingerprint of the gateway used by new Hermes workers."""
-    api_key, base_url = _effective_newapi_gateway()
+    api_key, base_url = _text_engine()
     material = f"{base_url}\n{api_key}".encode("utf-8")
     return hashlib.sha256(material).hexdigest()
 
 
 def effective_gateway_credentials() -> tuple[str, str]:
-    """Return the NewAPI credentials injected into a newly spawned worker."""
-    return _effective_newapi_gateway()
+    """Return the text engine credentials injected into a newly spawned worker.
+
+    Called at worker spawn, so it starts MTPLX when that is the engine.
+    """
+    return _text_engine(start=True)
 
 
 def _hermes_model_default() -> str:
-    return _root_value(
-        "HERMES_MODEL",
-        "HERMES_MODEL_DEFAULT",
-        "DRAMACLAW_HERMES_MODEL",
-    ) or _DEFAULT_HERMES_MODEL
+    """Model of the text engine (HERMES_MODEL only applies to OpenRouter)."""
+    from novelvideo.config import get_newapi_text_model_name
+
+    return get_newapi_text_model_name("HERMES_MODEL", _DEFAULT_HERMES_MODEL)
 
 
 def _hermes_model_api_mode() -> str:
@@ -601,9 +594,6 @@ def _dump_hermes_config_yaml(config: dict) -> str:
 def _ensure_model_config_from_env(config_yaml: Path) -> None:
     """Apply explicit Hermes model env overrides to existing config.yaml files."""
     overrides: dict[str, object] = {}
-    model = _root_value("HERMES_MODEL", "HERMES_MODEL_DEFAULT", "DRAMACLAW_HERMES_MODEL")
-    if model:
-        overrides["default"] = model
     api_mode = _root_value("HERMES_MODEL_API_MODE")
     if api_mode:
         overrides["api_mode"] = api_mode

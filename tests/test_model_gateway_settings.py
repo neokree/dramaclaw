@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import json
 import os
@@ -539,7 +538,7 @@ def test_newapi_runtime_credentials_allow_explicit_override(monkeypatch, tmp_pat
 
 def test_newapi_text_model_defaults_to_300_second_timeout(monkeypatch, tmp_path):
     _isolate_settings_db(monkeypatch, tmp_path)
-    monkeypatch.delenv("NEWAPI_TEXT_TIMEOUT_SECONDS", raising=False)
+    monkeypatch.delenv("TEXT_TIMEOUT_SECONDS", raising=False)
     monkeypatch.delenv("DC_TEST_MODEL_TIMEOUT_SECONDS", raising=False)
     save_custom_newapi_gateway(
         base_url="http://127.0.0.1:3000",
@@ -563,7 +562,11 @@ def test_newapi_text_model_defaults_to_300_second_timeout(monkeypatch, tmp_path)
     assert captured["timeout_seconds"] == 300.0
 
 
-def test_legacy_pydantic_factory_uses_ce_gateway_settings(monkeypatch, tmp_path):
+def test_legacy_pydantic_factory_ignores_newapi_gateway_for_text(
+    monkeypatch, tmp_path
+):
+    from novelvideo.engines import mtplx
+
     _isolate_settings_db(monkeypatch, tmp_path)
     monkeypatch.setenv("MODEL_API_KEY", "sk-stale-env-secret")
     monkeypatch.setenv("MODEL_BASE_URL", "https://stale-env.example/v1")
@@ -576,7 +579,7 @@ def test_legacy_pydantic_factory_uses_ce_gateway_settings(monkeypatch, tmp_path)
 
     def fake_model(model_name, **kwargs):
         captured.update(model_name=model_name, **kwargs)
-        return "newapi-model"
+        return "text-model"
 
     monkeypatch.setattr(config, "_newapi_text_openai_model", fake_model)
 
@@ -585,43 +588,36 @@ def test_legacy_pydantic_factory_uses_ce_gateway_settings(monkeypatch, tmp_path)
         model_name_override="openrouter/DC-legacy-agent-LLM",
     )
 
-    assert result == "newapi-model"
-    assert captured["model_name"] == "DC-legacy-agent-LLM"
-    assert captured["api_key"] == "sk-database-secret"
-    assert captured["base_url"] == "http://new-api:3000/v1"
+    assert result == "text-model"
+    assert captured["model_name"] == mtplx.model_id()
+    assert captured["api_key"] == "mtplx"
+    assert captured["base_url"] == mtplx.base_url()
     assert captured["timeout_seconds"] == 300.0
 
 
-def test_legacy_pydantic_factory_uses_ee_deployment_gateway(monkeypatch, tmp_path):
+def test_legacy_pydantic_factory_uses_openrouter_text_engine_in_ee(
+    monkeypatch, tmp_path
+):
     _isolate_settings_db(monkeypatch, tmp_path)
     monkeypatch.setenv("ST_EDITION", "ee")
     monkeypatch.setenv("ST_CONTROL_PLANE_DSN", "postgresql://control-plane")
     monkeypatch.setenv("NEWAPI_API_KEY", "sk-ee-secret")
-    monkeypatch.setenv("NEWAPI_BASE_URL", "https://ee-gateway.example/v1")
-    monkeypatch.setattr(config, "NEWAPI_API_KEY", "sk-ee-secret")
-    monkeypatch.setattr(config, "NEWAPI_BASE_URL", "https://ee-gateway.example/v1")
+    monkeypatch.setenv("TEXT_ENGINE", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-secret")
     captured: dict[str, object] = {}
-
-    class FakeModel:
-        async def request(self, *_args):
-            return "newapi-response"
 
     def fake_model(model_name, **kwargs):
         captured.update(model_name=model_name, **kwargs)
-        return FakeModel()
+        return "text-model"
 
     monkeypatch.setattr(config, "_newapi_text_openai_model", fake_model)
 
-    model = config.get_pydantic_model(model_name_override="DC-legacy-agent-LLM")
+    model = config.get_pydantic_model(model_name_override="openrouter/qwen/qwen3-32b")
 
-    assert captured == {}
-    result = asyncio.run(model.request([], None, object()))
-
-    assert result == "newapi-response"
-    assert captured["model_name"] == "DC-legacy-agent-LLM"
-    assert captured["api_key"] == "sk-ee-secret"
-    assert captured["base_url"] == "https://ee-gateway.example/v1"
-
+    assert model == "text-model"
+    assert captured["model_name"] == "qwen/qwen3-32b"
+    assert captured["api_key"] == "sk-or-secret"
+    assert captured["base_url"] == "https://openrouter.ai/api/v1"
 
 def test_ee_media_model_mappings_do_not_open_ce_settings(monkeypatch, tmp_path):
     _isolate_settings_db(monkeypatch, tmp_path)
@@ -694,10 +690,8 @@ def test_cognee_newapi_resolution_prefers_saved_gateway(monkeypatch, tmp_path):
     from novelvideo.cognee import config as cognee_config
 
     assert cognee_config._resolve_llm_provider() == "newapi"
-    assert (
-        cognee_config._resolve_llm_api_key("newapi", "openai/DC-model")
-        == "sk-custom-secret"
-    )
+    # NewAPI now only backs Cognee embeddings.
+    assert cognee_config._effective_newapi_gateway()[0] == "sk-custom-secret"
     assert (
         cognee_config._get_endpoint_env("newapi", "COGNEE_LLM_ENDPOINT", "LLM_ENDPOINT")
         == "https://custom.example/v1"
@@ -716,10 +710,7 @@ def test_cognee_provider_env_cannot_bypass_newapi(monkeypatch):
     )
 
     assert cognee_config._resolve_llm_provider() == "newapi"
-    assert (
-        cognee_config._resolve_llm_api_key("newapi", "DC-cognee-LLM")
-        == "gateway-secret"
-    )
+    assert cognee_config._effective_newapi_gateway()[0] == "gateway-secret"
 
 
 def test_cognee_embedding_provider_env_cannot_bypass_newapi(monkeypatch, tmp_path):

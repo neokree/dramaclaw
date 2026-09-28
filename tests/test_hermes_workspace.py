@@ -9,7 +9,6 @@ from novelvideo import config as app_config
 from novelvideo.chat import hermes_sdk
 from novelvideo.chat import hermes_workspace as hw
 from novelvideo.model_gateway_settings import (
-    save_custom_newapi_gateway,
     save_official_newapi_key,
 )
 
@@ -237,17 +236,17 @@ def test_state_root_falls_back_to_repo(monkeypatch, tmp_path):
     assert hw._state_root() == tmp_path / "repo" / "state"
 
 
-def test_fresh_config_uses_model_env_but_keeps_newapi_transport(
+def test_fresh_config_uses_mtplx_text_engine_not_newapi(
     isolated_workspace, repo_skills, repo_plugins, monkeypatch
 ):
+    from novelvideo.engines import mtplx
+
     save_official_newapi_key(api_key="root-key", activate=True)
     (isolated_workspace / ".env").write_text(
         "\n".join(
             [
                 "NEWAPI_API_KEY=root-key",
-                "HERMES_MODEL=gemini-3.5-flash",
-                "HERMES_MODEL_PROVIDER=openrouter",
-                "HERMES_MODEL_BASE_URL=http://newapi.local/v1",
+                "HERMES_MODEL=DC-hermes-LLM",
                 "HERMES_MODEL_API_MODE=responses",
                 "HERMES_MODEL_CONTEXT_LENGTH=65536",
             ]
@@ -257,87 +256,50 @@ def test_fresh_config_uses_model_env_but_keeps_newapi_transport(
     )
 
     home = hw.ensure_user_hermes_workspace("admin")
-    config = (home / "config.yaml").read_text(encoding="utf-8")
+    text = (home / "config.yaml").read_text(encoding="utf-8")
+    parsed = yaml.safe_load(text)
 
-    assert "  default: gemini-3.5-flash" in config
-    parsed = yaml.safe_load(config)
     assert parsed["model"]["provider"] == "custom:dramaclaw"
-    assert parsed["model"]["default"] == "gemini-3.5-flash"
+    assert parsed["model"]["default"] == mtplx.model_id()
     assert parsed["model"]["context_length"] == 65536
     assert "api_key" not in parsed["model"]
-    provider = _dramaclaw_provider(parsed)
-    assert provider == {
+    assert _dramaclaw_provider(parsed) == {
         "name": "dramaclaw",
-        "base_url": app_config.OFFICIAL_NEWAPI_BASE_URL,
+        "base_url": mtplx.base_url(),
         "key_env": "NEWAPI_API_KEY",
         "api_mode": "responses",
     }
+    assert "root-key" not in text
+    assert hw.effective_gateway_credentials() == ("mtplx", mtplx.base_url())
 
 
-def test_existing_config_syncs_endpoint_without_persisting_rotated_key(
-    isolated_workspace, repo_skills, repo_plugins
+def test_openrouter_text_engine_config_and_endpoint_sync(
+    isolated_workspace, repo_skills, repo_plugins, monkeypatch
 ):
-    save_custom_newapi_gateway(
-        base_url="http://old-gateway/v1",
-        api_key="old-key",
-        activate=True,
-    )
+    monkeypatch.setenv("MTPLX_BASE_URL", "http://127.0.0.1:8111/v1")
     home = hw.ensure_user_hermes_workspace("admin")
     config_path = home / "config.yaml"
     first = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    assert "api_key" not in first["model"]
-    assert _dramaclaw_provider(first)["base_url"] == "http://old-gateway/v1"
-    assert "old-key" not in config_path.read_text(encoding="utf-8")
+    assert _dramaclaw_provider(first)["base_url"] == "http://127.0.0.1:8111/v1"
 
-    config = config_path.read_text(encoding="utf-8") + "\ncustom_block:\n  keep: true\n"
-    config_path.write_text(config, encoding="utf-8")
-    save_custom_newapi_gateway(
-        base_url="http://new-gateway/v1",
-        api_key="rotated-key",
-        activate=True,
-    )
-
-    hw.ensure_user_hermes_workspace("admin")
-    parsed = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-
-    assert "api_key" not in parsed["model"]
-    assert _dramaclaw_provider(parsed)["base_url"] == "http://new-gateway/v1"
-    assert _dramaclaw_provider(parsed)["key_env"] == "NEWAPI_API_KEY"
-    assert "rotated-key" not in config_path.read_text(encoding="utf-8")
-    assert parsed["custom_block"]["keep"] is True
-    assert _enabled_toolsets(config_path.read_text(encoding="utf-8")) == [
-        "hermes-acp",
-        "memory",
-    ]
-
-    hw.ensure_user_hermes_workspace("admin")
-    reparsed = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    assert reparsed["enabled_toolsets"] == ["hermes-acp", "memory"]
-
-
-def test_hermes_uses_settings_db_newapi_before_root_env(
-    isolated_workspace, repo_skills, repo_plugins
-):
-    (isolated_workspace / ".env").write_text(
-        "NEWAPI_API_KEY=root-key\nNEWAPI_BASE_URL=http://root-gateway/v1\n",
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8") + "\ncustom_block:\n  keep: true\n",
         encoding="utf-8",
     )
-    save_custom_newapi_gateway(
-        base_url="http://custom-gateway/v1",
-        api_key="custom-key",
-        activate=True,
-    )
+    monkeypatch.setenv("TEXT_ENGINE", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-secret")
+    monkeypatch.setenv("HERMES_MODEL", "qwen/qwen3-32b")
 
-    home = hw.ensure_user_hermes_workspace("admin")
-    parsed = yaml.safe_load((home / "config.yaml").read_text(encoding="utf-8"))
-    env_text = (home / ".env").read_text(encoding="utf-8")
+    hw.ensure_user_hermes_workspace("admin")
+    text = config_path.read_text(encoding="utf-8")
+    parsed = yaml.safe_load(text)
 
-    assert "api_key" not in parsed["model"]
-    assert _dramaclaw_provider(parsed)["base_url"] == "http://custom-gateway/v1"
+    assert parsed["model"]["default"] == "qwen/qwen3-32b"
+    assert _dramaclaw_provider(parsed)["base_url"] == app_config.OPENROUTER_BASE_URL
     assert _dramaclaw_provider(parsed)["key_env"] == "NEWAPI_API_KEY"
-    assert "custom-key" not in (home / "config.yaml").read_text(encoding="utf-8")
-    assert "OPENAI_API_KEY" not in env_text
-    assert "root-key" not in env_text
+    assert "or-secret" not in text
+    assert parsed["custom_block"]["keep"] is True
+    assert _enabled_toolsets(text) == ["hermes-acp", "memory"]
 
 
 def test_idempotent_rerun(isolated_workspace, repo_skills, repo_plugins):
@@ -436,7 +398,9 @@ def test_legacy_config_gets_default_plugin_block(isolated_workspace, repo_skills
     parsed = yaml.safe_load(config)
     assert _enabled_toolsets(config) == ["hermes-acp"]
     assert "plugins:\n  enabled:\n    - dramaclaw" in config
-    assert parsed["model"]["default"] == "DC-hermes-LLM"
+    from novelvideo.engines import mtplx
+
+    assert parsed["model"]["default"] == mtplx.model_id()
     assert parsed["model"]["provider"] == "custom:dramaclaw"
     assert _dramaclaw_provider(parsed)["key_env"] == "NEWAPI_API_KEY"
 

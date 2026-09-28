@@ -71,7 +71,8 @@ def _client(
     monkeypatch.setattr(styles, "resolve_project_scope", fake_resolve_project_scope)
     monkeypatch.setattr(ports, "get_usage_meter", lambda: usage_meter)
     monkeypatch.setattr(style_analyzer, "StyleAnalyzer", analyzer_type)
-    monkeypatch.setenv("STYLE_ANALYZER_MODEL", "style-analysis-model")
+    monkeypatch.setenv("STYLE_ANALYZER_MODEL", "test/style-analysis-model")
+    monkeypatch.setenv("TEXT_ENGINE", "openrouter")
 
     app = FastAPI()
     app.include_router(styles.router)
@@ -116,7 +117,7 @@ def test_style_analysis_reserves_and_confirms_feature_credit(monkeypatch, tmp_pa
             },
             "params": {
                 "pricing_kind": "text",
-                "pricing_model": "style-analysis-model",
+                "pricing_model": "test/style-analysis-model",
                 "pricing_params": {},
                 "pricing_quantity": 1,
             },

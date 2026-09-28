@@ -23,6 +23,15 @@ def restore_ports_registry_globals():
 
 
 @pytest.fixture(autouse=True)
+def never_start_mtplx(monkeypatch):
+    """Tests run on the default text engine (MTPLX) but never spawn `mtplx serve`."""
+    from novelvideo.engines import mtplx
+
+    monkeypatch.delenv("TEXT_ENGINE", raising=False)
+    monkeypatch.setattr(mtplx, "ensure_running", mtplx.base_url)
+
+
+@pytest.fixture(autouse=True)
 async def close_sqlite_stores_created_by_test(monkeypatch):
     from novelvideo.sqlite_store import SQLiteStore
 

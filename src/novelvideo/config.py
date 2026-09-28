@@ -9,60 +9,48 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
-from novelvideo.official_defaults import (
-    DEFAULT_TEXT_MODEL_BY_ENV,
-    OFFICIAL_NEWAPI_BASE_URL,
-)
-from novelvideo.shared.runtime_env import is_ce_effective
+from novelvideo.official_defaults import OFFICIAL_NEWAPI_BASE_URL
 
 # 加载环境变量（必须在任何其他导入之前）
 load_dotenv()
 
 # =============================================================================
-# 模型提供商配置
+# 文本模型引擎 (TEXT_ENGINE)
 # =============================================================================
+# Text and vision-with-text calls go to one OpenAI-compatible engine:
+#   mtplx      (default) local `mtplx serve`, started on first request.
+#   openrouter https://openrouter.ai, key from OPENROUTER_API_KEY.
+# NewAPI is no longer a text transport (it still serves embeddings/TTS/media).
 
-PROVIDER_PRESETS = {
-    "openai": {
-        "base_url": None,
-        "default_model": "gpt-4o",
-        "timeout": 120,
-        "api_key_env": "OPENAI_API_KEY",
-    },
-    "anthropic": {
-        "base_url": None,
-        "default_model": "claude-sonnet-4-5",
-        "timeout": 120,
-        "api_key_env": "ANTHROPIC_API_KEY",
-    },
-    "gemini": {
-        "base_url": None,
-        "default_model": "gemini-3.5-flash",
-        "timeout": 300,
-        "api_key_env": "GOOGLE_API_KEY",
-    },
-    "openrouter": {
-        "base_url": "https://openrouter.ai/api/v1",
-        "default_model": "gemini-3.5-flash",
-        "timeout": 300,
-        "api_key_env": "OPENROUTER_API_KEY",
-    },
-    "volcengine": {
-        "base_url": "https://ark.cn-beijing.volces.com/api/v3",
-        "default_model": "doubao-seed-1-6-251015",
-        "timeout": 1800,
-        "api_key_env": "ARK_API_KEY",
-    },
-}
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+OPENROUTER_DEFAULT_TEXT_MODEL = "google/gemma-4-26b-a4b-it"
 
-PROVIDER_ALIASES = {
-    "doubao": "volcengine",
-    "ark": "volcengine",
-    "claude": "anthropic",
-    "gpt": "openai",
-    "google": "gemini",
-    "or": "openrouter",
-}
+
+def get_text_engine() -> str:
+    engine = (os.environ.get("TEXT_ENGINE") or "mtplx").strip().lower()
+    if engine not in ("mtplx", "openrouter"):
+        raise ValueError(f"Unknown TEXT_ENGINE: {engine}. Available: mtplx, openrouter")
+    return engine
+
+
+def get_text_engine_credentials(*, start: bool = True) -> tuple[str, str]:
+    """Return ``(api_key, base_url)`` of the text engine.
+
+    ``start=True`` may spawn ``mtplx serve``; pass False where only the address
+    is needed (config files, import time, status).
+    """
+    if get_text_engine() == "openrouter":
+        return os.environ.get("OPENROUTER_API_KEY", "").strip(), OPENROUTER_BASE_URL
+    from novelvideo.engines import mtplx
+
+    # MTPLX needs no key; the OpenAI client just refuses an empty one.
+    return "mtplx", mtplx.ensure_running() if start else mtplx.base_url()
+
+
+def ensure_text_engine_ready() -> None:
+    """Start MTPLX if it is the text engine and not serving yet (blocking)."""
+    if get_text_engine() == "mtplx":
+        get_text_engine_credentials(start=True)
 
 
 def _env_float(name: str, default: float) -> float:
@@ -91,46 +79,18 @@ def get_pydantic_model(
     provider_override: str | None = None,
     model_name_override: str | None = None,
 ):
-    """Return a PydanticAI model routed through the effective NewAPI gateway.
+    """Return a PydanticAI model on the text engine (see ``TEXT_ENGINE``).
 
-    This is the compatibility factory used by older Agent call sites. Provider
-    settings still select their legacy default model when no model name is
-    supplied, but they no longer select a direct-provider transport. CE reads
-    credentials from settings.db; EE reads its deployment-level NewAPI env.
-
-    Args:
-        provider_override: Select the legacy provider preset used for a default
-            model name. The request transport remains NewAPI.
-        model_name_override: Override the model name sent to NewAPI.
+    ``provider_override`` is a legacy knob and is ignored: the engine alone
+    decides the transport. ``model_name_override`` only applies to OpenRouter.
     """
-    provider = (
-        provider_override or os.environ.get("MODEL_PROVIDER", "volcengine")
-    ).lower()
-    provider = PROVIDER_ALIASES.get(provider, provider)
-
-    if provider not in PROVIDER_PRESETS:
-        available = list(PROVIDER_PRESETS.keys()) + list(PROVIDER_ALIASES.keys())
-        raise ValueError(
-            f"Unknown provider: {provider}. " f"Available: {', '.join(available)}"
-        )
-
-    preset = PROVIDER_PRESETS[provider]
-    model_name = model_name_override or os.environ.get(
-        "MODEL_NAME", preset["default_model"]
-    )
-
-    if provider == "openrouter" and model_name.startswith("openrouter/"):
-        model_name = model_name[len("openrouter/") :]
-
+    del provider_override
     return get_newapi_text_pydantic_model(
         "MODEL_NAME",
-        preset["default_model"],
-        model_name_override=model_name,
+        OPENROUTER_DEFAULT_TEXT_MODEL,
+        model_name_override=model_name_override,
         capability="text.generate.agent",
-        timeout_seconds_override=_env_float(
-            "MODEL_TIMEOUT",
-            float(preset.get("timeout", 120)),
-        ),
+        timeout_seconds_override=_env_float("MODEL_TIMEOUT", 300.0),
     )
 
 
@@ -144,29 +104,64 @@ def _clean_env_value(name: str | None) -> str | None:
     return value or None
 
 
-def get_newapi_text_model_name(model_env: str, default_model: str) -> str:
-    """Return the logical newAPI text model for a path-specific task."""
-    return _clean_env_value(model_env) or DEFAULT_TEXT_MODEL_BY_ENV.get(
-        model_env, default_model
-    )
+def _openrouter_model_id(value: str | None) -> str | None:
+    value = (value or "").strip().removeprefix("openrouter/")
+    # ponytail: OpenRouter ids are "vendor/model"; bare names (DC-* aliases,
+    # gemini-3.5-flash) are NewAPI-era routing names and are skipped.
+    return value if "/" in value else None
+
+
+def get_newapi_text_model_name(
+    model_env: str,
+    default_model: str,
+    model_name_override: str | None = None,
+) -> str:
+    """Return the model id sent to the text engine for a path-specific task.
+
+    MTPLX serves exactly one model (``MTPLX_MODEL``). OpenRouter honours, in
+    order: the explicit override, the per-task env (``model_env``),
+    ``OPENROUTER_MODEL``, ``MODEL_NAME``, then the OpenRouter default.
+    ``default_model`` is the NewAPI-era logical name and is no longer sent.
+    """
+    del default_model
+    if get_text_engine() == "mtplx":
+        from novelvideo.engines import mtplx
+
+        return mtplx.model_id()
+    for value in (
+        model_name_override,
+        _clean_env_value(model_env),
+        _clean_env_value("OPENROUTER_MODEL"),
+        _clean_env_value("MODEL_NAME"),
+    ):
+        model = _openrouter_model_id(value)
+        if model:
+            return model
+    return OPENROUTER_DEFAULT_TEXT_MODEL
 
 
 def _get_newapi_text_model_profile(model_name: str):
-    """Attach Gemini-compatible model profile while routing through newAPI."""
-    normalized = (model_name or "").strip()
-    if not normalized.startswith("gemini-") or "image" in normalized:
-        return None
+    """PydanticAI profile for the text engine's model."""
+    if get_text_engine() == "mtplx":
+        from pydantic_ai.profiles.openai import OpenAIModelProfile
 
+        # MTPLX does structured output via response_format json_schema: the
+        # model finishes <think>, reasoning comes back apart, JSON in content.
+        return OpenAIModelProfile(
+            supports_json_schema_output=True,
+            default_structured_output_mode="native",
+        )
     from pydantic_ai.providers.openrouter import OpenRouterProvider
 
-    return OpenRouterProvider.model_profile(f"google/{normalized}")
+    return OpenRouterProvider.model_profile(model_name)
 
 
 def _newapi_text_http_client_factory(
     *,
     timeout_seconds: float,
 ) -> Any:
-    trust_env = _env_bool("NEWAPI_TEXT_TRUST_ENV", True)
+    # A local MTPLX must never be reached through a system proxy.
+    trust_env = _env_bool("TEXT_TRUST_ENV", get_text_engine() != "mtplx")
 
     def factory():
         import httpx
@@ -216,18 +211,28 @@ def _newapi_text_openai_model(
     base_url: str,
     timeout_seconds: float,
     profile: Any,
+    ensure_ready: Any = None,
 ):
+    """``ensure_ready`` (blocking, optional) runs before every request, so a
+    local engine is started lazily at first use rather than at construction."""
+    import asyncio
     from contextlib import asynccontextmanager
 
     from pydantic_ai.models.openai import OpenAIChatModel
 
+    async def _ready() -> None:
+        if ensure_ready is not None:
+            await asyncio.to_thread(ensure_ready)
+
     class _AutoClosingOpenAIChatModel(OpenAIChatModel):
         async def request(self, *args: Any, **kwargs: Any) -> Any:
+            await _ready()
             async with self:
                 return await super().request(*args, **kwargs)
 
         @asynccontextmanager
         async def request_stream(self, *args: Any, **kwargs: Any):
+            await _ready()
             async with self:
                 async with super().request_stream(*args, **kwargs) as response:
                     yield response
@@ -251,65 +256,56 @@ def get_newapi_text_pydantic_model(
     timeout_seconds_override: float | None = None,
     capability: str = "text.generate",
 ):
-    """Create a PydanticAI OpenAI-compatible model that routes through newAPI."""
-    model_name = str(model_name_override or "").strip() or get_newapi_text_model_name(
-        model_env, default_model
+    """Create a PydanticAI OpenAI-compatible model on the text engine.
+
+    The name is historical: text no longer routes through NewAPI (nor, in EE,
+    through the request-scoped organization gateway). ``capability`` is kept
+    for call-site compatibility and is unused.
+    """
+    del capability
+    engine = get_text_engine()
+    model_name = get_newapi_text_model_name(
+        model_env, default_model, model_name_override
     )
     timeout_seconds = (
         float(timeout_seconds_override)
         if timeout_seconds_override is not None
         else _env_float(
             f"{model_env}_TIMEOUT_SECONDS",
-            _env_float("NEWAPI_TEXT_TIMEOUT_SECONDS", 300.0),
+            _env_float("TEXT_TIMEOUT_SECONDS", 300.0),
         )
     )
-    profile = _get_newapi_text_model_profile(model_name)
-    if not is_ce_effective():
-        from novelvideo.model_gateway_runtime import (
-            create_request_scoped_gateway_model,
-        )
-
-        return create_request_scoped_gateway_model(
-            model_name=model_name,
-            capability=capability,
-            timeout_seconds=timeout_seconds,
-            profile=profile,
-            delegate_factory=_newapi_text_openai_model,
-            platform_credential_factory=lambda: get_newapi_runtime_credentials(
-                env_api_key="MODEL_API_KEY",
-                env_base_url="MODEL_BASE_URL",
-            ),
-        )
-
-    api_key, base_url = get_newapi_runtime_credentials(
-        env_api_key="MODEL_API_KEY",
-        env_base_url="MODEL_BASE_URL",
-    )
+    api_key, base_url = get_text_engine_credentials(start=False)
     if not api_key:
-        raise ValueError("API key not set. Configure DramaClawAPI credentials.")
+        raise ValueError("OPENROUTER_API_KEY not set (TEXT_ENGINE=openrouter).")
     return _newapi_text_openai_model(
         model_name,
         api_key=api_key,
         base_url=base_url,
         timeout_seconds=timeout_seconds,
-        profile=profile,
+        profile=_get_newapi_text_model_profile(model_name),
+        ensure_ready=ensure_text_engine_ready if engine == "mtplx" else None,
     )
 
 
 def get_newapi_structured_output_model_settings() -> dict:
-    """Disable reasoning for PydanticAI structured output requests.
+    """Model settings for PydanticAI structured output requests.
 
-    DramaClaw sends opaque ``DC-*`` aliases through an OpenAI-compatible
-    NewAPI endpoint.  PydanticAI cannot infer thinking capabilities from those
-    aliases, so its unified ``thinking=False`` setting is silently ignored.
-    Use the explicit OpenAI-compatible wire contract that existing deployments
-    already send when their task-level thinking setting is ``none``.
+    OpenRouter: reasoning off (``reasoning_effort=none``), as before.
+    MTPLX: nothing is sent. The server runs with ``--reasoning auto``; the
+    model finishes its <think> block, reasoning comes back separately and the
+    JSON lands in ``content`` (json_schema response_format, see the profile).
+    That path is the one verified in MacGen; ``none`` is untested on MTPLX.
     """
+    if get_text_engine() == "mtplx":
+        return {}
     return {"openai_reasoning_effort": "none"}
 
 
 def get_newapi_structured_output_litellm_kwargs() -> dict:
-    """Disable reasoning for Cognee/Instructor calls routed through LiteLLM."""
+    """LiteLLM twin of :func:`get_newapi_structured_output_model_settings`."""
+    if get_text_engine() == "mtplx":
+        return {}
     return {
         "reasoning_effort": "none",
         "allowed_openai_params": ["reasoning_effort"],
@@ -323,11 +319,9 @@ def get_superpower_pydantic_model(
 ):
     """Return the multimodal model used by SuperPower prompt builders.
 
-    By default this inherits the normal MODEL_PROVIDER/MODEL_NAME settings.
-    Individual prompt builders can override that with feature-specific env vars
-    (for example GLOBAL_VIDEO_PROVIDER/GLOBAL_VIDEO_MODEL). Global
-    SUPERPOWER_* env vars remain available for deployments that want one shared
-    SuperPower provider without hard-coding Google/Gemini in code.
+    Runs on the text engine. Feature-specific model env vars (for example
+    GLOBAL_VIDEO_MODEL) or SUPERPOWER_MODEL only apply to TEXT_ENGINE=openrouter;
+    the *_PROVIDER vars are legacy and ignored.
     """
 
     provider_override = (
@@ -344,20 +338,6 @@ def get_superpower_pydantic_model(
         provider_override=provider_override,
         model_name_override=model_name_override,
     )
-
-
-def get_model_info() -> dict:
-    """获取当前模型配置信息。"""
-    provider = os.environ.get("MODEL_PROVIDER", "volcengine").lower()
-    provider = PROVIDER_ALIASES.get(provider, provider)
-    preset = PROVIDER_PRESETS.get(provider, {})
-
-    return {
-        "provider": provider,
-        "model": os.environ.get("MODEL_NAME", preset.get("default_model", "unknown")),
-        "base_url": os.environ.get("MODEL_BASE_URL", preset.get("base_url")),
-        "timeout": int(os.environ.get("MODEL_TIMEOUT", preset.get("timeout", 120))),
-    }
 
 
 # Redis 配置

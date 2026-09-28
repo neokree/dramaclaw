@@ -281,137 +281,67 @@ def test_request_scopes_isolate_identity_without_storing_credentials() -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "capability",
-    [
-        "text.generate",
-        "text.generate.agent",
-        "text.generate.workflow",
-        "vision.analyze",
-        "freezone.text.generate",
-    ],
-)
-async def test_gateway_routed_pydantic_model_uses_one_request_scoped_transport(
+@pytest.mark.parametrize("stream", [False, True])
+async def test_text_model_never_routes_through_organization_gateway(
     monkeypatch: pytest.MonkeyPatch,
-    capability: str,
+    stream: bool,
 ) -> None:
+    """Text runs on TEXT_ENGINE (MTPLX/OpenRouter), even in an org scope."""
+    from contextlib import asynccontextmanager
+
+    from pydantic_ai.models.openai import OpenAIChatModel
+
     from novelvideo import config
     from novelvideo import model_gateway_runtime as runtime
-
-    operation_port = _OperationPort()
-    credential = RequestCredential(
-        reference=_organization_context().credential,
-        api_key="sk-request-scoped-canary",
-        base_url="https://gateway.example/v1",
-    )
-    credential_port = _CredentialPort(credential, [])
-    factory_calls: list[dict[str, object]] = []
-    transport_calls: list[tuple[object, object, object]] = []
-    response = object()
-
-    class Delegate:
-        async def request(self, messages, model_settings, model_request_parameters):
-            transport_calls.append((messages, model_settings, model_request_parameters))
-            return response
-
-    def delegate_factory(model_name: str, **kwargs):
-        factory_calls.append({"model_name": model_name, **kwargs})
-        return Delegate()
+    from novelvideo.engines import mtplx
 
     monkeypatch.setenv("ST_EDITION", "ee")
     monkeypatch.setenv("ST_CONTROL_PLANE_DSN", "postgresql://control-plane")
-    monkeypatch.setattr(runtime, "get_egress_operation_port", lambda: operation_port)
-    monkeypatch.setattr(runtime, "get_model_credentials", lambda: credential_port)
-    monkeypatch.setattr(config, "_newapi_text_openai_model", delegate_factory)
-    messages = [ModelRequest(parts=[UserPromptPart(content="hello")])]
-    parameters = ModelRequestParameters()
-
-    model = config.get_newapi_text_pydantic_model(
-        "P0G4A_MODEL",
-        "DC-p0g4a",
-        capability=capability,
+    monkeypatch.setattr(
+        runtime,
+        "get_egress_operation_port",
+        lambda: pytest.fail("text must not claim a gateway operation"),
     )
-    with runtime.model_gateway_request_scope(_organization_context()):
-        result = await model.request(messages, None, parameters)
-
-    assert result is response
-    assert len(factory_calls) == 1
-    assert factory_calls[0]["api_key"] == "sk-request-scoped-canary"
-    assert factory_calls[0]["base_url"] == "https://gateway.example/v1"
-    assert transport_calls == [(messages, None, parameters)]
-    claim_spec = operation_port.calls[0][1]
-    assert claim_spec.capability == capability
-    assert len(claim_spec.request_digest) == 64
-    # Envelope prefix first so an operator can find every row a task wrote by
-    # prefix alone; then the payload digest and its occurrence in this
-    # envelope. Not a call ordinal — a call ordinal has no defined value under
-    # concurrency, see tests/test_p0g4e_cognee_concurrent_egress.py.
-    assert claim_spec.business_task_id == (
-        f"envelope-1:{capability}:{claim_spec.request_digest}:000001"
+    monkeypatch.setattr(
+        runtime,
+        "get_model_credentials",
+        lambda: pytest.fail("text must not resolve organization credentials"),
     )
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "capability",
-    [
-        "text.generate",
-        "text.generate.agent",
-        "text.generate.workflow",
-        "vision.analyze",
-        "freezone.text.generate",
-    ],
-)
-async def test_gateway_routed_model_failure_never_builds_platform_or_provider_transport(
-    monkeypatch: pytest.MonkeyPatch,
-    capability: str,
-) -> None:
-    from novelvideo import config
-    from novelvideo import model_gateway_runtime as runtime
-
-    operation_port = _OperationPort()
-    credential_port = _CredentialPort(
-        ModelCredentialError("ORG_CREDENTIAL_MISSING"),
-        [],
-    )
-    factory_calls = 0
-
-    def forbidden_factory(*_args, **_kwargs):
-        nonlocal factory_calls
-        factory_calls += 1
-        raise AssertionError("transport factory must not run")
-
-    monkeypatch.setenv("ST_EDITION", "ee")
-    monkeypatch.setenv("ST_CONTROL_PLANE_DSN", "postgresql://control-plane")
-    monkeypatch.setenv("MODEL_API_KEY", "sk-platform-fallback-canary")
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-provider-fallback-canary")
-    monkeypatch.setattr(runtime, "get_egress_operation_port", lambda: operation_port)
-    monkeypatch.setattr(runtime, "get_model_credentials", lambda: credential_port)
-    monkeypatch.setattr(config, "_newapi_text_openai_model", forbidden_factory)
     monkeypatch.setattr(
         config,
         "get_newapi_runtime_credentials",
-        lambda **_kwargs: pytest.fail(
-            "organization path must not read runtime credentials"
-        ),
+        lambda **_kwargs: pytest.fail("text must not read NewAPI credentials"),
     )
+    seen: list[str] = []
+
+    async def fake_request(self, *_args, **_kwargs):
+        seen.append(str(self.client.base_url))
+        return "ok"
+
+    @asynccontextmanager
+    async def fake_stream(self, *_args, **_kwargs):
+        seen.append(str(self.client.base_url))
+        yield "ok"
+
+    monkeypatch.setattr(OpenAIChatModel, "request", fake_request)
+    monkeypatch.setattr(OpenAIChatModel, "request_stream", fake_stream)
 
     model = config.get_newapi_text_pydantic_model(
-        "P0G4A_MODEL",
-        "DC-p0g4a",
-        capability=capability,
+        "P0G4A_MODEL", "DC-p0g4a", capability="text.generate"
     )
+    messages = [ModelRequest(parts=[UserPromptPart(content="hello")])]
     with runtime.model_gateway_request_scope(_organization_context()):
-        with pytest.raises(ModelCredentialError) as excinfo:
-            await model.request(
-                [ModelRequest(parts=[UserPromptPart(content="hello")])],
-                None,
-                ModelRequestParameters(),
-            )
+        if stream:
+            async with model.request_stream(
+                messages, None, ModelRequestParameters()
+            ) as response:
+                result = response
+        else:
+            result = await model.request(messages, None, ModelRequestParameters())
 
-    assert excinfo.value.code == "ORG_CREDENTIAL_MISSING"
-    assert factory_calls == 0
-    assert [name for name, _payload in operation_port.calls] == ["claim", "rejected"]
+    assert result == "ok"
+    assert model.model_name == mtplx.model_id()
+    assert seen == [f"{mtplx.base_url()}/"]
 
 
 @pytest.mark.asyncio
@@ -482,107 +412,6 @@ def test_request_scoped_objects_and_operation_spec_do_not_expose_plaintext_key()
         assert canary not in repr(runtime.current_model_gateway_context())
     assert canary not in repr(credential)
     assert canary not in repr(operation)
-
-
-@pytest.mark.asyncio
-async def test_c1_eg02_pos_stream_uses_one_transport_and_completes_after_consumption(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from contextlib import asynccontextmanager
-
-    from novelvideo import config
-    from novelvideo import model_gateway_runtime as runtime
-
-    operation_port = _OperationPort()
-    credential = RequestCredential(
-        reference=_organization_context().credential,
-        api_key="sk-stream-request",
-        base_url="https://gateway.example/v1",
-    )
-    credential_port = _CredentialPort(credential, [])
-    transport_calls = 0
-    streamed_response = object()
-
-    class Delegate:
-        @asynccontextmanager
-        async def request_stream(self, *_args, **_kwargs):
-            nonlocal transport_calls
-            transport_calls += 1
-            yield streamed_response
-
-    monkeypatch.setenv("ST_EDITION", "ee")
-    monkeypatch.setenv("ST_CONTROL_PLANE_DSN", "postgresql://control-plane")
-    monkeypatch.setattr(runtime, "get_egress_operation_port", lambda: operation_port)
-    monkeypatch.setattr(runtime, "get_model_credentials", lambda: credential_port)
-    monkeypatch.setattr(
-        config, "_newapi_text_openai_model", lambda *_args, **_kwargs: Delegate()
-    )
-
-    model = config.get_newapi_text_pydantic_model(
-        "P0G4A_MODEL",
-        "DC-p0g4a",
-        capability="text.generate.agent",
-    )
-    with runtime.model_gateway_request_scope(_organization_context()):
-        async with model.request_stream(
-            [ModelRequest(parts=[UserPromptPart(content="hello")])],
-            None,
-            ModelRequestParameters(),
-        ) as response:
-            assert response is streamed_response
-            assert [name for name, _payload in operation_port.calls] == [
-                "claim",
-                "accepted",
-            ]
-
-    assert transport_calls == 1
-    assert [name for name, _payload in operation_port.calls] == [
-        "claim",
-        "accepted",
-        "completed",
-    ]
-
-
-@pytest.mark.asyncio
-async def test_c1_eg02_nofb_stream_resolve_failure_has_zero_transport(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from novelvideo import config
-    from novelvideo import model_gateway_runtime as runtime
-
-    operation_port = _OperationPort()
-    credential_port = _CredentialPort(
-        ModelCredentialError("ORG_CREDENTIAL_MISSING"), []
-    )
-    factory_calls = 0
-
-    def forbidden_factory(*_args, **_kwargs):
-        nonlocal factory_calls
-        factory_calls += 1
-        raise AssertionError("stream transport must remain zero")
-
-    monkeypatch.setenv("ST_EDITION", "ee")
-    monkeypatch.setenv("ST_CONTROL_PLANE_DSN", "postgresql://control-plane")
-    monkeypatch.setattr(runtime, "get_egress_operation_port", lambda: operation_port)
-    monkeypatch.setattr(runtime, "get_model_credentials", lambda: credential_port)
-    monkeypatch.setattr(config, "_newapi_text_openai_model", forbidden_factory)
-
-    model = config.get_newapi_text_pydantic_model(
-        "P0G4A_MODEL",
-        "DC-p0g4a",
-        capability="text.generate.agent",
-    )
-    with runtime.model_gateway_request_scope(_organization_context()):
-        with pytest.raises(ModelCredentialError):
-            async with model.request_stream(
-                [ModelRequest(parts=[UserPromptPart(content="hello")])],
-                None,
-                ModelRequestParameters(),
-            ):
-                pass
-
-    assert factory_calls == 0
-    assert [name for name, _payload in operation_port.calls] == ["claim", "rejected"]
 
 
 @pytest.mark.asyncio
@@ -908,75 +737,39 @@ async def test_c1_eg05_nofb_embedding_resolve_error_has_zero_transport(
 
 
 @pytest.mark.asyncio
-async def test_c1_eg06_pos_cognee_llm_uses_request_key_without_env_mutation(
+async def test_c1_eg06_cognee_llm_runs_on_text_engine_even_in_org_scope(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    import os
+
     from novelvideo import model_gateway_runtime as runtime
     from novelvideo.cognee import config as cognee_config
 
-    class OperationPort(_OperationPort):
-        async def claim(self, *, spec):
-            result = await super().claim(spec=spec)
-            operation_id = f"operation-{spec.organization_id}"
-            return OperationClaimResult(
-                won=True,
-                operation=OperationSnapshot(
-                    operation_id=operation_id,
-                    operation_key=result.operation.operation_key,
-                    state=OperationState.DISPATCHING,
-                    version=1,
-                ),
-                transition_token=f"transition-{spec.organization_id}",
-            )
-
-    class CredentialPort:
-        async def resolve(self, admission):
-            return RequestCredential(
-                reference=admission.credential,
-                api_key=f"sk-{admission.billing_principal.id}",
-                base_url=f"https://{admission.billing_principal.id}.example/v1",
-            )
-
-    calls: list[tuple[str, str, int]] = []
+    monkeypatch.setattr(
+        runtime,
+        "get_model_credentials",
+        lambda: pytest.fail("cognee LLM must not resolve organization credentials"),
+    )
+    calls: list[dict] = []
 
     async def transport(*_args, **kwargs):
-        calls.append((kwargs["api_key"], kwargs["api_base"], kwargs["max_retries"]))
-        await asyncio.sleep(0)
-        return {"id": kwargs["api_key"]}
+        calls.append(kwargs)
+        return {"ok": True}
 
-    import asyncio
-    import os
-
-    operation_port = OperationPort()
-    monkeypatch.setattr(runtime, "get_egress_operation_port", lambda: operation_port)
-    monkeypatch.setattr(runtime, "get_model_credentials", lambda: CredentialPort())
+    kwargs = {
+        "model": "openai/mtplx-model",
+        "messages": [{"role": "user", "content": "hi"}],
+        "api_key": "mtplx",
+        "api_base": "http://127.0.0.1:8000/v1",
+    }
     environment_before = dict(os.environ)
+    with runtime.model_gateway_request_scope(_organization_context()):
+        result = await cognee_config._route_cognee_llm_transport(
+            transport, (), dict(kwargs)
+        )
 
-    async def run(context: TrustedEgressContext):
-        with runtime.model_gateway_request_scope(context):
-            return await cognee_config._route_cognee_llm_transport(
-                transport,
-                (),
-                {
-                    "model": "openai/DC-cognee-LLM",
-                    "messages": [{"role": "user", "content": context.project_id}],
-                    "api_key": "sk-stale-platform",
-                    "api_base": "https://stale.example/v1",
-                    "max_retries": 5,
-                },
-            )
-
-    first, second = await asyncio.gather(
-        run(_organization_context(envelope_id="envelope-a", org_id="org-a")),
-        run(_organization_context(envelope_id="envelope-b", org_id="org-b")),
-    )
-
-    assert first == {"id": "sk-org-a"}
-    assert second == {"id": "sk-org-b"}
-    assert sorted(calls) == [
-        ("sk-org-a", "https://org-a.example/v1", 0),
-        ("sk-org-b", "https://org-b.example/v1", 0),
-    ]
+    assert result == {"ok": True}
+    assert calls == [kwargs]
     assert dict(os.environ) == environment_before
 
 

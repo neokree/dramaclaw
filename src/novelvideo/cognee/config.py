@@ -261,20 +261,19 @@ def _to_cognee_provider(provider: str) -> str:
     return "custom" if _is_newapi_provider(provider) else provider
 
 
-def _normalize_llm_model(provider: str, model: str) -> str:
-    """规范化 LLM 模型名称。"""
-    if provider == "gemini":
-        # Cognee 原生支持 gemini/ 前缀
-        if not model.startswith("gemini/"):
-            return f"gemini/{model}"
-        return model
-    if _uses_newapi_gateway(provider):
-        # Cognee 底层使用 LiteLLM。裸 gemini-* 会被 LiteLLM 误判为
-        # Gemini/Vertex 直连模型，从而要求 Google ADC。这里仅给 LiteLLM
-        # 标明 OpenAI-compatible 路由；SuperTale .env 仍只暴露 newAPI 逻辑模型名。
-        if not model.startswith(("openai/", "custom/")):
-            return f"openai/{model}"
-    return model
+def _text_engine_llm() -> tuple[str, str, str]:
+    """Return ``(api_key, endpoint, LiteLLM model)`` of the text engine.
+
+    Cognee's LLM follows ``TEXT_ENGINE`` (MTPLX or OpenRouter); NewAPI now only
+    serves Cognee embeddings. Never starts MTPLX: the LiteLLM patch does that
+    lazily at the first completion.
+    """
+    from novelvideo.config import get_newapi_text_model_name, get_text_engine_credentials
+
+    api_key, endpoint = get_text_engine_credentials(start=False)
+    model = get_newapi_text_model_name("COGNEE_LLM_MODEL", DEFAULT_COGNEE_LLM_MODEL)
+    # "openai/" = OpenAI-compatible route for LiteLLM (Cognee provider "custom").
+    return api_key, endpoint, f"openai/{model}"
 
 
 def _normalize_embedding_model(provider: str, model: str) -> str:
@@ -357,26 +356,6 @@ def cognee_gateway_restart_required() -> bool:
         is_ce_effective()
         and _active_gateway_fingerprint
         and _active_gateway_fingerprint != _current_gateway_fingerprint()
-    )
-
-
-def _resolve_llm_api_key(llm_provider: str, llm_model: str) -> str:
-    if _is_newapi_provider(llm_provider):
-        return _effective_newapi_gateway()[0]
-    api_key = os.getenv("COGNEE_LLM_API_KEY", "")
-    if api_key:
-        return api_key
-    if llm_provider == "gemini":
-        return os.getenv("GEMINI_API_KEY", "") or os.getenv("GOOGLE_API_KEY", "")
-    if _is_openrouter_config(
-        llm_provider,
-        llm_model,
-        _get_scoped_env("COGNEE_LLM_ENDPOINT", "LLM_ENDPOINT"),
-    ):
-        return os.getenv("OPENROUTER_API_KEY", "")
-    gateway_key, _gateway_base_url = _effective_newapi_gateway()
-    return (
-        gateway_key or os.getenv("OPENAI_API_KEY", "") or os.getenv("LLM_API_KEY", "")
     )
 
 
@@ -769,56 +748,16 @@ async def _route_cognee_llm_transport(
     args: tuple,
     kwargs: dict,
 ):
-    """Route one Cognee LLM submit with no process-environment credential writes."""
+    """Run one Cognee LLM submit on the text engine, starting MTPLX if needed.
 
-    from pydantic_core import to_jsonable_python
+    Text no longer goes through the (organization) NewAPI gateway.
+    """
+    import asyncio
 
-    from novelvideo.model_gateway_runtime import (
-        current_model_gateway_context,
-        execute_organization_gateway_request,
-        next_model_gateway_business_task_id,
-    )
-    from novelvideo.ports.egress_operations import canonical_request_digest
+    from novelvideo.config import ensure_text_engine_ready
 
-    context = current_model_gateway_context()
-    if context is None or not context.is_organization:
-        return await transport(*args, **kwargs)
-
-    clean_kwargs = {
-        key: value
-        for key, value in kwargs.items()
-        if key
-        not in {
-            "api_key",
-            "api_base",
-            "base_url",
-            "fallback_api_key",
-            "fallback_endpoint",
-        }
-    }
-    canonical_payload = to_jsonable_python(
-        {"args": list(args), "kwargs": clean_kwargs},
-        bytes_mode="base64",
-    )
-    request_digest = canonical_request_digest(canonical_payload)
-    business_task_id = next_model_gateway_business_task_id(
-        "cognee.llm",
-        request_digest=request_digest,
-    )
-
-    async def submit(credential):
-        routed = dict(clean_kwargs)
-        routed["api_key"] = credential.api_key
-        routed["api_base"] = credential.base_url
-        routed["max_retries"] = 0
-        return await transport(*args, **routed)
-
-    return await execute_organization_gateway_request(
-        capability="cognee.llm",
-        business_task_id=business_task_id,
-        request_digest=request_digest,
-        submit=submit,
-    )
+    await asyncio.to_thread(ensure_text_engine_ready)
+    return await transport(*args, **kwargs)
 
 
 def _patch_cognee_llm_gateway() -> None:
@@ -1169,34 +1108,21 @@ def _apply_embedding_runtime_defaults(llm_provider: str) -> None:
     _clear_cognee_embedding_config_cache()
 
 
-def _apply_llm_env(provider: str, model: str, api_key: str) -> None:
-    """应用 LLM 相关环境变量。"""
-    llm_endpoint = _get_endpoint_env(provider, "COGNEE_LLM_ENDPOINT", "LLM_ENDPOINT")
-    llm_api_version = _get_scoped_env("COGNEE_LLM_API_VERSION", "LLM_API_VERSION")
-    cognee_provider = _to_cognee_provider(provider)
-
-    if provider == "gemini":
-        os.environ["LLM_PROVIDER"] = "gemini"
-        os.environ["LLM_MODEL"] = model
-        os.environ["LLM_API_KEY"] = api_key
-        os.environ["GEMINI_API_KEY"] = api_key
-        os.environ["GOOGLE_API_KEY"] = api_key
-    else:
-        os.environ["LLM_PROVIDER"] = cognee_provider
-        os.environ["LLM_MODEL"] = model
-        os.environ["LLM_API_KEY"] = api_key
-        if _uses_newapi_gateway(provider, llm_endpoint):
-            # LiteLLM/OpenAI-compatible fallback paths read OPENAI_* directly.
-            # Keep them in sync with the selected gateway instead of preserving
-            # a key from a previous settings save.
-            os.environ["OPENAI_API_KEY"] = api_key
-            _set_or_clear_env("OPENAI_API_BASE", llm_endpoint)
-            _set_or_clear_env("OPENAI_BASE_URL", llm_endpoint)
-        elif not os.getenv("OPENAI_API_KEY"):
-            os.environ["OPENAI_API_KEY"] = api_key
-
-    _set_or_clear_env("LLM_ENDPOINT", llm_endpoint)
-    _set_or_clear_env("LLM_API_VERSION", llm_api_version)
+def _apply_llm_env(model: str, api_key: str, endpoint: str) -> None:
+    """Point Cognee's LLM at the text engine (LiteLLM provider "custom")."""
+    os.environ["LLM_PROVIDER"] = "custom"
+    os.environ["LLM_MODEL"] = model
+    os.environ["LLM_API_KEY"] = api_key
+    # Direct litellm.acompletion calls (store/pipeline/sqlite_store) pass no
+    # api_base and read OPENAI_* instead.
+    os.environ["OPENAI_API_KEY"] = api_key
+    _set_or_clear_env("OPENAI_API_BASE", endpoint)
+    _set_or_clear_env("OPENAI_BASE_URL", endpoint)
+    _set_or_clear_env("LLM_ENDPOINT", endpoint)
+    _set_or_clear_env(
+        "LLM_API_VERSION",
+        _get_scoped_env("COGNEE_LLM_API_VERSION", "LLM_API_VERSION"),
+    )
     _clear_cognee_llm_config_cache()
 
 
@@ -1266,17 +1192,15 @@ def _apply_embedding_env(llm_provider: str, api_key: str) -> tuple[str, str, str
     )
 
 
+# llm_provider stays "newapi": it selects the embedding gateway only.
 llm_provider = _resolve_llm_provider()
-llm_model = _normalize_llm_model(
-    llm_provider,
-    os.getenv("COGNEE_LLM_MODEL", "").strip() or DEFAULT_COGNEE_LLM_MODEL,
-)
 _apply_embedding_runtime_defaults(llm_provider)
 
-api_key = _resolve_llm_api_key(llm_provider, llm_model)
+api_key = _effective_newapi_gateway()[0]  # NewAPI key, embeddings only
+llm_api_key, llm_endpoint, llm_model = _text_engine_llm()
+_apply_llm_env(llm_model, llm_api_key, llm_endpoint)
 
 if api_key:
-    _apply_llm_env(llm_provider, llm_model, api_key)
     _apply_embedding_env(llm_provider, api_key)
 
 _apply_cognee_runtime_defaults()
@@ -1285,18 +1209,10 @@ try:
     with preserve_st_env():
         cognee = _import_cognee_without_logging_takeover()
 
-    cognee_llm_provider = _to_cognee_provider(llm_provider)
-    os.environ["LLM_MODEL"] = llm_model
-    os.environ["LLM_PROVIDER"] = (
-        "gemini" if llm_provider == "gemini" else cognee_llm_provider
-    )
-    os.environ["LLM_API_KEY"] = api_key
-
-    cognee.config.set_llm_provider(
-        "gemini" if llm_provider == "gemini" else cognee_llm_provider
-    )
+    _apply_llm_env(llm_model, llm_api_key, llm_endpoint)
+    cognee.config.set_llm_provider("custom")
     cognee.config.set_llm_model(llm_model)
-    cognee.config.set_llm_api_key(api_key)
+    cognee.config.set_llm_api_key(llm_api_key)
     _patch_cognee_embedding_timeout()
     _install_insufficient_credits_log_filter()
     _patch_cognee_embedding_gateway()
@@ -1349,22 +1265,15 @@ def init_cognee() -> None:
 
     llm_provider = _resolve_llm_provider()
 
-    api_key = _resolve_llm_api_key(
-        llm_provider,
-        os.getenv("COGNEE_LLM_MODEL", "").strip() or DEFAULT_COGNEE_LLM_MODEL,
-    )
+    api_key = _effective_newapi_gateway()[0]
     if not api_key:
         raise ValueError(
-            "未设置 Cognee LLM Key。请配置 DramaClaw 模型网关；"
+            "未设置 Cognee Embedding Key。请配置 DramaClaw 模型网关；"
             "CE 在设置页配置，EE 通过 NEWAPI_API_KEY 配置。"
         )
 
-    llm_model = _normalize_llm_model(
-        llm_provider,
-        os.getenv("COGNEE_LLM_MODEL", "").strip() or DEFAULT_COGNEE_LLM_MODEL,
-    )
-
-    _apply_llm_env(llm_provider, llm_model, api_key)
+    llm_api_key, llm_endpoint, llm_model = _text_engine_llm()
+    _apply_llm_env(llm_model, llm_api_key, llm_endpoint)
     (
         embedding_provider,
         embedding_model,
@@ -1375,17 +1284,15 @@ def init_cognee() -> None:
     _apply_cognee_runtime_defaults()
 
     # 设置 cognee.config（虽然 Cognee 主要从环境变量读取，但设置 config 作为备份）
-    cognee_llm_provider = _to_cognee_provider(llm_provider)
-    cognee_provider = "gemini" if llm_provider == "gemini" else cognee_llm_provider
-    cognee.config.llm_provider = cognee_provider
+    cognee.config.llm_provider = "custom"
     cognee.config.llm_model = llm_model
-    cognee.config.llm_api_key = api_key
+    cognee.config.llm_api_key = llm_api_key
     if hasattr(cognee.config, "set_llm_provider"):
-        cognee.config.set_llm_provider(cognee_provider)
+        cognee.config.set_llm_provider("custom")
     if hasattr(cognee.config, "set_llm_model"):
         cognee.config.set_llm_model(llm_model)
     if hasattr(cognee.config, "set_llm_api_key"):
-        cognee.config.set_llm_api_key(api_key)
+        cognee.config.set_llm_api_key(llm_api_key)
 
     cognee.config.embedding_provider = embedding_provider
     cognee.config.embedding_model = embedding_model

@@ -1325,7 +1325,8 @@ async def test_freezone_image_reverse_prompt_enqueues_feature_billing(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.setenv("FREEZONE_VISION_MODEL", "freezone-vision-model")
+    monkeypatch.setenv("FREEZONE_VISION_MODEL", "test/freezone-vision-model")
+    monkeypatch.setenv("TEXT_ENGINE", "openrouter")
     project_dir, _output_dir = _patch_freezone_project(monkeypatch, tmp_path)
     source = project_dir / "freezone" / "_uploads" / "source.png"
     _write_image(source)
@@ -1362,7 +1363,7 @@ async def test_freezone_image_reverse_prompt_enqueues_feature_billing(
         "billable_chars": 5,
         "pricing_quantity": 5,
         "pricing_kind": "text",
-        "pricing_model": "freezone-vision-model",
+        "pricing_model": "test/freezone-vision-model",
         "pricing_params": {},
         "pricing_metrics": {
             "call_count": 1,

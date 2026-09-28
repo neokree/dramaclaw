@@ -1,4 +1,4 @@
-"""Shared NewAPI transport for Freezone vision-understanding tasks."""
+"""Shared text-engine transport for Freezone vision-understanding tasks."""
 
 from __future__ import annotations
 
@@ -198,16 +198,17 @@ def image_media_type(path: str) -> str:
 
 
 def resolve_freezone_vision_model(model_override: str | None = None) -> str:
-    """Return the logical NewAPI model shared by Freezone vision tasks."""
-    clean_override = str(model_override or "").strip()
-    if clean_override:
-        return clean_override
+    """Return the text-engine model used by Freezone vision tasks.
 
+    Vision rides the text engine: the default MTPLX model (Qwen3.6 + vision
+    tower) accepts OpenAI ``image_url`` parts; OpenRouter models likewise.
+    """
     from novelvideo.config import get_newapi_text_model_name
 
     return get_newapi_text_model_name(
         "FREEZONE_VISION_MODEL",
         DEFAULT_FREEZONE_VISION_MODEL,
+        str(model_override or "").strip() or None,
     )
 
 
@@ -219,7 +220,7 @@ async def call_freezone_vision_model(
     model_override: str | None = None,
     transport_context: VisionTransportContext | None = None,
 ) -> tuple[str, str]:
-    """Run a PydanticAI vision Agent through the effective NewAPI gateway."""
+    """Run a PydanticAI vision Agent on the text engine (TEXT_ENGINE)."""
     if not images:
         raise ValueError("at least one image is required")
 

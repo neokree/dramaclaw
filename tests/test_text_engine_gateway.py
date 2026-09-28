@@ -22,7 +22,15 @@ def test_identity_planner_uses_split_newapi_model_envs(monkeypatch):
 def test_structured_output_model_settings_force_reasoning_off(monkeypatch):
     from novelvideo.agents.identity_planner import IdentityPlanner
 
+    monkeypatch.setenv("TEXT_ENGINE", "openrouter")
     assert IdentityPlanner._identity_model_settings() == {"openai_reasoning_effort": "none"}
+
+
+def test_structured_output_model_settings_leave_mtplx_reasoning_alone():
+    import novelvideo.config as config
+
+    assert config.get_newapi_structured_output_model_settings() == {}
+    assert config.get_newapi_structured_output_litellm_kwargs() == {}
 
 
 def test_opaque_newapi_alias_sends_reasoning_effort_none(monkeypatch):
@@ -36,6 +44,7 @@ def test_opaque_newapi_alias_sends_reasoning_effort_none(monkeypatch):
     import novelvideo.config as config
 
     requests: list[dict] = []
+    monkeypatch.setenv("TEXT_ENGINE", "openrouter")
 
     class StructuredResult(BaseModel):
         value: str
@@ -107,12 +116,13 @@ def test_opaque_newapi_alias_sends_reasoning_effort_none(monkeypatch):
     assert requests[0]["reasoning_effort"] == "none"
 
 
-def test_newapi_text_provider_default_trusts_env(monkeypatch):
+def test_openrouter_text_provider_default_trusts_env(monkeypatch):
     import asyncio
 
     import novelvideo.config as config
 
-    monkeypatch.delenv("NEWAPI_TEXT_TRUST_ENV", raising=False)
+    monkeypatch.delenv("TEXT_TRUST_ENV", raising=False)
+    monkeypatch.setenv("TEXT_ENGINE", "openrouter")
 
     provider = config._newapi_text_openai_provider(
         api_key="key",
@@ -134,7 +144,8 @@ def test_newapi_text_provider_can_disable_system_proxy(monkeypatch):
 
     import novelvideo.config as config
 
-    monkeypatch.setenv("NEWAPI_TEXT_TRUST_ENV", "false")
+    monkeypatch.setenv("TEXT_ENGINE", "openrouter")
+    monkeypatch.setenv("TEXT_TRUST_ENV", "false")
 
     provider = config._newapi_text_openai_provider(
         api_key="key",
@@ -545,3 +556,182 @@ def test_ai_identity_detector_forces_structured_reasoning_off(monkeypatch):
     global_video_optimizer._create_identity_detector_agent()
 
     assert agent_kwargs["model_settings"] == {"openai_reasoning_effort": "none"}
+
+
+def test_mtplx_text_provider_never_uses_system_proxy(monkeypatch):
+    import asyncio
+
+    import novelvideo.config as config
+
+    monkeypatch.delenv("TEXT_TRUST_ENV", raising=False)
+
+    provider = config._newapi_text_openai_provider(
+        api_key="mtplx",
+        base_url="http://127.0.0.1:8000/v1",
+        timeout_seconds=12.0,
+    )
+    try:
+        assert provider._own_http_client.trust_env is False
+    finally:
+        asyncio.run(provider._own_http_client.aclose())
+
+
+def test_mtplx_default_engine_builds_model_and_starts_server_lazily(monkeypatch):
+    import asyncio
+
+    from pydantic_ai.models.openai import OpenAIChatModel
+
+    import novelvideo.config as config
+    from novelvideo.engines import mtplx
+
+    starts = []
+    monkeypatch.setattr(
+        mtplx, "ensure_running", lambda: starts.append(1) or mtplx.base_url()
+    )
+    monkeypatch.setenv("MTPLX_BASE_URL", "http://127.0.0.1:8123/v1")
+    monkeypatch.setenv("EPISODE_PLANNER_MODEL", "DC-episode-planner-LLM")
+
+    model = config.get_newapi_text_pydantic_model(
+        "EPISODE_PLANNER_MODEL", "DC-episode-planner-LLM"
+    )
+
+    assert model.model_name == mtplx.model_id()
+    assert str(model.client.base_url) == "http://127.0.0.1:8123/v1/"
+    assert model.client.api_key == "mtplx"
+    assert starts == []  # construction never starts `mtplx serve`
+
+    async def fake_request(self, *args, **kwargs):
+        return "ok"
+
+    monkeypatch.setattr(OpenAIChatModel, "request", fake_request)
+    assert asyncio.run(model.request([], None, None)) == "ok"
+    assert starts == [1]
+
+
+def test_mtplx_structured_output_uses_json_schema_response_format(monkeypatch):
+    import asyncio
+    import json
+
+    import httpx
+    from pydantic import BaseModel
+    from pydantic_ai import Agent
+
+    import novelvideo.config as config
+
+    requests: list[dict] = []
+
+    class StructuredResult(BaseModel):
+        value: str
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={
+                "id": "chatcmpl-mtplx",
+                "object": "chat.completion",
+                "created": 1,
+                "model": "mtplx-model",
+                "choices": [
+                    {
+                        "index": 0,
+                        "finish_reason": "stop",
+                        "message": {
+                            "role": "assistant",
+                            "content": '{"value":"ok"}',
+                            "reasoning_content": "thinking...",
+                        },
+                    }
+                ],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+            },
+        )
+
+    monkeypatch.setattr(
+        config,
+        "_newapi_text_http_client_factory",
+        lambda *, timeout_seconds: lambda: httpx.AsyncClient(
+            transport=httpx.MockTransport(handler), timeout=timeout_seconds
+        ),
+    )
+    agent = Agent(
+        config.get_newapi_text_pydantic_model("X_MODEL", "DC-x"),
+        output_type=StructuredResult,
+        model_settings=config.get_newapi_structured_output_model_settings(),
+    )
+
+    result = asyncio.run(agent.run("return a structured result"))
+
+    assert result.output == StructuredResult(value="ok")
+    assert requests[0]["response_format"]["type"] == "json_schema"
+    assert "tools" not in requests[0]
+    assert "reasoning_effort" not in requests[0]
+
+
+def test_openrouter_engine_uses_openrouter_url_key_and_model(monkeypatch):
+    import pytest
+
+    import novelvideo.config as config
+
+    monkeypatch.setenv("TEXT_ENGINE", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.delenv("OPENROUTER_MODEL", raising=False)
+    monkeypatch.delenv("MODEL_NAME", raising=False)
+    monkeypatch.setenv("EPISODE_PLANNER_MODEL", "DC-episode-planner-LLM")
+
+    model = config.get_newapi_text_pydantic_model(
+        "EPISODE_PLANNER_MODEL", "DC-episode-planner-LLM"
+    )
+
+    assert str(model.client.base_url) == "https://openrouter.ai/api/v1/"
+    assert model.client.api_key == "or-key"
+    # NewAPI DC-* aliases are ignored; the OpenRouter default applies.
+    assert model.model_name == config.OPENROUTER_DEFAULT_TEXT_MODEL
+
+    monkeypatch.setenv("OPENROUTER_MODEL", "openrouter/qwen/qwen3-32b")
+    assert config.get_newapi_text_model_name("X", "DC-x") == "qwen/qwen3-32b"
+    monkeypatch.setenv("EPISODE_PLANNER_MODEL", "google/gemini-3.5-flash")
+    assert (
+        config.get_newapi_text_model_name("EPISODE_PLANNER_MODEL", "DC-x")
+        == "google/gemini-3.5-flash"
+    )
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "")
+    with pytest.raises(ValueError, match="OPENROUTER_API_KEY"):
+        config.get_newapi_text_pydantic_model("X", "DC-x")
+
+
+def test_unknown_text_engine_is_rejected(monkeypatch):
+    import pytest
+
+    import novelvideo.config as config
+
+    monkeypatch.setenv("TEXT_ENGINE", "newapi")
+    with pytest.raises(ValueError, match="TEXT_ENGINE"):
+        config.get_text_engine()
+
+
+def test_engines_endpoint_returns_statuses(monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from novelvideo import media_catalog
+    from novelvideo.api.routes import model_gateway
+
+    async def fake_status():
+        return {"mtplx": {"available": True, "running": False, "reason": ""}}
+
+    monkeypatch.setattr(media_catalog, "engines_status", fake_status)
+    app = FastAPI()
+    app.include_router(model_gateway.router)
+
+    response = TestClient(app).get("/model-gateway/engines")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "ok": True,
+        "data": {
+            "textEngine": "mtplx",
+            "engines": {"mtplx": {"available": True, "running": False, "reason": ""}},
+        },
+    }

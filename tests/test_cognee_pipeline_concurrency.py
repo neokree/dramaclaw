@@ -642,7 +642,7 @@ def test_init_cognee_does_not_swallow_concurrency_install_failure(monkeypatch):
     monkeypatch.setattr(config, "cognee", SimpleNamespace(config=fake_config))
     monkeypatch.setattr(config, "cognee_gateway_restart_required", lambda: False)
     monkeypatch.setattr(config, "_resolve_llm_provider", lambda: "newapi")
-    monkeypatch.setattr(config, "_resolve_llm_api_key", lambda *_args: "fake-key")
+    monkeypatch.setattr(config, "_effective_newapi_gateway", lambda: ("fake-key", "u"))
     monkeypatch.setattr(config, "_apply_llm_env", lambda *_args: None)
     monkeypatch.setattr(
         config,

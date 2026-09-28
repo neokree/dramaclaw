@@ -1099,7 +1099,7 @@ class FreezoneVideoGenRequest(BaseModel):
         description="Seedance 2.0 Value 系列的场景风格优化参数",
     )
     model: str = Field(
-        default="newapi_seedance-2.0-fast",
+        default="higgsfield:seedance_2_0?mode=fast",
         description="视频模型名称。请传 `/api/v1/projects/{project}/freezone/video/models` 返回值之一。",
     )
     canvas_id: str = Field(default="", description="可选：来源画布 id，用于记录节点生成历史")
@@ -1155,7 +1155,7 @@ class FreezoneImageToVideoRequest(BaseModel):
         description="Seedance 2.0 Value 系列的场景风格优化参数",
     )
     model: str = Field(
-        default="newapi_seedance-2.0-fast",
+        default="higgsfield:seedance_2_0?mode=fast",
         description="视频模型或模型选项 id。请传 /freezone/video/models 返回值之一",
     )
     canvas_id: str = Field(default="", description="可选：来源画布 id，用于记录节点生成历史")
@@ -1215,7 +1215,7 @@ class FreezoneKeyframeVideoRequest(BaseModel):
         description="Seedance 2.0 Value 系列的场景风格优化参数",
     )
     model: str = Field(
-        default="newapi_seedance-2.0-fast",
+        default="higgsfield:seedance_2_0?mode=fast",
         description="视频模型或模型选项 id。请传 /freezone/video/models 返回值之一",
     )
     canvas_id: str = Field(default="", description="可选：来源画布 id，用于记录节点生成历史")
@@ -1264,7 +1264,7 @@ class FreezoneVideoEditRequest(BaseModel):
         description="是否开启真人素材审核/加白流程",
     )
     model: str = Field(
-        default="newapi_happyhorse-1.0",
+        default="higgsfield:seedance_2_5",
         description="视频模型或模型选项 id。请传 /freezone/video/models 返回值之一",
     )
     canvas_id: str = Field(default="", description="可选：来源画布 id，用于记录节点生成历史")
@@ -1297,7 +1297,7 @@ class FreezoneVideoExtendRequest(BaseModel):
         description="是否开启真人素材审核/加白流程",
     )
     model: str = Field(
-        default="newapi_seedance-2.5",
+        default="higgsfield:seedance_2_5",
         description="视频模型或模型选项 id。请传 /freezone/video/models 返回值之一",
     )
     canvas_id: str = Field(default="", description="可选：来源画布 id，用于记录节点生成历史")
@@ -1467,7 +1467,7 @@ class FreezoneVideoOmniGenRequest(BaseModel):
         description="Seedance 2.0 Value 系列的场景风格优化参数",
     )
     model: str = Field(
-        default="newapi_seedance-2.0-fast",
+        default="higgsfield:seedance_2_0?mode=fast",
         description="视频模型或模型选项 id。请传 /freezone/video/models 返回值之一",
     )
     canvas_id: str = Field(default="", description="可选：来源画布 id，用于记录节点生成历史")

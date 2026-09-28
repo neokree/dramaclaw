@@ -7,12 +7,10 @@ from pathlib import Path
 
 SOURCE_ROOT = Path("src/novelvideo")
 
-# The helper composes the narrow predicate; R2 keeps its narrow renderer first;
-# video keeps two guarded redaction-boundary calls.
+# The helper composes the narrow predicate; R2 keeps its narrow renderer first.
 ALLOWED_POSITIONAL_CALLS = {
     Path("shared/billing_errors.py"): 1,
     Path("task_backend/run_core.py"): 1,
-    Path("generators/video_generator.py"): 2,
 }
 
 

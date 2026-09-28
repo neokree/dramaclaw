@@ -800,6 +800,7 @@ def _freezone_task_cases(client: TestClient, assets: SimpleNamespace):
     ]
 
 
+@pytest.mark.usefixtures("higgsfield_catalog")
 @pytest.mark.parametrize("backend", ["inline", "celery"])
 def test_m06_freezone_task_backend_responses_are_ce_ee_isomorphic(
     m06_client_factory, backend: str

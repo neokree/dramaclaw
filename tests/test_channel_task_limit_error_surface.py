@@ -366,6 +366,7 @@ def _post_omni_gen(client: TestClient):
     ],
     ids=["channel", "platform", "user"],
 )
+@pytest.mark.usefixtures("higgsfield_catalog")
 def test_new_limit_exceptions_are_not_downgraded_to_503_on_real_route(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -411,6 +412,7 @@ def test_new_limit_exceptions_are_not_downgraded_to_503_on_real_route(
     ],
     ids=["project", "project_user", "global_lane_queue"],
 )
+@pytest.mark.usefixtures("higgsfield_catalog")
 def test_existing_limit_exceptions_are_not_downgraded_to_503_on_real_route(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

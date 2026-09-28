@@ -234,7 +234,7 @@ class HiggsfieldVideoGenerator(VideoGeneratorBase):
         usage_dir = kwargs.get("project_output_dir")
         accepted: list[str] = []
 
-        def on_accepted(job_id: str, credits: float) -> None:
+        def on_accepted(job_id: str, credits: float | None) -> None:
             accepted.append(job_id)
             _track_usage(
                 usage_dir, "accepted", job_id,
@@ -428,6 +428,25 @@ def video_backend_catalog() -> list[dict[str, Any]]:
 
 def video_backend_options() -> dict[str, str]:
     return {item["backend"]: item["label"] for item in video_backend_catalog()}
+
+
+async def video_quote(
+    backend: VideoBackend | str | None,
+    *,
+    duration: float,
+    resolution: str | None = None,
+    generate_audio: bool | None = None,
+) -> float:
+    """Credits one video costs: Higgsfield's own price, 0 for local engines."""
+    engine, model = video_engine(backend)
+    if engine != VideoBackend.HIGGSFIELD.value:
+        return 0.0
+    return await higgsfield.quote(
+        model,
+        duration=duration,
+        resolution=resolution or higgsfield.video_resolution(),
+        generate_audio=generate_audio,
+    )
 
 
 def create_video_generator(

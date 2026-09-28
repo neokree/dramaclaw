@@ -163,6 +163,8 @@ def models(kind: str | None = None) -> list[dict[str, str]]:
 
 
 def schema(job_type: str) -> dict[str, Any]:
+    """Schema of a model; a model ref's preset (`kling3_0?mode=pro`) is ignored."""
+    job_type = parse_model_ref(job_type)[0]
     if not re.fullmatch(r"[a-z0-9_]+", job_type or ""):
         raise EngineError(f"Modello Higgsfield non valido: {job_type!r}")
     return _cached(f"model-{job_type}", ["model", "get", job_type])
@@ -483,13 +485,14 @@ async def generate(
     video_refs: Iterable[str] = (),
     audio_refs: Iterable[str] = (),
     wait_timeout: str = "60m",
-    on_accepted: Callable[[str, float], None] | None = None,
+    on_accepted: Callable[[str, float | None], None] | None = None,
 ) -> tuple[Path, str]:
     """Create (or reattach to) one job and download its result to `output_path`.
 
     `params` may be adjusted in place (duration moved inside the model's bounds).
-    `on_accepted(job_id, credits)` runs once, right after a new job is paid for;
-    a reattached job was already reported when it was created.
+    `on_accepted(job_id, credits)` runs right after a new job is paid for, and
+    again with `credits=None` when a pending job is reattached (the ledger
+    ignores a job id it already has).
     Returns `(output_path, job_id)`.
     """
     out = Path(output_path)
@@ -498,6 +501,7 @@ async def generate(
 
     media = _media(start_image, end_image, list(refs), list(video_refs), list(audio_refs))
     job_id = pending.read_text().strip() if pending.exists() else ""
+    price: float | None = None
     if not job_id:
         account = await status()
         if not account["available"]:
@@ -525,8 +529,8 @@ async def generate(
         tmp = pending.with_name(pending.name + ".tmp")
         tmp.write_text(job_id)
         os.replace(tmp, pending)
-        if on_accepted:
-            on_accepted(job_id, price)
+    if on_accepted:
+        on_accepted(job_id, price)
 
     state, url = _outcome(await _json(["generate", "get", job_id]))
     if state == "running":
@@ -553,9 +557,9 @@ async def generate(
     return out, job_id
 
 
-async def generate_with_schema(
-    model: str,
-    output_path: str | Path,
+def shape_request(
+    model_schema: dict[str, Any],
+    preset: dict[str, Any],
     *,
     prompt: str,
     aspect_ratio: str | None = None,
@@ -568,25 +572,18 @@ async def generate_with_schema(
     refs: Iterable[str] = (),
     video_refs: Iterable[str] = (),
     audio_refs: Iterable[str] = (),
-    on_accepted: Callable[[str, float], None] | None = None,
-) -> tuple[Path, str, dict[str, Any], list[str]]:
-    """Shape a request to a model's schema (plus its preset) and run it.
-
-    `model` is a model ref: `job_type` or `job_type?param=value`.
-    Returns `(output_path, job_id, params sent, notes on dropped inputs)`.
-    """
-    job_type, preset = parse_model_ref(model)
-    sch = await asyncio.to_thread(schema, job_type)
+) -> tuple[dict[str, Any], dict[str, Any], list[str]]:
+    """-> (params, media kwargs, notes): one request shaped to the model and its preset."""
     params = shape_params(
-        sch, prompt=prompt, aspect_ratio=aspect_ratio, duration=duration,
+        model_schema, prompt=prompt, aspect_ratio=aspect_ratio, duration=duration,
         resolution=resolution, generate_audio=generate_audio,
         extra={**(extra or {}), **preset},
     )
     media, notes = shape_media(
-        sch, start_image=start_image, end_image=end_image,
+        model_schema, start_image=start_image, end_image=end_image,
         refs=refs, video_refs=video_refs, audio_refs=audio_refs,
     )
-    mode_spec = param_specs(sch).get("mode") or {}
+    mode_spec = param_specs(model_schema).get("mode") or {}
     if "mode" not in preset and "mode" not in (extra or {}):
         auto = _auto_mode(
             mode_spec.get("enum") or [],
@@ -598,7 +595,34 @@ async def generate_with_schema(
     if params.get("mode") == "fast" and params.get("resolution") in ("1080p", "4k"):
         params["resolution"] = "720p"  # Seedance 2.0 fast renders 480p/720p only
         notes.append("risoluzione portata a 720p: la modalità fast non va oltre")
+    return params, media, notes
+
+
+async def generate_with_schema(
+    model: str,
+    output_path: str | Path,
+    *,
+    on_accepted: Callable[[str, float | None], None] | None = None,
+    **request: Any,
+) -> tuple[Path, str, dict[str, Any], list[str]]:
+    """Shape a request to a model's schema (plus its preset) and run it.
+
+    `model` is a model ref: `job_type` or `job_type?param=value`; `request` is
+    what `shape_request` takes. Returns `(output_path, job_id, params sent,
+    notes on dropped inputs)`.
+    """
+    job_type, preset = parse_model_ref(model)
+    sch = await asyncio.to_thread(schema, job_type)
+    params, media, notes = shape_request(sch, preset, **request)
     out, job_id = await generate(
         job_type, params, output_path, on_accepted=on_accepted, **media
     )
     return out, job_id, params, notes
+
+
+async def quote(model: str, **request: Any) -> float:
+    """Credits one job would cost (`generate cost`: read-only, nothing is paid)."""
+    job_type, preset = parse_model_ref(model)
+    sch = await asyncio.to_thread(schema, job_type)
+    params, media, _ = shape_request(sch, preset, prompt="quote", **request)
+    return await _cost(job_type, params, _media(**media))

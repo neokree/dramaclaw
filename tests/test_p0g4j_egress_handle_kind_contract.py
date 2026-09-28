@@ -189,7 +189,7 @@ def test_operation_key_ignores_handle_kind() -> None:
 
 
 def test_every_claim_site_declares_a_handle_kind() -> None:
-    """8 个生产构造点逐个显式声明；新增一个不声明的即红。
+    """7 个生产构造点逐个显式声明；新增一个不声明的即红。
 
     只认字面量 `HandleKind.X`：间接取值等于把类别推迟到运行期，那就没法在这里看出
     它到底声明了什么。
@@ -215,7 +215,7 @@ def test_every_claim_site_declares_a_handle_kind() -> None:
             ), f"{site} 的 handle_kind 不是 HandleKind 字面量"
             declared[site] = value.attr
 
-    assert len(declared) == 8, declared
+    assert len(declared) == 7, declared
 
 
 @pytest.mark.asyncio

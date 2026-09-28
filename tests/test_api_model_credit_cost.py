@@ -989,7 +989,7 @@ async def test_generation_credit_cost_route_keeps_video_params_and_quantity(
         monkeypatch,
         model_credits,
         expected_kind="video",
-        expected_model="seedance-1.0-pro-fast",
+        expected_model="higgsfield:seedance_2_0?mode=fast",
         expected_params={"resolution": "720p", "video_input": "none"},
         expected_quantity=5,
         cost=25,
@@ -997,7 +997,7 @@ async def test_generation_credit_cost_route_keeps_video_params_and_quantity(
 
     result = await model_credits.get_generation_credit_cost(
         kind="video_backend",
-        value="newapi_seedance-1.0-pro-fast",
+        value="higgsfield:seedance_2_0?mode=fast",
         params='{"resolution":"720p"}',
         quantity=5,
         user={"user_id": "usr_1"},
@@ -1019,14 +1019,14 @@ async def test_generation_credit_cost_route_prices_video_feature_by_backend_and_
         expected_model="mainline.beat_video_generation",
         expected_params={
             "pricing_kind": "video",
-            "pricing_model": "seedance-1.0-pro-fast",
-            "pricing_model_selection": "newapi_seedance-1.0-pro-fast",
+            "pricing_model": "higgsfield:seedance_2_0?mode=fast",
+            "pricing_model_selection": "higgsfield:seedance_2_0?mode=fast",
             "pricing_params": {"resolution": "720p", "video_input": "none"},
             "pricing_quantity": 5,
             "video_input_present": False,
             "input_video_duration_seconds": 0.0,
             "resolution": "720p",
-            "video_backend": "newapi_seedance-1.0-pro-fast",
+            "video_backend": "higgsfield:seedance_2_0?mode=fast",
         },
         expected_quantity=1,
         cost=25,
@@ -1036,7 +1036,7 @@ async def test_generation_credit_cost_route_prices_video_feature_by_backend_and_
         kind="feature",
         value="mainline.beat_video_generation",
         params=(
-            '{"video_backend":"newapi_seedance-1.0-pro-fast",'
+            '{"video_backend":"higgsfield:seedance_2_0?mode=fast",'
             '"resolution":"720p","pricing_quantity":5}'
         ),
         user={"user_id": "usr_1"},
@@ -1047,7 +1047,7 @@ async def test_generation_credit_cost_route_prices_video_feature_by_backend_and_
 
 @pytest.mark.parametrize(
     ("requested_duration", "expected_duration"),
-    [(1, 2), (100, 12)],
+    [(1, 4), (100, 15)],
 )
 def test_single_video_billing_uses_backend_normalized_duration(
     requested_duration,
@@ -1056,7 +1056,7 @@ def test_single_video_billing_uses_backend_normalized_duration(
     from novelvideo.api.routes.generation import _single_video_billing_metadata
 
     billing = _single_video_billing_metadata(
-        "newapi_seedance-1.0-pro-fast",
+        "higgsfield:seedance_2_0?mode=fast",
         resolution="720p",
         duration=requested_duration,
     )
@@ -1071,14 +1071,14 @@ def test_video_feature_billing_ignores_client_pricing_model_override():
 
     billing = _video_backend_feature_billing_params(
         {
-            "video_backend": "newapi_seedance-1.0-pro-fast",
+            "video_backend": "higgsfield:seedance_2_0?mode=fast",
             "pricing_model": "attacker-cheap-model",
             "pricing_quantity": 100,
         }
     )
 
-    assert billing["pricing_model"] == "seedance-1.0-pro-fast"
-    assert billing["pricing_quantity"] == 12
+    assert billing["pricing_model"] == "higgsfield:seedance_2_0?mode=fast"
+    assert billing["pricing_quantity"] == 15
 
 
 def test_video_feature_billing_combines_output_with_total_input_duration():
@@ -1088,7 +1088,7 @@ def test_video_feature_billing_combines_output_with_total_input_duration():
 
     billing = _video_backend_feature_billing_params(
         {
-            "video_backend": "newapi_seedance-2.0",
+            "video_backend": "higgsfield:seedance_2_0?mode=fast",
             "resolution": "720p",
             "pricing_quantity": 12,
             "video_input_present": True,
@@ -1123,15 +1123,15 @@ async def test_generation_credit_cost_route_prices_freezone_video_generate_by_fe
         expected_kind="feature",
         expected_model="freezone.video_generate",
         expected_params={
-            "video_backend": "newapi_seedance-1.0-pro-fast",
+            "video_backend": "higgsfield:seedance_2_0?mode=fast",
             "resolution": "1080p",
-            "pricing_quantity": 12,
+            "pricing_quantity": 15,
             "operation": "imageToVideo",
             "generate_audio": True,
             "pricing_kind": "video",
-            "pricing_model": "seedance-1.0-pro-fast",
+            "pricing_model": "higgsfield:seedance_2_0?mode=fast",
             "pricing_params": {"resolution": "1080p", "video_input": "none"},
-            "pricing_model_selection": "newapi_seedance-1.0-pro-fast",
+            "pricing_model_selection": "higgsfield:seedance_2_0?mode=fast",
             "video_input_present": False,
             "input_video_duration_seconds": 0.0,
         },
@@ -1144,7 +1144,7 @@ async def test_generation_credit_cost_route_prices_freezone_video_generate_by_fe
         surface="canvas",
         value="freezone.video_generate",
         params=(
-            '{"video_backend":"newapi_seedance-1.0-pro-fast",'
+            '{"video_backend":"higgsfield:seedance_2_0?mode=fast",'
             '"resolution":"1080p","pricing_quantity":16,'
             '"operation":"imageToVideo","generate_audio":true}'
         ),
@@ -1178,7 +1178,7 @@ async def test_generation_credit_cost_route_prices_video_batch_by_calls_and_tota
         surface="canvas",
         value="freezone.video_generate",
         params=(
-            '{"video_backend":"newapi_seedance-1.0-pro-fast",'
+            '{"video_backend":"higgsfield:seedance_2_0?mode=fast",'
             '"resolution":"720p","pricing_quantity":15}'
         ),
         quantity=3,
@@ -1236,89 +1236,16 @@ async def test_generation_credit_cost_route_resolves_newapi_video_backend(monkey
     from novelvideo.api.routes import model_credits
 
     patch_quote(
-        monkeypatch, model_credits, expected_model="seedance-1.0-pro-fast", cost=12
+        monkeypatch, model_credits, expected_model="higgsfield:seedance_2_0?mode=fast", cost=12
     )
 
     result = await model_credits.get_generation_credit_cost(
         kind="video_backend",
-        value="newapi_seedance-1.0-pro-fast",
+        value="higgsfield:seedance_2_0?mode=fast",
         user={"user_id": "usr_1"},
     )
 
     assert result == {"ok": True, "data": {"cost": 12, "display": "12"}}
-
-
-@pytest.mark.asyncio
-async def test_generation_credit_cost_route_resolves_newapi_video_backend_label(
-    monkeypatch,
-):
-    from novelvideo.api.routes import model_credits
-    from novelvideo.generators.video_generator import newapi_video_backend_options
-
-    patch_quote(
-        monkeypatch, model_credits, expected_model="seedance-1.0-pro-fast", cost=12
-    )
-
-    result = await model_credits.get_generation_credit_cost(
-        kind="video_backend",
-        value=newapi_video_backend_options()["newapi_seedance-1.0-pro-fast"],
-        user={"user_id": "usr_1"},
-    )
-
-    assert result == {"ok": True, "data": {"cost": 12, "display": "12"}}
-
-
-@pytest.mark.asyncio
-async def test_generation_credit_cost_route_resolves_huimeng_video_backend(monkeypatch):
-    from novelvideo.api.routes import model_credits
-
-    patch_quote(monkeypatch, model_credits, expected_model="seedance-2.0-fast", cost=15)
-
-    result = await model_credits.get_generation_credit_cost(
-        kind="video_backend",
-        value="huimeng_seedance-2.0-fast",
-        user={"user_id": "usr_1"},
-    )
-
-    assert result == {"ok": True, "data": {"cost": 15, "display": "15"}}
-
-
-@pytest.mark.asyncio
-async def test_generation_credit_cost_route_resolves_huimeng_video_backend_label(
-    monkeypatch,
-):
-    from novelvideo.api.routes import model_credits
-    from novelvideo.generators.huimengi import huimeng_video_backend_options
-
-    patch_quote(monkeypatch, model_credits, expected_model="seedance-2.0-fast", cost=15)
-
-    result = await model_credits.get_generation_credit_cost(
-        kind="video_backend",
-        value=huimeng_video_backend_options()["huimeng_seedance-2.0-fast"],
-        user={"user_id": "usr_1"},
-    )
-
-    assert result == {"ok": True, "data": {"cost": 15, "display": "15"}}
-
-
-@pytest.mark.asyncio
-async def test_generation_credit_cost_route_keeps_legacy_video_backend_values(
-    monkeypatch,
-):
-    from novelvideo import config
-    from novelvideo.api.routes import model_credits
-
-    monkeypatch.setattr(config, "SEEDANCE_FAST_MODEL", "doubao-fast")
-
-    patch_quote(monkeypatch, model_credits, expected_model="doubao-fast", cost=10)
-
-    result = await model_credits.get_generation_credit_cost(
-        kind="video_backend",
-        value="seedance_fast",
-        user={"user_id": "usr_1"},
-    )
-
-    assert result == {"ok": True, "data": {"cost": 10, "display": "10"}}
 
 
 @pytest.mark.asyncio
@@ -1334,36 +1261,6 @@ async def test_generation_credit_cost_route_rejects_unknown_image_selection():
 
     assert exc_info.value.status_code == 400
     assert exc_info.value.detail == "invalid image selection"
-
-
-@pytest.mark.asyncio
-async def test_generation_credit_cost_route_rejects_unknown_video_backend():
-    from novelvideo.api.routes import model_credits
-
-    with pytest.raises(HTTPException) as exc_info:
-        await model_credits.get_generation_credit_cost(
-            kind="video_backend",
-            value="unknown_video_backend",
-            user={"user_id": "usr_1"},
-        )
-
-    assert exc_info.value.status_code == 400
-    assert exc_info.value.detail == "invalid video backend"
-
-
-@pytest.mark.asyncio
-async def test_generation_credit_cost_route_rejects_removed_wan26_backend():
-    from novelvideo.api.routes import model_credits
-
-    with pytest.raises(HTTPException) as exc_info:
-        await model_credits.get_generation_credit_cost(
-            kind="video_backend",
-            value="wan26",
-            user={"user_id": "usr_1"},
-        )
-
-    assert exc_info.value.status_code == 400
-    assert exc_info.value.detail == "invalid video backend"
 
 
 @pytest.mark.asyncio
@@ -1383,3 +1280,54 @@ async def test_generation_credit_cost_route_rejects_unconfigured_fixed_image_mod
 
     assert exc_info.value.status_code == 400
     assert exc_info.value.detail == "generation model is not configured"
+
+
+@pytest.mark.asyncio
+async def test_generation_credit_cost_route_maps_retired_video_backends_to_default(
+    monkeypatch,
+):
+    from novelvideo.api.routes import model_credits
+
+    patch_quote(monkeypatch, model_credits, expected_model="higgsfield:seedance_2_0?mode=fast", cost=0)
+    for retired in ("huimeng_seedance-2.0-fast", "seedance_fast", "wan26"):
+        result = await model_credits.get_generation_credit_cost(
+            kind="video_backend", value=retired, user={"user_id": "usr_1"}
+        )
+        assert result["data"]["cost"] == 0
+
+
+@pytest.mark.asyncio
+async def test_ce_quote_prices_higgsfield_video_with_its_own_credits(monkeypatch):
+    from novelvideo.engines import higgsfield
+    from novelvideo.ports.local.credit_quote import LocalCreditQuote
+
+    calls = []
+
+    async def fake_quote(model, **request):
+        calls.append((model, request))
+        return 7.5
+
+    monkeypatch.setattr(higgsfield, "quote", fake_quote)
+    quote = LocalCreditQuote()
+    video = await quote.generation_credit_quote(
+        kind="feature",
+        model="freezone.video_generate",
+        params={
+            "pricing_kind": "video",
+            "pricing_model": "higgsfield:kling3_0?mode=pro",
+            "pricing_params": {"resolution": "720p"},
+            "pricing_metrics": {"call_count": 2, "output_duration_seconds": 10},
+            "generate_audio": True,
+        },
+        quantity=2,
+        product_surface="freezone",
+    )
+    local = await quote.generation_credit_quote(
+        kind="video", model="h3c", params={}, quantity=5, product_surface="mainline"
+    )
+
+    assert (video.total_cost, video.display, video.quantity) == (15, "15", 2)
+    assert calls == [
+        ("kling3_0?mode=pro", {"duration": 5, "resolution": "720p", "generate_audio": True})
+    ]
+    assert local.total_cost == 0

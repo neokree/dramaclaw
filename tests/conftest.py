@@ -32,6 +32,37 @@ def never_start_mtplx(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_real_video_engines(monkeypatch, tmp_path_factory):
+    """Tests never reach the Higgsfield CLI or h3.c: paid jobs must be mocked."""
+    missing = str(tmp_path_factory.getbasetemp() / "missing-engine-binary")
+    monkeypatch.setenv("HIGGSFIELD_BINARY", missing)
+    monkeypatch.setenv("H3C_BINARY", missing)
+    monkeypatch.setenv("HIGGSFIELD_CACHE_DIR", str(tmp_path_factory.getbasetemp() / "higgsfield-cache"))
+    for name in ("VIDEO_BACKEND", "HIGGSFIELD_VIDEO_MODEL", "HIGGSFIELD_VIDEO_MODE"):
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture
+def higgsfield_catalog(monkeypatch, tmp_path):
+    """Serve the real model schemas in tests/fixtures/higgsfield from the CLI cache."""
+    import json
+    from pathlib import Path
+
+    cache = tmp_path / "higgsfield-catalog"
+    cache.mkdir()
+    models = []
+    for path in sorted((Path(__file__).parent / "fixtures" / "higgsfield").glob("*.json")):
+        schema = json.loads(path.read_text())
+        (cache / f"model-{schema['job_type']}.json").write_text(path.read_text())
+        models.append(
+            {k: schema[k] for k in ("job_type", "display_name", "type")}
+        )
+    (cache / "models.json").write_text(json.dumps(models))
+    monkeypatch.setenv("HIGGSFIELD_CACHE_DIR", str(cache))
+    return cache
+
+
+@pytest.fixture(autouse=True)
 async def close_sqlite_stores_created_by_test(monkeypatch):
     from novelvideo.sqlite_store import SQLiteStore
 

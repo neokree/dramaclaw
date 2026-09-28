@@ -370,7 +370,6 @@ def test_seedance2_package_exports_video_helpers():
         "Seedance2I2VMode",
         "Seedance2VideoConfig",
         "Seedance2ResolvedAsset",
-        "build_seedance2_huimeng_params",
         "build_seedance2_project_assets",
         "build_seedance2_asset_manifest",
         "build_seedance2_prompt_draft",

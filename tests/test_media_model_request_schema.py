@@ -4,7 +4,6 @@ from novelvideo.media_model_request_schema import (
     MediaModelSchemaError,
     apply_media_request_schema,
     enforce_newapi_media_geometry_contract,
-    enforce_newapi_video_duration_contract,
     media_request_schema_for_mode,
     normalize_media_model_catalog_config,
     normalize_media_model_mode,
@@ -126,114 +125,6 @@ def test_fixed_ratio_is_preserved_without_dimensions():
 
     assert result == {
         "metadata": {"ratio": "16:9", "resolution": "2k"},
-    }
-
-
-@pytest.mark.parametrize(
-    ("raw_duration", "expected"),
-    [("auto", "auto"), ("AUTO", "auto"), ("5", 5), (5.5, 5.5)],
-)
-def test_normalizes_generic_newapi_video_duration(raw_duration, expected):
-    result = enforce_newapi_video_duration_contract(
-        {"seconds": raw_duration, "model": "video-model"}
-    )
-
-    assert result == {"duration": expected, "model": "video-model"}
-
-
-def test_model_schema_can_override_numeric_video_duration_with_auto():
-    schema = {
-        "endpoint": "video/generations",
-        "parameters": [
-            {
-                "key": "duration_mode",
-                "label": "输出时长",
-                "control": "select",
-                "requestPath": "duration",
-                "options": ["auto"],
-                "default": "auto",
-            }
-        ],
-    }
-
-    configured = apply_media_request_schema(
-        {"model": "video-model", "duration": 5}, schema, {}
-    )
-    result = enforce_newapi_video_duration_contract(configured)
-
-    assert result == {"model": "video-model", "duration": "auto"}
-
-
-def test_video_edit_forces_auto_geometry_and_duration_after_model_parameters():
-    from novelvideo.media_model_request_schema import (
-        enforce_newapi_video_mode_contract,
-    )
-
-    result = enforce_newapi_video_mode_contract(
-        {
-            "model": "video-model",
-            "duration": 5,
-            "width": 1280,
-            "height": 720,
-            "metadata": {"ratio": "16:9", "resolution": "720p"},
-        },
-        mode="videoEdit",
-    )
-
-    assert result == {
-        "model": "video-model",
-        "duration": "auto",
-        "metadata": {
-            "ratio": "auto",
-            "resolution": "720p",
-            "omni_reference_task_type": "edit",
-        },
-    }
-
-
-def test_non_edit_mode_rejects_model_parameter_auto_duration():
-    from novelvideo.media_model_request_schema import (
-        enforce_newapi_video_mode_contract,
-    )
-
-    result = enforce_newapi_video_mode_contract(
-        {"model": "video-model", "duration": "auto"},
-        mode="allReference",
-        fixed_duration=8,
-    )
-
-    assert result == {
-        "model": "video-model",
-        "duration": 8,
-        "metadata": {"omni_reference_task_type": "reference"},
-    }
-
-
-def test_video_extend_forces_auto_geometry_but_keeps_requested_duration():
-    from novelvideo.media_model_request_schema import (
-        enforce_newapi_video_mode_contract,
-    )
-
-    result = enforce_newapi_video_mode_contract(
-        {
-            "model": "video-model",
-            "duration": "auto",
-            "width": 1280,
-            "height": 720,
-            "metadata": {"ratio": "16:9", "resolution": "720p"},
-        },
-        mode="videoExtend",
-        fixed_duration=7,
-    )
-
-    assert result == {
-        "model": "video-model",
-        "duration": 7,
-        "metadata": {
-            "ratio": "auto",
-            "resolution": "720p",
-            "omni_reference_task_type": "extend",
-        },
     }
 
 

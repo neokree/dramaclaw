@@ -7936,6 +7936,20 @@ def _catalog_entry_identifiers(entry: dict[str, Any]) -> set[str]:
     return {identifier for identifier in identifiers if identifier}
 
 
+def _find_catalog_entry(
+    media_type: str, catalog: list[dict[str, Any]] | None, requested: str
+) -> dict[str, Any] | None:
+    """Catalog row for an id; a retired video id (newapi_*, ...) means the default."""
+    candidates = [requested]
+    if media_type == "video" and requested:
+        candidates.append(resolve_freezone_video_backend(requested))
+    for candidate in candidates:
+        for item in catalog or []:
+            if candidate in _catalog_entry_identifiers(item):
+                return item
+    return None
+
+
 def _catalog_entry_id(entry: dict[str, Any] | None) -> str:
     if not entry:
         return ""
@@ -7990,14 +8004,7 @@ async def _resolve_catalog_request(
         if requester_user_id is not None
         else await _ee_media_model_catalog(media_type)
     )
-    entry = next(
-        (
-            item
-            for item in catalog or []
-            if requested in _catalog_entry_identifiers(item)
-        ),
-        None,
-    )
+    entry = _find_catalog_entry(media_type, catalog, requested)
     if entry is None:
         # In EE the catalog is authoritative. Never fall back to CE's static
         # model map when no enabled model matches the submitted identifier.
@@ -8293,9 +8300,9 @@ async def _resolve_catalog_video_backend(
             if requester_user_id is not None
             else await _ee_media_model_catalog("video")
         )
-        for entry in catalog or []:
-            if requested in _catalog_entry_identifiers(entry):
-                return str(entry.get("apiModel") or requested)
+        entry = _find_catalog_entry("video", catalog, requested)
+        if entry is not None:
+            return str(entry.get("apiModel") or requested)
     return resolve_freezone_video_backend(model)
 
 

@@ -423,6 +423,7 @@ def _patch_runtime_error_enqueue(
     monkeypatch.setattr(freezone_routes, "get_task_backend", lambda: SimpleNamespace(enqueue_project_task=fake_enqueue_project_task))
 
 
+@pytest.mark.usefixtures("higgsfield_catalog")
 @pytest.mark.asyncio
 async def test_freezone_omni_video_limit_exception_bubbles_to_global_handler(
     monkeypatch: pytest.MonkeyPatch,
@@ -441,6 +442,7 @@ async def test_freezone_omni_video_limit_exception_bubbles_to_global_handler(
     assert exc.value.queue_kind == "video"
 
 
+@pytest.mark.usefixtures("higgsfield_catalog")
 def test_freezone_omni_video_limit_returns_429_envelope_through_asgi(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -518,7 +520,8 @@ async def test_freezone_reverse_prompt_limit_exception_bubbles_to_global_handler
 
 
 @pytest.mark.asyncio
-async def test_freezone_video_omni_gen_rejects_happyhorse_model(
+@pytest.mark.usefixtures("higgsfield_catalog")
+async def test_freezone_video_omni_gen_rejects_model_without_references(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -529,7 +532,7 @@ async def test_freezone_video_omni_gen_rejects_happyhorse_model(
             project="58",
             body=freezone_routes.FreezoneVideoOmniGenRequest(
                 prompt="雨夜街头，人物缓慢回头。",
-                model="newapi_happyhorse-1.0",
+                model="higgsfield:kling3_0?mode=pro",
             ),
             user={"username": "admin"},
         )
@@ -546,6 +549,7 @@ def _audio_reference(project_dir: Path, name: str) -> dict[str, str]:
     return {"type": "audio", "url": f"/static/admin/58/freezone/_uploads/{name}"}
 
 
+@pytest.mark.usefixtures("higgsfield_catalog")
 @pytest.mark.asyncio
 async def test_freezone_video_omni_gen_rejects_audio_total_duration(
     monkeypatch: pytest.MonkeyPatch,
@@ -578,6 +582,7 @@ async def test_freezone_video_omni_gen_rejects_audio_total_duration(
     assert "got 18s" in str(exc.value.detail)
 
 
+@pytest.mark.usefixtures("higgsfield_catalog")
 @pytest.mark.asyncio
 async def test_freezone_video_omni_gen_allows_audio_within_total_duration(
     monkeypatch: pytest.MonkeyPatch,
@@ -608,6 +613,7 @@ async def test_freezone_video_omni_gen_allows_audio_within_total_duration(
     assert exc.value.status_code == 503
 
 
+@pytest.mark.usefixtures("higgsfield_catalog")
 @pytest.mark.asyncio
 async def test_freezone_video_omni_gen_skips_unprobeable_audio(
     monkeypatch: pytest.MonkeyPatch,
@@ -694,7 +700,7 @@ async def test_freezone_video_omni_gen_skips_duration_guard_for_unknown_model(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """边界未知的模型（这里是 seedance-1.5-pro，由目录打开 all_reference）不套 2.0 的数字。
+    """边界未知的模型（这里是 h3c，由目录打开 all_reference）不套 2.0 的数字。
 
     1.8~15.2s 是从 2.0 的报文里实测出来的，别人家的模型凭空 400 比漏拦更糟；要卡就在
     目录里配 referenceAudioTotalMaxSeconds 显式声明。
@@ -705,8 +711,8 @@ async def test_freezone_video_omni_gen_skips_duration_guard_for_unknown_model(
         {
             "catalogId": "cat-other",
             "id": "cat-other",
-            "apiModel": "newapi_seedance-1.5-pro",
-            "providerId": "newapi",
+            "apiModel": "h3c",
+            "providerId": "h3c",
             "supportedModes": ["all_reference"],
         },
     )
@@ -749,8 +755,8 @@ async def test_freezone_video_omni_gen_catalog_total_does_not_apply_per_clip_bou
         {
             "catalogId": "cat-long",
             "id": "cat-long",
-            "apiModel": "newapi_seedance-1.5-pro",
-            "providerId": "newapi",
+            "apiModel": "h3c",
+            "providerId": "h3c",
             "supportedModes": ["all_reference"],
             "referenceAudioTotalMaxSeconds": 60,
         },
@@ -897,6 +903,7 @@ async def test_probe_reference_audio_seconds_returns_none_when_probe_fails(
     assert await freezone_routes._probe_reference_audio_seconds(str(broken)) is None
 
 
+@pytest.mark.usefixtures("higgsfield_catalog")
 @pytest.mark.asyncio
 async def test_freezone_video_start_runtime_error_is_logged(
     monkeypatch: pytest.MonkeyPatch,
@@ -983,7 +990,7 @@ async def test_freezone_video_generation_enqueues_feature_billing(
         generate_audio=True,
         human_review=False,
         scene_optimize=None,
-        backend="newapi_seedance-1.0-pro-fast",
+        backend="higgsfield:seedance_2_0?mode=fast",
         gen_mode="image_reference",
         requested_gen_mode="imageToVideo",
     )
@@ -993,13 +1000,13 @@ async def test_freezone_video_generation_enqueues_feature_billing(
     assert captured["queue_kind"] == "video"
     assert captured["payload"]["billing"] == {
         "feature_key": "freezone.video_generate",
-        "video_backend": "newapi_seedance-1.0-pro-fast",
+        "video_backend": "higgsfield:seedance_2_0?mode=fast",
         "resolution": "1080p",
         "pricing_quantity": 8,
         "operation": "imageToVideo",
         "generate_audio": True,
         "pricing_kind": "video",
-        "pricing_model": "seedance-1.0-pro-fast",
+        "pricing_model": "higgsfield:seedance_2_0?mode=fast",
         "pricing_params": {"resolution": "1080p", "video_input": "none"},
         "pricing_metrics": {
             "call_count": 1,
@@ -1009,7 +1016,7 @@ async def test_freezone_video_generation_enqueues_feature_billing(
             "input_video_duration_ms": 0,
             "input_video_billed_seconds": 0,
         },
-        "pricing_model_selection": "newapi_seedance-1.0-pro-fast",
+        "pricing_model_selection": "higgsfield:seedance_2_0?mode=fast",
         "video_input_present": False,
         "input_video_duration_seconds": 0.0,
     }

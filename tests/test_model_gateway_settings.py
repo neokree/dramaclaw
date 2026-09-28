@@ -46,10 +46,6 @@ from novelvideo.model_gateway_settings import (
     set_model_gateway_mode,
 )
 from novelvideo.model_gateway_runtime import refresh_model_gateway_runtime
-from novelvideo.generators.video_generator import (
-    NewApiVideoGenerator,
-    newapi_video_backend_options,
-)
 from novelvideo.newapi_provisioner import (
     _merge_channel_payload,
     AdminToken,
@@ -439,66 +435,6 @@ def test_hybrid_mode_uses_official_gateway_by_default(monkeypatch, tmp_path):
     assert effective.api_key == "sk-official-secret"
 
 
-def test_hybrid_video_routes_only_comfyui_models_to_local_gateway(
-    monkeypatch, tmp_path
-):
-    _isolate_settings_db(monkeypatch, tmp_path)
-    save_custom_newapi_gateway(
-        base_url="http://127.0.0.1:3000",
-        api_key="sk-custom-secret",
-        activate=False,
-    )
-    save_official_newapi_key(api_key="sk-official-secret", activate=False)
-    save_newapi_media_model_mappings(
-        {
-            "wan-i2v": {"provider": "comfyui", "upstreamModel": ""},
-            "seedance-2.0": {"provider": "volcengine", "upstreamModel": ""},
-        }
-    )
-    set_model_gateway_mode(MODE_HYBRID)
-
-    local = NewApiVideoGenerator(model="wan-i2v")
-    official = NewApiVideoGenerator(model="seedance-2.0")
-
-    assert local.base_url == "http://127.0.0.1:3000/v1"
-    assert local.api_key == "sk-custom-secret"
-    assert official.api_key == "sk-official-secret"
-    assert newapi_video_backend_options()["newapi_wan-i2v"] == "wan-i2v"
-
-
-def test_newapi_video_backends_only_include_enabled_comfyui_video_models(
-    monkeypatch, tmp_path
-):
-    _isolate_settings_db(monkeypatch, tmp_path)
-    save_newapi_media_model_mappings(
-        {
-            "legacy-video": {"provider": "comfyui"},
-            "enabled-video": {
-                "provider": "comfyui",
-                "mediaType": "video",
-                "enabled": True,
-            },
-            "disabled-video": {
-                "provider": "comfyui",
-                "mediaType": "video",
-                "enabled": False,
-            },
-            "comfy-image": {
-                "provider": "comfyui",
-                "mediaType": "image",
-                "enabled": True,
-            },
-        }
-    )
-
-    options = newapi_video_backend_options()
-
-    assert "newapi_legacy-video" in options
-    assert "newapi_enabled-video" in options
-    assert "newapi_disabled-video" not in options
-    assert "newapi_comfy-image" not in options
-
-
 def test_newapi_runtime_credentials_prefer_saved_custom_gateway(monkeypatch, tmp_path):
     _isolate_settings_db(monkeypatch, tmp_path)
     monkeypatch.setenv("NEWAPI_API_KEY", "sk-env-secret")
@@ -631,31 +567,6 @@ def test_ee_media_model_mappings_do_not_open_ce_settings(monkeypatch, tmp_path):
 
     assert get_newapi_media_model_mappings() == {}
     assert not (tmp_path / "state").exists()
-
-
-def test_ee_platform_video_paths_do_not_call_ce_media_model_accessor(
-    monkeypatch,
-    tmp_path,
-):
-    _isolate_settings_db(monkeypatch, tmp_path)
-    monkeypatch.setenv("ST_EDITION", "ee")
-    monkeypatch.setenv("ST_CONTROL_PLANE_DSN", "postgresql://control-plane")
-    monkeypatch.setenv("NEWAPI_API_KEY", "sk-ee-secret")
-    monkeypatch.setenv("NEWAPI_BASE_URL", "https://ee-gateway.example/v1")
-    monkeypatch.setattr(config, "NEWAPI_API_KEY", "sk-ee-secret")
-    monkeypatch.setattr(config, "NEWAPI_BASE_URL", "https://ee-gateway.example/v1")
-    monkeypatch.setattr(
-        model_gateway_settings,
-        "get_newapi_media_model_mappings",
-        lambda: pytest.fail("EE video paths must not call the CE accessor"),
-    )
-
-    generator = NewApiVideoGenerator(model="seedance-2.0")
-    options = newapi_video_backend_options()
-
-    assert generator.api_key == "sk-ee-secret"
-    assert generator.base_url == "https://ee-gateway.example/v1"
-    assert "newapi_seedance-2.0" in options
 
 
 def test_ee_model_gateway_settings_reader_does_not_open_sqlite(monkeypatch, tmp_path):

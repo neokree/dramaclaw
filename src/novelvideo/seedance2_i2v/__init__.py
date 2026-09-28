@@ -12,7 +12,6 @@ from novelvideo.seedance2_i2v.prompt import (
     compute_seedance2_prompt_inputs_hash,
     generate_seedance2_prompt,
 )
-from novelvideo.seedance2_i2v.request import build_seedance2_huimeng_params
 from novelvideo.seedance2_i2v.voice_audio_records import (
     Seedance2VoiceAudioRecord,
     Seedance2VoiceAudioState,
@@ -29,7 +28,6 @@ __all__ = [
     "Seedance2ResolvedAsset",
     "Seedance2VoiceAudioRecord",
     "Seedance2VoiceAudioState",
-    "build_seedance2_huimeng_params",
     "build_seedance2_project_assets",
     "build_seedance2_asset_manifest",
     "build_seedance2_prompt_draft",

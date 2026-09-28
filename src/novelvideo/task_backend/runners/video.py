@@ -104,10 +104,7 @@ async def _run_single_video_async(
     manager = get_task_manager()
     _log(manager, ctx, envelope, f"开始生成 Beat {beat_num} 视频")
 
-    from novelvideo.generators.video_generator import (
-        ShotReference,
-        create_video_generator,
-    )
+    from novelvideo.generators.video_generator import create_video_generator
     from novelvideo.seedance2_i2v.pipeline import (
         is_seedance2_backend as _is_seedance2,
     )
@@ -191,18 +188,6 @@ async def _run_single_video_async(
             else "first_frame"
         )
 
-    model_references = seedance2_references
-    if not is_seedance2_backend:
-        model_references = [
-            ShotReference(
-                str(item.get("type") or "image"),
-                str(item.get("path") or ""),
-                str(item.get("role") or ""),
-            )
-            for item in config.get("references") or []
-            if isinstance(item, dict) and str(item.get("path") or "").strip()
-        ]
-
     generate_kwargs = {
         "image_path": frame_path,
         "prompt": prompt,
@@ -220,10 +205,8 @@ async def _run_single_video_async(
     }
     if egress_context is not None:
         generate_kwargs["egress_context"] = egress_context
-    if model_references:
-        generate_kwargs["references"] = model_references
-    if config.get("audio_setting"):
-        generate_kwargs["audio_setting"] = str(config["audio_setting"])
+    if seedance2_references:
+        generate_kwargs["references"] = seedance2_references
     if is_seedance2_backend:
         generate_kwargs["seedance2_config"] = seedance2_config
 

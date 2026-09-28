@@ -11,7 +11,6 @@ from pydantic_ai.messages import ModelRequest, UserPromptPart
 
 from novelvideo import llm_instrumentation
 from novelvideo import ports
-from novelvideo.generators import video_generator
 
 
 def test_json_log_value_keeps_diagnostic_fields_json_safe() -> None:
@@ -159,34 +158,6 @@ async def test_meter_refund_forwards_log_metadata_without_changing_reservation_i
     assert calls == [("reservation_1", metadata)]
     assert metadata["error_message"] == "provider failed"
     assert metadata["response_payload"]["status"] == "failed"
-
-
-@pytest.mark.asyncio
-async def test_video_failure_forwards_empty_reservation_for_observability(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls: list[tuple[str, dict | None]] = []
-
-    class Meter:
-        async def refund_model_call_credit_reservation(
-            self, reservation_id: str, *, metadata: dict | None = None
-        ) -> None:
-            calls.append((reservation_id, metadata))
-
-    monkeypatch.setattr(video_generator, "get_usage_meter", lambda: Meter())
-
-    await video_generator._refund_video_model_call(
-        "",
-        source="seedance_2",
-        error="provider unavailable",
-    )
-
-    assert calls == [
-        (
-            "",
-            {"source": "seedance_2", "error": "provider unavailable"},
-        )
-    ]
 
 
 @pytest.mark.asyncio

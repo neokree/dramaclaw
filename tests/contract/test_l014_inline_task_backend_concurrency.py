@@ -339,7 +339,7 @@ async def test_gate2_control_signals_are_not_swallowed_by_generator_fallbacks(
         raise TaskCancelled()
 
     monkeypatch.setattr(tts_generator, "run_project_subprocess", raise_cancelled)
-    monkeypatch.setattr(video_generator, "_run_video_subprocess", raise_cancelled)
+    monkeypatch.setattr(video_generator, "run_project_subprocess", raise_cancelled)
     monkeypatch.setattr(video_composer, "_run_video_subprocess", raise_cancelled)
 
     with pytest.raises(TaskCancelled):
@@ -373,7 +373,7 @@ async def test_gate2_timeout_signals_are_not_swallowed_by_generator_fallbacks(
         raise TaskTimedOut(timeout_seconds=1)
 
     monkeypatch.setattr(tts_generator, "run_project_subprocess", raise_timeout)
-    monkeypatch.setattr(video_generator, "_run_video_subprocess", raise_timeout)
+    monkeypatch.setattr(video_generator, "run_project_subprocess", raise_timeout)
     monkeypatch.setattr(video_composer, "_run_video_subprocess", raise_timeout)
 
     with pytest.raises(TaskTimedOut):

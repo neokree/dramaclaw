@@ -1,7 +1,7 @@
 """Minimal HuiMeng task API helpers.
 
 This module intentionally keeps only the generic task/client pieces needed by
-image and video callers. Higher-level generators decide model names and params.
+image callers. Higher-level generators decide model names and params.
 """
 
 from __future__ import annotations
@@ -10,25 +10,12 @@ import asyncio
 import base64
 import mimetypes
 import os
-import urllib.parse
 from collections.abc import Callable
 from pathlib import Path
 
 import httpx
 
 HUIMENGI_BASE_URL = "https://api.huimengi.com"
-HUIMENG_VIDEO_BACKEND_PREFIX = "huimeng_"
-HUIMENG_LEGACY_VIDEO_BACKEND_PREFIX = "huimengi_"
-SUPPORTED_HUIMENG_VIDEO_MODEL_NAMES = (
-    "seedance-2.0-fast",
-    "seedance-1.0-pro-fast",
-    "seedance-1.5-pro",
-)
-FALLBACK_HUIMENG_VIDEO_MODELS = [
-    {"name": "seedance-2.0-fast", "display_name": "Seedance 2.0 Fast"},
-    {"name": "seedance-1.0-pro-fast", "display_name": "Seedance 1.0 Pro Fast"},
-    {"name": "seedance-1.5-pro", "display_name": "Seedance 1.5 Pro"},
-]
 HUIMENG_DONE_STATUSES = {"completed", "succeeded", "success", "done"}
 HUIMENG_FAILED_STATUSES = {"failed", "error", "canceled", "cancelled"}
 
@@ -66,35 +53,6 @@ def bytes_to_data_url(content: bytes) -> str:
         mime_type = "application/octet-stream"
     encoded = base64.b64encode(content).decode("utf-8")
     return f"data:{mime_type};base64,{encoded}"
-
-
-def huimeng_video_backend_value(model_name: str) -> str:
-    return f"{HUIMENG_VIDEO_BACKEND_PREFIX}{model_name}"
-
-
-def parse_huimeng_video_backend(value: str | None) -> str | None:
-    backend = str(value or "").strip()
-    for prefix in (HUIMENG_VIDEO_BACKEND_PREFIX, HUIMENG_LEGACY_VIDEO_BACKEND_PREFIX):
-        if backend.startswith(prefix):
-            model_name = backend[len(prefix):].strip()
-            return model_name or None
-    return None
-
-
-def huimeng_video_backend_options() -> dict[str, str]:
-    """Return stable UI options keyed by HuiMeng video backend value."""
-    fallback_by_name = {
-        str(model.get("name") or "").strip(): model
-        for model in FALLBACK_HUIMENG_VIDEO_MODELS
-    }
-    options: dict[str, str] = {}
-    for name in SUPPORTED_HUIMENG_VIDEO_MODEL_NAMES:
-        model = fallback_by_name[name]
-        display_name = str(model.get("display_name") or name).strip()
-        if not display_name.lower().startswith("huimeng "):
-            display_name = f"HuiMeng {display_name}"
-        options[huimeng_video_backend_value(name)] = display_name
-    return options
 
 
 def _compact(value, *, limit: int = 240) -> str:
@@ -163,104 +121,6 @@ def extract_huimeng_result_url(result: dict, *preferred_keys: str) -> str:
                 if found:
                     return found
         return ""
-
-    return walk(result)
-
-
-def extract_huimeng_result_last_frame_url(result: dict) -> str:
-    """Return a URL-like returned-last-frame image from a HuiMeng result payload."""
-    if not isinstance(result, dict):
-        return ""
-
-    preferred_keys = (
-        "returned_last_frame",
-        "return_last_frame",
-        "last_frame_output",
-        "last_frame_url",
-        "last_frame_image",
-        "last_frame",
-        "tail_frame_url",
-        "tail_frame_image",
-        "end_frame_url",
-        "end_frame_image",
-    )
-    image_collection_keys = (
-        "image_url",
-        "image_urls",
-        "images",
-        "output_images",
-        "last_frames",
-        "frames",
-    )
-
-    def is_url(value) -> bool:
-        return isinstance(value, str) and value.startswith(
-            ("http://", "https://", "data:")
-        )
-
-    def looks_like_video_url(value: str) -> bool:
-        if value.startswith("data:video/"):
-            return True
-        parsed = urllib.parse.urlparse(value)
-        path = parsed.path.lower()
-        return path.endswith((".mp4", ".mov", ".webm", ".mkv", ".avi"))
-
-    def first_url(value) -> str:
-        if is_url(value):
-            text = str(value)
-            return "" if looks_like_video_url(text) else text
-        if isinstance(value, dict):
-            for key in (*preferred_keys, "url", *image_collection_keys):
-                found = first_url(value.get(key))
-                if found:
-                    return found
-            for child in value.values():
-                found = first_url(child)
-                if found:
-                    return found
-        elif isinstance(value, list):
-            for item in value:
-                found = first_url(item)
-                if found:
-                    return found
-        return ""
-
-    for key in preferred_keys:
-        found = first_url(result.get(key))
-        if found:
-            return found
-
-    for key in image_collection_keys:
-        found = first_url(result.get(key))
-        if found:
-            return found
-
-    return ""
-
-
-def extract_huimeng_result_duration(result: dict) -> float | None:
-    """Return a nested duration value from a HuiMeng result payload if present."""
-    if not isinstance(result, dict):
-        return None
-
-    def walk(value) -> float | None:
-        if isinstance(value, dict):
-            duration = value.get("duration")
-            if duration is not None:
-                try:
-                    return float(duration)
-                except (TypeError, ValueError):
-                    pass
-            for child in value.values():
-                found = walk(child)
-                if found is not None:
-                    return found
-        elif isinstance(value, list):
-            for item in value:
-                found = walk(item)
-                if found is not None:
-                    return found
-        return None
 
     return walk(result)
 

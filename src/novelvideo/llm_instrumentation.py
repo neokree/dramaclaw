@@ -335,8 +335,6 @@ def _normalize_recorded_model_name(model: str) -> str:
         "SCENE_REVERSE_MASTER_IMAGE_MODEL",
         "SCENE_360_IMAGE_MODEL",
         "SCENE_ASSET_MODEL",
-        "NEWAPI_VIDEO_MODEL",
-        "DEFAULT_VIDEO_MODEL",
     ):
         configured = os.environ.get(env_key, "").strip()
         if not configured:

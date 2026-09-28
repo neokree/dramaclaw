@@ -139,23 +139,24 @@ def _fake_enqueue(calls):
     return fake_enqueue_project_task
 
 
-def test_mainline_video_backend_options_hide_legacy_models_and_expose_mini() -> None:
+@pytest.mark.usefixtures("higgsfield_catalog")
+def test_mainline_video_backend_options_come_from_the_higgsfield_catalog() -> None:
     from novelvideo.api.routes import generation
 
     options = {
         item.value: item.model_dump()
         for item in generation._api_video_backend_options()
     }
-    assert "newapi_seedance-2.0-value" not in options
-    assert "newapi_seedance-2.0-fast-value" not in options
-    assert "newapi_happyhorse-1.0" not in options
 
-    mini = options["newapi_seedance-2.0-mini"]
-    assert mini["label"] == "Seedance2.0 Mini"
-    assert mini["is_seedance2"] is True
-    assert mini["is_happyhorse"] is False
-    assert mini["min_duration"] == 4
-    assert mini["max_duration"] == 15
+    default = options["higgsfield:seedance_2_0?mode=fast"]
+    assert default["is_default"] is True
+    assert default["is_seedance2"] is True
+    assert default["label"] == "Seedance 2.0 Fast"
+    assert "multimodal_reference" in default["supported_modes"]
+    assert (default["min_duration"], default["max_duration"]) == (4, 15)
+    kling = options["higgsfield:kling3_0?mode=pro"]
+    assert kling["supported_modes"] == ["text_to_video", "first_frame", "first_last_frame"]
+    assert kling["reference_image_max"] == 0
 
 
 @pytest.mark.asyncio
@@ -504,7 +505,7 @@ async def test_seedance2_single_video_passes_prepared_config_and_duration(
         project="demo",
         episode_num=3,
         beat_num=2,
-        body=SingleVideoRequest(video_backend="huimeng_seedance-2.0-fast"),
+        body=SingleVideoRequest(video_backend="higgsfield:seedance_2_0?mode=fast"),
         user={"username": "alice"},
     )
 
@@ -519,8 +520,8 @@ async def test_seedance2_single_video_passes_prepared_config_and_duration(
     )
     assert calls[0]["payload"]["billing"] == {
         "pricing_kind": "video",
-        "pricing_model": "seedance-2.0-fast",
-        "pricing_model_selection": "huimeng_seedance-2.0-fast",
+        "pricing_model": "higgsfield:seedance_2_0?mode=fast",
+        "pricing_model_selection": "higgsfield:seedance_2_0?mode=fast",
         "pricing_params": {"resolution": "720p", "video_input": "none"},
         "pricing_quantity": 11,
         "pricing_metrics": {
@@ -532,7 +533,7 @@ async def test_seedance2_single_video_passes_prepared_config_and_duration(
             "input_video_billed_seconds": 0,
         },
         "resolution": "720p",
-        "video_backend": "huimeng_seedance-2.0-fast",
+        "video_backend": "higgsfield:seedance_2_0?mode=fast",
         "video_input_present": False,
         "input_video_duration_seconds": 0.0,
     }
@@ -540,7 +541,7 @@ async def test_seedance2_single_video_passes_prepared_config_and_duration(
 
 @pytest.mark.parametrize(
     ("requested_duration", "expected_duration"),
-    [(1, 2), (100, 12)],
+    [(1, 1), (100, 15)],
 )
 @pytest.mark.asyncio
 async def test_single_video_normalizes_duration_before_billing_and_enqueue(
@@ -582,7 +583,7 @@ async def test_single_video_normalizes_duration_before_billing_and_enqueue(
         episode_num=3,
         beat_num=2,
         body=SingleVideoRequest(
-            video_backend="newapi_seedance-1.0-pro-fast",
+            video_backend="h3c",
             duration=requested_duration,
         ),
         user={"username": "alice"},
@@ -760,97 +761,6 @@ async def test_seedance2_single_video_applies_inline_request_config_controls(
 
 
 @pytest.mark.asyncio
-async def test_happyhorse_single_video_enqueues_prepared_references(
-    monkeypatch, tmp_path
-):
-    from novelvideo.api.routes import generation
-    from novelvideo.api.schemas import SingleVideoRequest
-
-    calls = []
-    prepare_calls = []
-    store = _FakeSeedance2Store(
-        [
-            {
-                "beat_number": 2,
-                "video_mode": "first_frame",
-                "video_prompt": "old prompt",
-                "seedance2_config_json": '{"final_prompt": "old prompt"}',
-            }
-        ]
-    )
-    frame = tmp_path / "frames" / "ep003" / "beat_02.png"
-    frame.parent.mkdir(parents=True)
-    frame.write_bytes(b"frame")
-
-    async def fake_prepare_happyhorse(**kwargs):
-        prepare_calls.append(kwargs)
-        return {
-            "prompt": "happyhorse prompt",
-            "duration": 7,
-            "resolution": "1080p",
-            "ratio": "1:1",
-            "image_path": None,
-            "references": [
-                {
-                    "type": "image",
-                    "path": "https://example.com/ref.png",
-                    "role": "图片1",
-                }
-            ],
-            "config_json": '{"final_prompt":"happyhorse prompt","ratio":"1:1"}',
-        }
-
-    async def fake_audio_duration(*_args, **_kwargs):
-        return None
-
-    _patch_generation_celery(monkeypatch, generation, tmp_path, store)
-    monkeypatch.setattr(
-        generation,
-        "get_task_backend",
-        lambda: SimpleNamespace(enqueue_project_task=_fake_enqueue(calls)),
-    )
-    monkeypatch.setattr(
-        generation,
-        "_prepare_happyhorse_api_beat",
-        fake_prepare_happyhorse,
-        raising=False,
-    )
-    monkeypatch.setattr(generation, "_api_audio_duration_seconds", fake_audio_duration)
-
-    response = await generation.generate_single_video(
-        project="demo",
-        episode_num=3,
-        beat_num=2,
-        body=SingleVideoRequest(
-            video_backend="newapi_happyhorse-1.0",
-            mode="multimodal_reference",
-            resolution="1080p",
-            ratio="1:1",
-            duration=7,
-            audio_setting="origin",
-        ),
-        user={"username": "alice"},
-    )
-
-    assert response["ok"] is True
-    assert prepare_calls[0]["ratio"] == "1:1"
-    config = calls[0]["payload"]["config"]
-    assert config["frame_path"] is None
-    assert config["prompt"] == "happyhorse prompt"
-    assert config["video_duration"] == 7
-    assert config["resolution"] == "1080p"
-    assert config["ratio"] == "1:1"
-    assert config["references"] == [
-        {"type": "image", "path": "https://example.com/ref.png", "role": "图片1"}
-    ]
-    assert config["audio_setting"] == "origin"
-    assert (
-        config["seedance2_config"]
-        == '{"final_prompt":"happyhorse prompt","ratio":"1:1"}'
-    )
-
-
-@pytest.mark.asyncio
 async def test_single_video_rejects_empty_1x_video_prompt(monkeypatch, tmp_path):
     from novelvideo.api.routes import generation
     from novelvideo.api.schemas import SingleVideoRequest
@@ -878,7 +788,7 @@ async def test_single_video_rejects_empty_1x_video_prompt(monkeypatch, tmp_path)
         project="demo",
         episode_num=3,
         beat_num=2,
-        body=SingleVideoRequest(video_backend="huimeng_seedance-1.0-pro-fast"),
+        body=SingleVideoRequest(video_backend="h3c"),
         user={"username": "alice"},
     )
 
@@ -918,7 +828,7 @@ async def test_single_video_rejects_empty_1x_keyframe_prompt(monkeypatch, tmp_pa
         project="demo",
         episode_num=3,
         beat_num=2,
-        body=SingleVideoRequest(video_backend="huimeng_seedance-1.0-pro-fast"),
+        body=SingleVideoRequest(video_backend="h3c"),
         user={"username": "alice"},
     )
 

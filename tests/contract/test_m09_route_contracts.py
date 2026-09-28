@@ -471,7 +471,7 @@ def test_m09_l2_exercises_all_23_endpoint_contracts(m09_client_factory):
     _assert_ok(client.get(f"/api/v1/projects/{_PROJECT}/episodes/1/export/srt"))
     _assert_ok(client.get(f"/api/v1/projects/{_PROJECT}/episodes/1/export/video"))
     _assert_ok(client.post(f"/api/v1/projects/{_PROJECT}/episodes/1/export/zip"))
-    _assert_ok(client.post(f"/api/v1/projects/{_PROJECT}/episodes/1/beats/1/video", json={}))
+    _assert_ok(client.post(f"/api/v1/projects/{_PROJECT}/episodes/1/beats/1/video", json={"video_backend": "h3c"}))
     _assert_ok(client.get(f"/api/v1/projects/{_PROJECT}/episodes/1/video-pool"))
     _assert_ok(
         client.post(
@@ -530,7 +530,7 @@ def test_m09_task_backend_responses_are_ce_ee_isomorphic(m09_client_factory, bac
     client, task_backend, _project_dir, _pool_id = m09_client_factory(backend)
 
     single_video = _assert_ok(
-        client.post(f"/api/v1/projects/{_PROJECT}/episodes/1/beats/1/video", json={})
+        client.post(f"/api/v1/projects/{_PROJECT}/episodes/1/beats/1/video", json={"video_backend": "h3c"})
     )
     _assert_task_payload(single_video, backend=backend, task_type="single_video")
 

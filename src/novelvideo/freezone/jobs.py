@@ -3,20 +3,17 @@
 These are called from the task backend runners and from unit-test harnesses.
 They never touch the queue backend, the API layer, or task_state.
 
-Provider selection (since v1.1):
-- `provider` / `model` / `quality` get threaded into
-  `get_grid_generation_config(provider_override=, model_override=)` for the
-          image generation/edit path so the caller can pick the supported SuperTale
-          providers: `newapi` / `huimeng` / `openrouter` / `openai`.
-- A legacy `provider="volcengine"` branch remains for old canvases/scripts, but
-  the Freezone UI no longer exposes it.
+Engine selection: `provider` / `model` resolve to an image selection
+(`drawthings` or `higgsfield:<model_ref>`, legacy names mapped) through
+`get_grid_generation_config(provider_override=, model_override=)`.
+`api_key`, `model_params`, `request_schema` and `egress_context` are still
+accepted so queued jobs from older payloads run; the engines ignore them.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-import math
 import os
 import re
 import shutil
@@ -31,11 +28,7 @@ from PIL import Image
 
 from novelvideo.freezone.paths import output_path_for_job, outputs_dir
 from novelvideo.freezone.video_slowdown import slowdown_factor
-from novelvideo.egress_context import (
-    TrustedEgressContext,
-    ambient_organization_egress_context,
-)
-from novelvideo.ports.egress import EgressError
+from novelvideo.egress_context import TrustedEgressContext
 from novelvideo.task_backend.subprocesses import (
     EgressBoundaryError,
     RestrictedSubprocessPolicy,
@@ -62,35 +55,9 @@ async def run_freezone_gen(
     output_task_type: str = "freezone_gen",
     egress_context: TrustedEgressContext | None = None,
 ) -> Path:
-    """text → image (with optional reference images).
-
-    Routes through nanobanana_grid for the supported SuperTale providers.
-    """
+    """text → image (with optional reference images) through the image engine."""
     out = output_path_for_job(project_dir, output_task_type or "freezone_gen", job_id)
     out.parent.mkdir(parents=True, exist_ok=True)
-
-    # Routing (v1.2):
-    #   provider == "volcengine"  → Volcengine Seedream (text-only path; refs ignored)
-    #   anything else (including None default) → nanobanana_grid:
-    #     - with refs → generate_reference_edit_image
-    #     - no refs   → generate_text_to_image  (NEW v1.2)
-    if egress_context is not None and type(egress_context) is not TrustedEgressContext:
-        raise TypeError("egress_context must be a TrustedEgressContext")
-    if egress_context is None:
-        egress_context = ambient_organization_egress_context()
-    if (
-        egress_context is not None
-        and egress_context.is_organization
-        and (provider or "").lower() == "volcengine"
-    ):
-        raise EgressError("ORG_EGRESS_DENIED")
-    if (provider or "").lower() == "volcengine":
-        return await _run_volcengine_text_to_image(
-            out=out,
-            prompt=prompt,
-            aspect_ratio=aspect_ratio,
-            image_size=image_size,
-        )
 
     from novelvideo.config import get_grid_generation_config
     from novelvideo.generators.nanobanana_grid import (
@@ -98,25 +65,11 @@ async def run_freezone_gen(
         generate_text_to_image,
     )
 
-    if egress_context is not None and egress_context.is_organization:
-        cfg = {
-            "provider": "newapi",
-            "api_key": "request-scoped",
-            "base_url": "https://request-scoped.invalid/v1",
-            "model": model or "gpt-image-2",
-            "mode": "1x1",
-            "rows": 1,
-            "cols": 1,
-            "total_panels": 1,
-        }
-    else:
-        cfg = get_grid_generation_config(
-            provider_override=provider,
-            model_override=model,
-            image_size_override=image_size,
-        )
-    cfg["newapi_model_params"] = model_params or {}
-    cfg["newapi_request_schema"] = request_schema or {}
+    cfg = get_grid_generation_config(
+        provider_override=provider,
+        model_override=model,
+        image_size_override=image_size,
+    )
     if reference_paths:
         await generate_reference_edit_image(
             prompt=prompt,
@@ -127,7 +80,6 @@ async def run_freezone_gen(
             quality=quality,
             api_key=api_key,
             config=cfg,
-            egress_context=egress_context,
             egress_capability="freezone.image.generate",
         )
     else:
@@ -139,7 +91,6 @@ async def run_freezone_gen(
             quality=quality,
             api_key=api_key,
             config=cfg,
-            egress_context=egress_context,
             egress_capability="freezone.image.generate",
         )
     return out
@@ -175,31 +126,12 @@ async def run_freezone_mask_edit(
     from novelvideo.generators.nanobanana_grid import generate_reference_edit_image
     from novelvideo.utils.error_redaction import redact_secrets
 
-    if egress_context is not None and type(egress_context) is not TrustedEgressContext:
-        raise TypeError("egress_context must be a TrustedEgressContext")
-    if egress_context is None:
-        egress_context = ambient_organization_egress_context()
-    if egress_context is not None and egress_context.is_organization:
-        # 与 run_freezone_edit 同一口径：组织下不读本地目录配置。
-        # `get_grid_generation_config` 可能返回非 newapi provider，而组织出网闸门
-        # （`nanobanana_grid.py:138-139`）对非 newapi 一律 ORG_EGRESS_DENIED。
-        cfg = {
-            "provider": "newapi",
-            "api_key": "request-scoped",
-            "base_url": "https://request-scoped.invalid/v1",
-            "model": model or "gpt-image-2",
-            "mode": "1x1",
-            "rows": 1,
-            "cols": 1,
-            "total_panels": 1,
-        }
-    else:
-        cfg = get_grid_generation_config(
-            provider_override=provider,
-            model_override=model,
-            image_size_override=image_size,
-        )
-    provider_name = str(cfg.get("provider") or provider or "newapi").strip().lower()
+    cfg = get_grid_generation_config(
+        provider_override=provider,
+        model_override=model,
+        image_size_override=image_size,
+    )
+    provider_name = cfg["selection"]
     mask_prompt = (
         f"{prompt}\n\n"
         "Use Image 1 as the source image. Image 2 is the same image with a translucent RED "
@@ -218,7 +150,6 @@ async def run_freezone_mask_edit(
             quality=quality,
             api_key=api_key,
             config=cfg,
-            egress_context=egress_context,
             egress_capability="freezone.image.generate",
         )
     except Exception as exc:
@@ -227,80 +158,6 @@ async def run_freezone_mask_edit(
         ) from exc
     if not out.exists():
         raise RuntimeError(f"{provider_name} 图像擦除未生成输出文件")
-    return out
-
-
-async def run_freezone_upscale(
-    *,
-    project_dir: Path,
-    job_id: str,
-    source_path: str,
-    target_width: int = 2048,
-    target_height: int = 2048,
-    strength: float = 0.9,
-    enhancement_prompt: Optional[str] = None,
-) -> Path:
-    """High-res restoration via Seedream img2img with strength≈0.9.
-
-    Reuses `VolcengineImageGenerator.upscale_with_img2img()` — preserves the
-    input image's content while bumping resolution. Output lands under
-    `freezone/_outputs/freezone_upscale/<job_id>.png`.
-    """
-    out = output_path_for_job(project_dir, "freezone_upscale", job_id)
-    out.parent.mkdir(parents=True, exist_ok=True)
-
-    from novelvideo.generators.image_generator import create_image_generator
-
-    generator = create_image_generator()
-    result = await generator.upscale_with_img2img(
-        input_path=source_path,
-        output_path=str(out),
-        target_width=target_width,
-        target_height=target_height,
-        strength=strength,
-        enhancement_prompt=enhancement_prompt,
-    )
-    if not result or not result.success:
-        err = result.error if result else "unknown error"
-        raise RuntimeError(f"upscale failed: {err}")
-    if not out.exists():
-        if result.image_base64:
-            import base64
-
-            out.write_bytes(base64.b64decode(result.image_base64))
-        else:
-            raise RuntimeError("upscale produced no file or bytes")
-    return out
-
-
-async def _run_volcengine_text_to_image(
-    *,
-    out: Path,
-    prompt: str,
-    aspect_ratio: str,
-    image_size: str,
-) -> Path:
-    """Volcengine Seedream 4.0 text→image (no provider/model override)."""
-    from novelvideo.generators.image_generator import create_image_generator
-
-    width, height = _aspect_to_dims(aspect_ratio, image_size)
-    generator = create_image_generator()
-    result = await generator.generate(
-        prompt=prompt,
-        output_path=str(out),
-        width=width,
-        height=height,
-    )
-    if not result or not result.success:
-        err = result.error if result else "unknown error"
-        raise RuntimeError(f"Volcengine text→image generation failed: {err}")
-    if not out.exists():
-        if result.image_base64:
-            import base64
-
-            out.write_bytes(base64.b64decode(result.image_base64))
-        else:
-            raise RuntimeError("Volcengine text→image produced no file or bytes")
     return out
 
 
@@ -324,9 +181,9 @@ async def run_freezone_edit(
 ) -> Path:
     """image + reference + prompt → new image.
 
-    v1 doesn't enforce a hard mask — most providers (nanobanana, OpenAI image
-    edit) treat reference images plus a prompt as soft guidance. The base
-    image is passed first in the references list so the model anchors on it.
+    No hard mask: the engines treat reference images plus a prompt as soft
+    guidance. The base image goes first so the model anchors on it (and is
+    Draw Things' img2img init image).
     """
     out = output_path_for_job(project_dir, output_task_type or "freezone_edit", job_id)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -338,32 +195,11 @@ async def run_freezone_edit(
     from novelvideo.config import get_grid_generation_config
     from novelvideo.generators.nanobanana_grid import generate_reference_edit_image
 
-    if egress_context is not None and type(egress_context) is not TrustedEgressContext:
-        raise TypeError("egress_context must be a TrustedEgressContext")
-    if egress_context is None:
-        egress_context = ambient_organization_egress_context()
-    if egress_context is not None and egress_context.is_organization:
-        cfg = {
-            "provider": "newapi",
-            "api_key": "request-scoped",
-            "base_url": "https://request-scoped.invalid/v1",
-            "model": model or "gpt-image-2",
-            "mode": "1x1",
-            "rows": 1,
-            "cols": 1,
-            "total_panels": 1,
-        }
-    else:
-        cfg = get_grid_generation_config(
-            provider_override=provider,
-            model_override=model,
-            image_size_override=image_size,
-        )
-    # 与 run_freezone_gen 同一口径：目录声明的动态参数按 schema 里的 requestPath
-    # 写进网关请求体。少了这两行，图编辑侧的 model_params 会在这里被丢掉。
-    # 组织支同样要带上——请求作用域凭据只换掉出网身份，不改请求体形状。
-    cfg["newapi_model_params"] = model_params or {}
-    cfg["newapi_request_schema"] = request_schema or {}
+    cfg = get_grid_generation_config(
+        provider_override=provider,
+        model_override=model,
+        image_size_override=image_size,
+    )
     await generate_reference_edit_image(
         prompt=prompt,
         reference_images=refs,
@@ -373,7 +209,6 @@ async def run_freezone_edit(
         quality=quality,
         api_key=api_key,
         config=cfg,
-        egress_context=egress_context,
         egress_capability="freezone.image.generate",
     )
     return out
@@ -2022,26 +1857,3 @@ async def _sample_evenly(
         subprocess.run, cmd, capture_output=True, text=True, timeout=300
     )
     return sort_extracted_frames_by_pts(out_dir.glob("even_*.png"))
-
-
-_SIZE_BASE = {
-    "0.5K": 512,
-    "1K": 1024,
-    "2K": 2048,
-    "4K": 4096,
-}
-
-
-def _aspect_to_dims(aspect_ratio: str, image_size: str) -> tuple[int, int]:
-    base = _SIZE_BASE.get(image_size.upper(), 1024)
-    try:
-        w_part, h_part = aspect_ratio.split(":", 1)
-        w_ratio = float(w_part)
-        h_ratio = float(h_part)
-    except (ValueError, AttributeError):
-        return base, base
-    if w_ratio <= 0 or h_ratio <= 0:
-        return base, base
-    if w_ratio >= h_ratio:
-        return base, max(64, round(base * h_ratio / w_ratio))
-    return max(64, round(base * w_ratio / h_ratio)), base

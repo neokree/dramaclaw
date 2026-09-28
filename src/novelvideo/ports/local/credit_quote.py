@@ -35,8 +35,25 @@ def _video_request(kind: str, model: str, params: dict, quantity: int) -> dict |
     return None
 
 
+async def _image_credits(model: str, params: dict) -> int:
+    """Higgsfield's own price (`higgsfield generate cost`); Draw Things is free."""
+    from novelvideo.engines.image import is_selection, quote_credits
+
+    selection = model if is_selection(model) else f"higgsfield:{model}"
+    try:
+        credits = await quote_credits(
+            selection,
+            image_size=str(params.get("size") or "") or None,
+            quality=str(params.get("quality") or "") or None,
+        )
+    except Exception as exc:  # noqa: BLE001 - an offline engine quotes 0, never 500s
+        logger.info("image quote unavailable for %s: %s", selection, exc)
+        return 0
+    return math.ceil(credits)
+
+
 class LocalCreditQuote:
-    """CE bills nothing itself; a Higgsfield video shows Higgsfield's own price."""
+    """CE bills nothing itself; Higgsfield images and videos show Higgsfield's own price."""
 
     async def generation_credit_quote(
         self,
@@ -49,6 +66,19 @@ class LocalCreditQuote:
         user_id: str = "",
     ) -> CreditQuote:
         del product_surface, user_id
+        if kind == "image":
+            unit_cost = 0
+            if model and model != "drawthings":
+                unit_cost = await _image_credits(model, params or {})
+            total = unit_cost * max(int(quantity or 1), 1)
+            return CreditQuote(
+                total_cost=total,
+                display=str(total),
+                unit="call",
+                unit_cost=unit_cost,
+                quantity=1,
+                params={},
+            )
         request = _video_request(kind, model, params, quantity)
         if request is None:
             return _FREE

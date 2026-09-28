@@ -3,13 +3,12 @@
 Architecture (after experimentation):
     voxel_shot.png          ← single image input: defines composition + camera
     project.visual_style    ← text: defines visual style (guoman_fantasy / anime / 写实 / etc.)
-        ↓ HuiMeng image-2 (1K, low) — cheap + supports single-image edit
+        ↓ image engine (VOXEL_RESTYLE_SELECTION, default GPT Image 2 on Higgsfield, 1K, low)
     <ts>_styled.png
 
 Why NOT use master.png as a second image ref:
-    HuiMeng image-2 rejects array `params.image` (despite docs); image-2-official
-    accepts arrays but multi-image fusion makes the model treat master as primary
-    and ignore the voxel's composition. Sending voxel ALONE + style as TEXT is
+    multi-image fusion makes the model treat master as primary and ignore the
+    voxel's composition (observed on GPT Image 2). Sending voxel ALONE + style as TEXT is
     the only path where composition reliably locks.
 
 Inputs are deliberately minimal:
@@ -32,7 +31,7 @@ _log = logging.getLogger(__name__)
 # Cheap defaults. Each restyle = 1 call to image-2 @ 1K low.
 # image-2-official supports multi-image (up to 10). image-2 rejects array.
 # Default = official so we can send voxel + master pair as "repair" task.
-_DEFAULT_SELECTION = os.environ.get("VOXEL_RESTYLE_SELECTION", "huimeng_image2_official")
+_DEFAULT_SELECTION = os.environ.get("VOXEL_RESTYLE_SELECTION", "higgsfield:gpt_image_2")
 _DEFAULT_IMAGE_QUALITY = os.environ.get("VOXEL_RESTYLE_QUALITY", "low")
 _DEFAULT_IMAGE_SIZE = os.environ.get("VOXEL_RESTYLE_SIZE", "1K")
 
@@ -55,7 +54,7 @@ def _load_visual_style_preset(style_id: str) -> dict:
 def _build_prompt(scene_id: str, preset: dict, extra_context: str = "", has_master: bool = False) -> str:
     """Build a Chinese-language "image repair" prompt.
 
-    Empirically validated: HuiMeng image-2-official responds best to a
+    Empirically validated: GPT Image 2 responds best to a
     repair / inpainting framing — it treats image 1 as the structural source
     to preserve and image 2 as the material reference to match 1:1.
 
@@ -177,9 +176,7 @@ async def render_voxel_shot_styled(
         selection_override=sel,
         image_size_override=size,
     )
-    config["openai_image_quality"] = quality
-    config["openai_sketch_image_quality"] = quality
-    config["huimeng_image_quality"] = quality
+    config["quality"] = quality
     config["image_size"] = size
 
     _log.info(

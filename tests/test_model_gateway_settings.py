@@ -3154,6 +3154,8 @@ def test_custom_newapi_media_models_groups_by_provider_and_persists_mapping(
                 "LingShan-G2": {
                     "provider": "openai",
                     "upstreamModel": "gpt-image-upstream",
+                    # image models are no longer inferred by name
+                    "mediaType": "image",
                 },
                 "seedance-1.5-pro": {
                     "provider": "volcengine",

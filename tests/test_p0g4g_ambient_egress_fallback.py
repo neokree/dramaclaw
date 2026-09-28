@@ -126,33 +126,6 @@ async def test_image_egress_denies_non_newapi_without_explicit_context() -> None
     assert excinfo.value.code == "ORG_EGRESS_DENIED"
 
 
-def test_character_generator_uses_request_scoped_credentials_by_default() -> None:
-    """构造期未传身份时，组织不该拿到本地配置里的平台 provider 与密钥。"""
-
-    from novelvideo.generators.nanobanana_character import (
-        NanoBananaCharacterGenerator,
-    )
-
-    with model_gateway_request_scope(_organization_context()):
-        generator = NanoBananaCharacterGenerator()
-    assert generator.provider == "newapi"
-    assert generator.api_key == "request-scoped"
-
-
-@pytest.mark.asyncio
-async def test_volcengine_image_generate_denies_org_without_explicit_context() -> None:
-    """火山直连是组织禁止触达的叶子，漏传参数不该绕开它。"""
-
-    from novelvideo.generators.image_generator import VolcengineImageGenerator
-    from novelvideo.ports.egress import EgressError
-
-    generator = VolcengineImageGenerator.__new__(VolcengineImageGenerator)
-    with model_gateway_request_scope(_organization_context()):
-        with pytest.raises(EgressError) as excinfo:
-            await generator.generate(prompt="p", egress_context=None)
-    assert excinfo.value.code == "ORG_EGRESS_DENIED"
-
-
 def test_scope_survives_asyncio_run_into_a_leaf_gate() -> None:
     """`verification/sketch_edit_execute.py:546` 用 `asyncio.run` 进叶子，全程无
     `egress_context` 参数可传——它只能靠作用域身份。ContextVar 会随
@@ -169,64 +142,6 @@ def test_scope_survives_asyncio_run_into_a_leaf_gate() -> None:
     with model_gateway_request_scope(_organization_context()):
         seen = asyncio.run(_inside())
     assert type(seen) is TrustedEgressContext
-
-
-def test_seedream_is_a_legacy_alias_for_a_newapi_selection() -> None:
-    """钉住一条否证：`image_generator.py:1191` 的 seedream 拒绝不是漏洞。
-
-    该判定在 `normalize_character_image_selection` **之前**求值，看似传
-    `model=None` 就能绕开。但归一化永远不会返回 `"seedream"`——它是映射到
-    `newapi_gpt_image2` 的历史别名，而 newapi 正是组织**被允许**的通道。
-    把判定挪到归一化之后只会拒掉合法的组织路径。
-    """
-
-    from novelvideo.config import normalize_character_image_selection
-
-    assert normalize_character_image_selection("seedream") == "newapi_gpt_image2"
-    assert normalize_character_image_selection(None).startswith("newapi_")
-
-
-@pytest.mark.asyncio
-async def test_prop_reference_uses_request_scoped_config_without_explicit_context(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """道具三视图漏传参数时会走本地 provider 配置——必须回落到组织通道。"""
-
-    from novelvideo.generators import nanobanana_prop
-
-    seen: dict[str, object] = {}
-
-    async def _fake_text_to_image(**kwargs: object) -> None:
-        seen.update(kwargs)
-
-    monkeypatch.setattr(nanobanana_prop, "generate_text_to_image", _fake_text_to_image)
-    with model_gateway_request_scope(_organization_context()):
-        await nanobanana_prop.generate_prop_reference(
-            visual_prompt="a sword",
-            output_path="/tmp/oi48-prop.png",
-        )
-    assert seen.get("config", {}).get("provider") == "newapi"
-    assert type(seen.get("egress_context")) is TrustedEgressContext
-
-
-@pytest.mark.asyncio
-async def test_freezone_gen_denies_volcengine_without_explicit_context(
-    tmp_path,
-) -> None:
-    """自由区生成漏传参数时，组织仍不该被放去火山直连。"""
-
-    from novelvideo.freezone import jobs
-    from novelvideo.ports.egress import EgressError
-
-    with model_gateway_request_scope(_organization_context()):
-        with pytest.raises(EgressError) as excinfo:
-            await jobs.run_freezone_gen(
-                project_dir=tmp_path,
-                job_id="job-1",
-                prompt="p",
-                provider="volcengine",
-            )
-    assert excinfo.value.code == "ORG_EGRESS_DENIED"
 
 
 @pytest.mark.asyncio

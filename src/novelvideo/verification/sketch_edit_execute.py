@@ -249,15 +249,13 @@ def _chunk_revise_rows(rows: list[dict[str, Any]], aspect_ratio: str) -> list[di
 
 def _get_sketch_edit_generation_config() -> dict[str, Any]:
     """Resolve the image-edit backend for sketch correction/director passes."""
-    selection = os.environ.get("SKETCH_EDIT_IMAGE_SELECTION", "huimeng_gpt_image2")
+    selection = os.environ.get("SKETCH_EDIT_IMAGE_SELECTION")
     quality = os.environ.get("SKETCH_EDIT_IMAGE_QUALITY", "low")
     config = get_grid_generation_config(
         selection_override=selection,
         image_size_override=os.environ.get("SKETCH_EDIT_IMAGE_SIZE", "1K"),
     )
-    config["openai_image_quality"] = quality
-    config["openai_sketch_image_quality"] = quality
-    config["huimeng_image_quality"] = quality
+    config["quality"] = quality
     config["image_size"] = os.environ.get("SKETCH_EDIT_IMAGE_SIZE", "1K")
     return config
 
@@ -443,8 +441,7 @@ def execute_sketch_edit_batches(
     edit_generator_config = _get_sketch_edit_generation_config()
     edit_image_quality = str(
         os.environ.get("SKETCH_EDIT_IMAGE_QUALITY")
-        or edit_generator_config.get("huimeng_image_quality")
-        or edit_generator_config.get("openai_image_quality")
+        or edit_generator_config.get("quality")
         or "low"
     )
     edit_image_size = str(os.environ.get("SKETCH_EDIT_IMAGE_SIZE") or "1K")

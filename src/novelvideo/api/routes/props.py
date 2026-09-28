@@ -358,13 +358,12 @@ async def generate_prop_reference(
     scope = prop_reference_asset_scope(prop.name)
     if ctx is not None:
         from novelvideo.api.routes.model_credits import _fixed_image_billing_params
-        from novelvideo.generators.nanobanana_prop import (
-            _prop_reference_image_source,
-            resolve_prop_reference_image_model,
-        )
+        from novelvideo.config import normalize_image_generation_selection
+        from novelvideo.generators.nanobanana_prop import resolve_prop_reference_image_model
 
-        _, selected_model = _prop_reference_image_source(model)
-        pricing_model = selected_model or resolve_prop_reference_image_model()
+        pricing_model = normalize_image_generation_selection(
+            model, fallback=resolve_prop_reference_image_model()
+        )
         queued = await get_task_backend().enqueue_project_task(
             ctx,
             product_surface="mainline",

@@ -7,7 +7,6 @@ from .image_generator import (
     ImageGenParams,
     ImageGenResult,
     MockImageGenerator,
-    VolcengineImageGenerator,
     create_image_generator,
     generate_character_reference_unified,
     generate_identity_image_unified,
@@ -71,7 +70,6 @@ __all__ = [
     # Image Generator
     "ImageGenParams",
     "ImageGenResult",
-    "VolcengineImageGenerator",
     "MockImageGenerator",
     "create_image_generator",
     "generate_character_reference_unified",

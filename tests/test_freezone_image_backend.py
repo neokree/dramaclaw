@@ -19,13 +19,11 @@ from novelvideo.api.routes.freezone import (
     _build_template_edit_prompt,
     _infer_scene_id_from_master_path,
     _merge_restored_preset_canvas,
-    _resolve_freezone_image_provider,
     _resolve_outpaint_aspect_ratio,
-    _split_provider_and_model,
     _template_edit_aspect_ratio,
 )
 from novelvideo.api.schemas import CanvasPayload, PresetCanvasRequest, PushRequest
-from novelvideo.config import NEWAPI_IMAGE_MODEL, OPENAI_IMAGE_MODEL
+from novelvideo.config import DEFAULT_IMAGE_SELECTION
 from novelvideo.freezone import image_node
 from novelvideo.freezone.presets import (
     build_canvas_payload_from_context,
@@ -59,8 +57,8 @@ from novelvideo.task_state import get_task_manager
 @pytest.mark.parametrize(
     "selection,model",
     [
-        ("newapi_gpt_image2", "LingShan-G2"),
-        ("newapi_nanobanana2", "LingShan-NB-2"),
+        ("higgsfield:gpt_image_2", "gpt_image_2"),
+        ("higgsfield:nano_banana_flash", "nano_banana_flash"),
     ],
 )
 @pytest.mark.parametrize("quality", ["low", "medium", "high"])
@@ -74,7 +72,7 @@ async def test_mainline_canvas_enqueue_carries_effective_feature_price(
     quality,
     aspect,
 ):
-    from novelvideo import config as image_config, project_config
+    from novelvideo import project_config
     from novelvideo.ports.local.projection import NoOpTaskProjection
     from novelvideo.ports.registry import register_port
 
@@ -94,24 +92,10 @@ async def test_mainline_canvas_enqueue_carries_effective_feature_price(
             "sketch_image_selection": selection,
         },
     )
-    monkeypatch.setattr(image_config, "OPENAI_SKETCH_IMAGE_QUALITY", quality)
     monkeypatch.setenv("DIRECTOR_CONTROL_SKETCH_IMAGE_QUALITY", quality)
     monkeypatch.delenv("DIRECTOR_CONTROL_SKETCH_IMAGE_SELECTION", raising=False)
     # This legacy setting is not a generate_grid override: mode_key wins.
     monkeypatch.setenv("DIRECTOR_CONTROL_SKETCH_IMAGE_SIZE", "4K")
-    for key, name in [
-        ("newapi_gpt_image2", "LingShan-G2"),
-        ("newapi_nanobanana2", "LingShan-NB-2"),
-    ]:
-        monkeypatch.setitem(
-            image_config.IMAGE_GENERATION_SELECTIONS,
-            key,
-            {
-                "provider": "newapi",
-                "model": name,
-                "label": name,
-            },
-        )
     ctx = _project_ctx(tmp_path)
     source = ctx.output_dir / "freezone" / "source.png"
     _write_image(source, size=(160, 90) if aspect == "16:9" else (80, 120))
@@ -192,8 +176,9 @@ async def test_mainline_canvas_enqueue_carries_effective_feature_price(
         else "director_control_to_sketch" if entry == "director" else "sketch_regen"
     )
     params = {"size": "1K"}
-    if selection == "newapi_gpt_image2":
-        params["quality"] = quality
+    if selection == "higgsfield:gpt_image_2":
+        # Sketches price at the engine's default sketch quality.
+        params["quality"] = "low" if entry in {"sketch", "beat_sketch"} else quality
     assert captured["payload"]["billing"] == {
         "feature_key": f"mainline.{feature}",
         "pricing_kind": "image",
@@ -234,7 +219,7 @@ def test_director_canvas_billing_uses_projection_and_director_override(monkeypat
     billing = freezone_routes._director_sketch_task_billing(**args)
     assert (
         billing["pricing_model"]
-        == freezone_routes.IMAGE_GENERATION_SELECTIONS["newapi_nanobanana2"]["model"]
+        == freezone_routes.IMAGE_GENERATION_SELECTIONS["higgsfield:nano_banana_flash"]["model"]
     )
     assert billing["pricing_params"] == {"size": "1K"}
     monkeypatch.setenv("DIRECTOR_CONTROL_SKETCH_IMAGE_SELECTION", "newapi_gpt_image2")
@@ -242,7 +227,7 @@ def test_director_canvas_billing_uses_projection_and_director_override(monkeypat
     billing = freezone_routes._director_sketch_task_billing(**args)
     assert (
         billing["pricing_model"]
-        == freezone_routes.IMAGE_GENERATION_SELECTIONS["newapi_gpt_image2"]["model"]
+        == freezone_routes.IMAGE_GENERATION_SELECTIONS["higgsfield:gpt_image_2"]["model"]
     )
     assert billing["pricing_params"] == {"size": "1K", "quality": "high"}
 
@@ -3393,124 +3378,12 @@ def test_template_edit_projection_prompt_requires_visible_time_change() -> None:
     assert "near-duplicate" in prompt
     assert "Within the same frame size" in prompt
 
-
-def test_split_provider_and_model_accepts_sketch_selection_key() -> None:
-    provider, model = _split_provider_and_model(None, "openai_gpt_image2")
-
-    assert provider == "openai"
-    assert model == OPENAI_IMAGE_MODEL
-
-
-def test_split_provider_and_model_accepts_newapi_selection_key() -> None:
-    provider, model = _split_provider_and_model(None, "newapi_gpt_image2")
-
-    assert provider == "newapi"
-    assert model == NEWAPI_IMAGE_MODEL
-
-
-def test_freezone_defaults_to_newapi_gpt_image2() -> None:
-    assert FREEZONE_DEFAULT_IMAGE_MODEL == "newapi_gpt_image2"
-    assert _resolve_freezone_image_provider(None) == "newapi"
-    assert _resolve_freezone_image_provider("newapi") == "newapi"
-
-
 def test_erase_prompt_mentions_masked_region_and_cleanup() -> None:
     prompt = _build_erase_prompt()
 
     assert "masked region" in prompt
     assert "Remove the content" in prompt
     assert "artifacts" in prompt
-
-
-@pytest.mark.asyncio
-async def test_masked_redraw_uses_default_newapi_model(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    username = "admin"
-    project = "525"
-    project_dir, _output_dir = _patch_freezone_project(
-        monkeypatch, tmp_path, username=username, project=project
-    )
-    source = project_dir / "assets" / "characters" / "陈默" / "portrait.png"
-    mask = project_dir / "freezone" / "_uploads" / "mask.png"
-    _write_image(source, size=(1024, 1024))
-    _write_image(mask, size=(1024, 1024))
-
-    captured: dict[str, object] = {}
-    _patch_celery_edit_enqueue(monkeypatch, captured)
-
-    body = freezone_routes.FreezoneRedrawRequest(
-        source_url="/static/admin/525/assets/characters/陈默/portrait.png",
-        mask_url="/static/admin/525/freezone/_uploads/mask.png",
-        prompt="",
-        aspect_ratio="16:9",
-        num_images=1,
-        image_size="2K",
-        quality="low",
-    )
-
-    result = await freezone_routes.freezone_redraw(
-        project="01KSEKPTTX43HEF7720SEVMW8Z",
-        body=body,
-        user={"username": username},
-    )
-
-    assert result["ok"] is True
-    assert captured["task_type"] == "freezone_mask_edit"
-    assert captured["provider"] == "newapi"
-    assert captured["model"] == NEWAPI_IMAGE_MODEL
-    assert captured["quality"] == "low"
-    assert captured["billing"]["feature_key"] == "freezone.image_edit"
-    assert captured["billing"]["operation"] == "erase"
-    assert captured["billing"]["pricing_kind"] == "image"
-
-
-@pytest.mark.asyncio
-async def test_mask_edit_job_uses_reference_edit_provider_routing(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from novelvideo.freezone.jobs import run_freezone_mask_edit
-
-    project_dir = tmp_path / "project"
-    base = project_dir / "base.png"
-    mask = project_dir / "mask.png"
-    _write_image(base, size=(1024, 1024))
-    _write_image(mask, size=(1024, 1024))
-    captured: dict[str, object] = {}
-
-    async def fake_generate_reference_edit_image(**kwargs):
-        captured.update(kwargs)
-        Path(str(kwargs["output_path"])).parent.mkdir(parents=True, exist_ok=True)
-        Path(str(kwargs["output_path"])).write_bytes(b"png")
-
-    monkeypatch.setattr(
-        "novelvideo.generators.nanobanana_grid.generate_reference_edit_image",
-        fake_generate_reference_edit_image,
-    )
-
-    out = await run_freezone_mask_edit(
-        project_dir=project_dir,
-        job_id="job_mask",
-        base_path=str(base),
-        mask_path=str(mask),
-        prompt="erase",
-        aspect_ratio="16:9",
-        image_size="2K",
-        quality="medium",
-        provider="newapi",
-        model=NEWAPI_IMAGE_MODEL,
-    )
-
-    assert out.exists()
-    assert captured["reference_images"] == [str(base), str(mask)]
-    assert captured["config"]["provider"] == "newapi"
-    assert captured["config"]["model"] == NEWAPI_IMAGE_MODEL
-    # Image 2 = 源图 + 红色高亮标注；模型只改红色区域，且红色不进入结果。
-    assert "red-highlighted region" in captured["prompt"]
-    assert "must NOT appear in the output" in captured["prompt"]
-
 
 def test_camera_prompt_contains_camera_body_lens_focal_and_aperture() -> None:
     camera = freezone_routes.FreezoneImageCameraConfig(
@@ -3744,12 +3617,12 @@ async def test_freezone_gen_route_passes_output_dir_and_quality(
     assert captured["payload"]["project_dir"] == str(project_dir)
     assert captured["payload"]["quality"] == "low"
     billing = captured["payload"]["billing"]
-    assert billing["image_selection"] == "newapi_gpt_image2"
+    assert billing["image_selection"] == "higgsfield:gpt_image_2"
     assert billing["size"] == "1K"
     assert billing["quality"] == "low"
     assert billing["pricing_kind"] == "image"
     assert billing["pricing_model"] == freezone_routes.IMAGE_GENERATION_SELECTIONS[
-        "newapi_gpt_image2"
+        "higgsfield:gpt_image_2"
     ]["model"]
     assert billing["pricing_params"] == {"size": "1K", "quality": "low"}
     assert billing["pricing_quantity"] == 1
@@ -3841,72 +3714,6 @@ async def test_freezone_gen_rejects_catalog_and_execution_model_mismatch(
 
     assert exc_info.value.status_code == 400
     assert "does not match" in str(exc_info.value.detail)
-
-
-@pytest.mark.asyncio
-async def test_freezone_gen_derives_execution_and_billing_model_from_catalog(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _patch_freezone_project(monkeypatch, tmp_path, username="admin", project="58")
-    captured: dict[str, object] = {}
-
-    async def fake_resolve_catalog_request(*_args, **_kwargs):
-        return (
-            {"endpoint": "images/generations", "parameters": []},
-            {},
-            {
-                "catalogId": "catalog-image",
-                "id": "catalog-image-legacy",
-                "providerId": "newapi",
-                "apiModel": "LingShan-G2",
-                "gatewayModel": "LingShan-G2",
-            },
-        )
-
-    async def fake_enqueue_project_task(_ctx: ProjectContext, **kwargs):
-        captured["payload"] = kwargs.get("payload") or {}
-        return SimpleNamespace(
-            task_state=SimpleNamespace(task_id="task_gen"),
-            backend="celery",
-            queue="node.node_a.default",
-        )
-
-    monkeypatch.setattr(
-        freezone_routes,
-        "_resolve_catalog_request",
-        fake_resolve_catalog_request,
-    )
-    monkeypatch.setattr(
-        freezone_routes,
-        "get_task_backend",
-        lambda: SimpleNamespace(enqueue_project_task=fake_enqueue_project_task),
-    )
-
-    result = await freezone_routes.freezone_gen(
-        project="proj_freezone",
-        body=freezone_routes.FreezoneGenRequest(
-            prompt="generate",
-            model_id="catalog-image",
-            image_size="2K",
-            quality="high",
-        ),
-        user={"username": "admin"},
-    )
-
-    assert result["ok"] is True
-    payload = captured["payload"]
-    assert payload["provider"] == "newapi"
-    assert payload["model"] == "LingShan-G2"
-    assert payload["model_id"] == "catalog-image"
-    assert payload["catalog_id"] == "catalog-image"
-    assert payload["billing"]["catalog_id"] == "catalog-image"
-    assert payload["billing"]["pricing_model"] == "LingShan-G2"
-    assert payload["billing"]["pricing_params"] == {
-        "quality": "high",
-        "size": "2K",
-    }
-
 
 @pytest.mark.asyncio
 async def test_freezone_edit_rejects_catalog_and_execution_model_mismatch(
@@ -4743,91 +4550,6 @@ def _patch_scene_360_enqueue(
     _write_image(ctx.output_dir / "assets" / "scenes" / "小区" / "master.png")
     return ctx
 
-
-@pytest.mark.asyncio
-async def test_scene_360_takes_model_and_billing_identity_from_the_catalog(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """身份以目录条目为准，不采信 body。
-
-    body 里的 catalog_id 直接决定按哪条目录规则扣费 —— 采信它就等于允许客户端
-    报一个便宜的 catalog_id、配一个贵的 model。
-    """
-    captured: dict = {}
-    _patch_scene_360_enqueue(monkeypatch, tmp_path, captured)
-
-    async def fake_resolve_catalog_request(*_args, **_kwargs):
-        return (
-            {},
-            {},
-            {
-                "catalogId": "cat-real",
-                "id": "cat-real",
-                "providerId": "newapi",
-                "apiModel": "real-pano-model",
-                "gatewayModel": "real-pano-model",
-            },
-        )
-
-    monkeypatch.setattr(
-        freezone_routes, "_resolve_catalog_request", fake_resolve_catalog_request
-    )
-
-    await freezone_routes.freezone_scene_360(
-        project="proj_freezone",
-        body=freezone_routes.FreezoneScene360Request(
-            reference_url="/api/v1/projects/proj_freezone/media/assets/scenes/小区/master.png",
-            model="real-pano-model",
-            catalog_id="cat-cheap",
-        ),
-        user={"username": "admin"},
-    )
-
-    assert captured["payload"]["params"]["model"] == "real-pano-model"
-    assert captured["payload"]["scene_360_model_authority"] == {
-        "kind": "catalog",
-        "catalog_id": "cat-real",
-        "provider": "newapi",
-        "model": "real-pano-model",
-    }
-    assert captured["payload"]["billing"]["catalog_id"] == "cat-real"
-    assert captured["payload"]["billing"]["pricing_model"] == "real-pano-model"
-
-
-@pytest.mark.asyncio
-async def test_scene_360_rejects_client_model_without_catalog_authority_before_enqueue(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    captured: dict = {}
-    _patch_scene_360_enqueue(monkeypatch, tmp_path, captured)
-
-    async def fake_resolve_catalog_request(*_args, **_kwargs):
-        return {}, {}, None
-
-    monkeypatch.setattr(
-        freezone_routes, "_resolve_catalog_request", fake_resolve_catalog_request
-    )
-
-    with pytest.raises(HTTPException) as exc_info:
-        await freezone_routes.freezone_scene_360(
-            project="proj_freezone",
-            body=freezone_routes.FreezoneScene360Request(
-                reference_url=(
-                    "/api/v1/projects/proj_freezone/media/assets/scenes/小区/master.png"
-                ),
-                model="attacker-controlled-model",
-                catalog_id="forged-catalog",
-            ),
-            user={"username": "admin"},
-        )
-
-    assert exc_info.value.status_code == 400
-    assert "scene 360 image model" in str(exc_info.value.detail)
-    assert not captured
-
-
 @pytest.mark.asyncio
 async def test_scene_360_rejects_a_model_the_catalog_does_not_have(
     tmp_path: Path,
@@ -4856,62 +4578,6 @@ async def test_scene_360_rejects_a_model_the_catalog_does_not_have(
 
     assert exc_info.value.status_code == 409
     assert not captured
-
-
-@pytest.mark.asyncio
-async def test_template_edit_takes_provider_model_and_identity_from_the_catalog(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """宫格动作与 /freezone/edit 共用同一条执行链，provider 也要跟着目录走。
-
-    只发裸 model 的话网关按默认 provider 路由，目录里配的 openrouter 模型会被
-    送错家。
-    """
-    username = "admin"
-    project = "59"
-    project_dir, _output_dir = _patch_freezone_project(
-        monkeypatch, tmp_path, username=username, project=project
-    )
-    source = project_dir / "freezone" / "_uploads" / "portrait.png"
-    _write_image(source, size=(1080, 1920))
-
-    async def fake_resolve_catalog_request(*_args, **_kwargs):
-        return (
-            {},
-            {},
-            {
-                "catalogId": "cat-grid",
-                "id": "cat-grid",
-                "providerId": "openrouter",
-                "apiModel": "google/gemini-2.5-flash-image-preview",
-                "gatewayModel": "google/gemini-2.5-flash-image-preview",
-            },
-        )
-
-    monkeypatch.setattr(
-        freezone_routes, "_resolve_catalog_request", fake_resolve_catalog_request
-    )
-    captured: dict[str, object] = {}
-    _patch_celery_edit_enqueue(monkeypatch, captured)
-
-    result = await freezone_routes.freezone_template_edit(
-        project=project,
-        body=freezone_routes.FreezoneTemplateEditRequest(
-            source_url="/static/admin/59/freezone/_uploads/portrait.png",
-            mode="multi_camera_nine_grid",
-            model="google/gemini-2.5-flash-image-preview",
-            catalog_id="cat-cheap",
-        ),
-        user={"username": username},
-    )
-
-    assert result["ok"] is True
-    assert captured["provider"] == "openrouter"
-    assert captured["model"] == "google/gemini-2.5-flash-image-preview"
-    assert captured["catalog_id"] == "cat-grid"
-    assert captured["billing"]["catalog_id"] == "cat-grid"
-
 
 @pytest.mark.asyncio
 async def test_template_edit_rejects_a_model_the_catalog_does_not_have(
@@ -4945,118 +4611,6 @@ async def test_template_edit_rejects_a_model_the_catalog_does_not_have(
 
     assert exc_info.value.status_code == 409
     assert not captured
-
-
-@pytest.mark.asyncio
-async def test_freezone_edit_forwards_catalog_model_params_into_task_payload(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """带参考图的图编辑走 /freezone/edit，目录动态参数必须一路到任务负载。
-
-    schema 要和取值一起下发 —— runner 只有拿到 requestPath 才知道把参数写进网关
-    请求体的哪个位置，只带值等于没生效。
-    """
-    username = "admin"
-    project = "58"
-    project_dir, _output_dir = _patch_freezone_project(
-        monkeypatch, tmp_path, username=username, project=project
-    )
-    source = project_dir / "freezone" / "_uploads" / "base.png"
-    _write_image(source, size=(1024, 1024))
-
-    schema = {
-        "endpoint": "images/edits",
-        "parameters": [
-            {"key": "quality", "requestPath": "quality", "modes": ["image_to_image"]},
-        ],
-    }
-
-    async def fake_resolve_catalog_request(*_args, **_kwargs):
-        return (
-            schema,
-            {"quality": "high"},
-            {
-                "catalogId": "cat-edit",
-                "id": "cat-edit",
-                "providerId": "newapi",
-                "apiModel": "custom-edit",
-                "gatewayModel": "custom-edit",
-            },
-        )
-
-    monkeypatch.setattr(
-        freezone_routes,
-        "_resolve_catalog_request",
-        fake_resolve_catalog_request,
-    )
-    captured: dict[str, object] = {}
-    _patch_celery_edit_enqueue(monkeypatch, captured)
-
-    result = await freezone_routes.freezone_edit(
-        project=project,
-        body=freezone_routes.FreezoneEditRequest(
-            prompt="换成夜景",
-            base_url="/static/admin/58/freezone/_uploads/base.png",
-            model="custom-edit",
-            model_id="cat-edit",
-            gen_mode="image_to_image",
-            model_params={"quality": "high"},
-        ),
-        user={"username": username},
-    )
-
-    assert result["ok"] is True
-    assert captured["model_params"] == {"quality": "high"}
-    assert captured["request_schema"] == schema
-    assert captured["catalog_id"] == "cat-edit"
-
-
-@pytest.mark.asyncio
-async def test_run_freezone_edit_writes_model_params_into_gateway_config(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """runner 侧同 run_freezone_gen 一个口径：参数与 schema 都要落到网关 config。"""
-    from novelvideo import config as novelvideo_config
-    from novelvideo.freezone import jobs as freezone_jobs
-    from novelvideo.generators import nanobanana_grid
-
-    base = tmp_path / "base.png"
-    _write_image(base, size=(64, 64))
-    captured: dict[str, object] = {}
-
-    monkeypatch.setattr(
-        novelvideo_config,
-        "get_grid_generation_config",
-        lambda **_kwargs: {"provider": "newapi", "model": "custom-edit"},
-    )
-
-    async def fake_generate_reference_edit_image(**kwargs):
-        captured.update(kwargs)
-        Path(kwargs["output_path"]).parent.mkdir(parents=True, exist_ok=True)
-        Path(kwargs["output_path"]).write_bytes(b"")
-        return kwargs["output_path"]
-
-    monkeypatch.setattr(
-        nanobanana_grid,
-        "generate_reference_edit_image",
-        fake_generate_reference_edit_image,
-    )
-
-    schema = {"endpoint": "images/edits", "parameters": [{"key": "quality"}]}
-    await freezone_jobs.run_freezone_edit(
-        project_dir=tmp_path,
-        job_id="job_edit",
-        prompt="换成夜景",
-        base_path=str(base),
-        model_params={"quality": "high"},
-        request_schema=schema,
-    )
-
-    assert captured["config"]["newapi_model_params"] == {"quality": "high"}
-    assert captured["config"]["newapi_request_schema"] == schema
-
 
 def _skill_beat_input() -> dict:
     return {
@@ -5590,8 +5144,8 @@ async def test_skill_run_frame_accepts_plain_canvas_image_as_sketch_input(
     assert captured["payload"]["billing"] == {
         "feature_key": "mainline.render_regen",
         "pricing_kind": "image",
-        "pricing_model": freezone_routes.IMAGE_GENERATION_SELECTIONS["newapi_gpt_image2"]["model"],
-        "pricing_params": {"size": "1K", "quality": "medium"},
+        "pricing_model": freezone_routes.IMAGE_GENERATION_SELECTIONS[DEFAULT_IMAGE_SELECTION]["model"],
+        "pricing_params": {"size": "1K"},
     }
     assert captured["payload"]["config"]["canvas_sketch_paths"]["8"].endswith(
         "/freezone/plain_sketch.png"
@@ -5739,8 +5293,8 @@ async def test_skill_run_normalizes_project_media_url_before_dispatch(
     assert captured["payload"]["billing"] == {
         "feature_key": "mainline.sketch_regen",
         "pricing_kind": "image",
-        "pricing_model": freezone_routes.IMAGE_GENERATION_SELECTIONS["newapi_gpt_image2"]["model"],
-        "pricing_params": {"size": "1K", "quality": "low"},
+        "pricing_model": freezone_routes.IMAGE_GENERATION_SELECTIONS[DEFAULT_IMAGE_SELECTION]["model"],
+        "pricing_params": {"size": "1K"},
     }
     assert captured["episode"] == 1
     assert captured["beat_num"] == 8
@@ -6988,8 +6542,8 @@ async def test_skill_run_sketch_accepts_director_combined_background(
     assert captured["payload"]["billing"] == {
         "feature_key": "mainline.director_control_to_sketch",
         "pricing_kind": "image",
-        "pricing_model": freezone_routes.IMAGE_GENERATION_SELECTIONS["newapi_gpt_image2"]["model"],
-        "pricing_params": {"size": "1K", "quality": "low"},
+        "pricing_model": freezone_routes.IMAGE_GENERATION_SELECTIONS[DEFAULT_IMAGE_SELECTION]["model"],
+        "pricing_params": {"size": "1K"},
     }
     assert captured["episode"] == 1
     assert captured["beat_num"] == 8
@@ -7078,8 +6632,8 @@ async def test_skill_run_sketch_prefers_director_combined_over_background(
     assert captured["payload"]["billing"] == {
         "feature_key": "mainline.director_control_to_sketch",
         "pricing_kind": "image",
-        "pricing_model": freezone_routes.IMAGE_GENERATION_SELECTIONS["newapi_gpt_image2"]["model"],
-        "pricing_params": {"size": "1K", "quality": "low"},
+        "pricing_model": freezone_routes.IMAGE_GENERATION_SELECTIONS[DEFAULT_IMAGE_SELECTION]["model"],
+        "pricing_params": {"size": "1K"},
     }
     assert captured["episode"] == 1
     assert captured["beat_num"] == 8
@@ -7505,12 +7059,12 @@ async def test_skill_run_scene_360_uses_reverse_master_and_scene_slot_target(
     assert captured["task_type"] == "stage_asset"
     assert captured["payload"]["scene_name"] == "小区"
     assert captured["payload"]["step"] == "pano_from_master"
-    assert captured["payload"]["params"]["provider"] == "newapi"
-    assert captured["payload"]["params"]["model"] == NEWAPI_IMAGE_MODEL
+    assert captured["payload"]["params"]["provider"] == "higgsfield"
+    assert captured["payload"]["params"]["model"] == "nano_banana_flash"
     assert resolve_scene_360_image_model(
         provider=captured["payload"]["params"]["provider"],
         model=captured["payload"]["params"]["model"],
-    ) == NEWAPI_IMAGE_MODEL
+    ) == "nano_banana_flash"
     assert captured["payload"]["params"]["image_size"] == "2K"
     assert captured["payload"]["params"]["update_manifest"] is False
     assert captured["payload"]["params"]["master_path"].endswith("/assets/scenes/小区/master.png")
@@ -8248,47 +7802,6 @@ async def test_get_node_generation_history_uses_project_context_path(
     assert recorded_at.endswith("Z")
     assert "+08:00" not in recorded_at
 
-
-@pytest.mark.asyncio
-async def test_freezone_image_models_returns_selection_keys(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _patch_freezone_project(monkeypatch, tmp_path, project="58")
-
-    # Selection keys are the fallback when no scoped model catalog is available.
-    # Default CE has an official catalog and must not be mistaken for this path.
-    async def no_catalog(_media_type: str, *, requester_user_id: str):
-        return None
-
-    monkeypatch.setattr(freezone_routes, "_scoped_media_model_catalog", no_catalog)
-
-    result = await freezone_routes.freezone_image_models(
-        project="58",
-        user={"username": "admin"},
-    )
-
-    assert result["ok"] is True
-    assert result["data"] == [
-        {
-            "id": "newapi_gpt_image2",
-            "providerId": "newapi",
-            "provider": "newapi",
-            "apiModel": "newapi_gpt_image2",
-            "api_model": "newapi_gpt_image2",
-            "label": "LingShan-G2",
-        },
-        {
-            "id": "newapi_nanobanana2",
-            "providerId": "newapi",
-            "provider": "newapi",
-            "apiModel": "newapi_nanobanana2",
-            "api_model": "newapi_nanobanana2",
-            "label": "LingShan-NB-2",
-        },
-    ]
-
-
 @pytest.mark.asyncio
 async def test_freezone_image_models_prefers_ee_catalog(
     tmp_path: Path,
@@ -8317,91 +7830,6 @@ async def test_freezone_image_models_prefers_ee_catalog(
     )
 
     assert result == {"ok": True, "data": catalog}
-
-
-def test_ce_media_catalog_overlay_preserves_unconfigured_defaults() -> None:
-    defaults = [
-        {
-            "catalogId": "default-image",
-            "id": "default-image",
-            "apiModel": "default-image",
-            "label": "Default",
-        },
-        {
-            "catalogId": "other-image",
-            "id": "other-image",
-            "apiModel": "other-image",
-            "label": "Other",
-        },
-    ]
-    configured = [
-        {
-            "catalogId": "default-image",
-            "id": "default-image",
-            "apiModel": "default-image",
-            "gatewayModel": "custom-upstream",
-        },
-        {
-            "catalogId": "custom-image",
-            "id": "custom-image",
-            "apiModel": "custom-image",
-            "label": "Custom",
-        },
-    ]
-
-    result = freezone_routes._merge_media_model_catalog_defaults(defaults, configured)
-
-    assert result == [
-        {
-            "catalogId": "default-image",
-            "id": "default-image",
-            "apiModel": "default-image",
-            "label": "Default",
-            "gatewayModel": "custom-upstream",
-        },
-        {
-            "catalogId": "other-image",
-            "id": "other-image",
-            "apiModel": "other-image",
-            "label": "Other",
-        },
-        {
-            "catalogId": "custom-image",
-            "id": "custom-image",
-            "apiModel": "custom-image",
-            "label": "Custom",
-        },
-    ]
-
-
-def test_ce_media_catalog_overlay_returns_defaults_without_local_models() -> None:
-    defaults = [{"id": "official-image", "apiModel": "official-image"}]
-
-    assert freezone_routes._merge_media_model_catalog_defaults(defaults, []) == defaults
-
-
-def test_ce_media_catalog_does_not_match_custom_upstream_model_as_catalog_id() -> None:
-    defaults = [
-        {
-            "catalogId": "LingShan-G2",
-            "id": "LingShan-G2",
-            "gatewayModel": "LingShan-G2",
-            "label": "Official",
-        }
-    ]
-    configured = [
-        {
-            "catalogId": "my-image",
-            "id": "my-image",
-            "gatewayModel": "LingShan-G2",
-            "label": "Custom",
-        }
-    ]
-
-    result = freezone_routes._merge_media_model_catalog_defaults(defaults, configured)
-
-    assert [entry["catalogId"] for entry in result] == ["LingShan-G2", "my-image"]
-
 
 @pytest.mark.asyncio
 async def test_image_catalog_pixel_floor_is_added_to_execution_schema(

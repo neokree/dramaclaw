@@ -1202,8 +1202,7 @@ def _mainline_image_task_billing(config: dict, *, is_sketch: bool) -> dict:
     )
     image_quality = str(config.get("image_quality") or "").strip().lower()
     if image_quality in {"low", "medium", "high"}:
-        generation_config["openai_image_quality"] = image_quality
-        generation_config["huimeng_image_quality"] = image_quality
+        generation_config["quality"] = image_quality
     return _mainline_generator_billing(
         "mainline.sketch_regen" if is_sketch else "mainline.render_regen",
         generation_config,
@@ -1221,14 +1220,8 @@ def _mainline_generator_billing(
         normalize_image_size,
     )
 
-    provider = generation_config["provider"]
     # generate_grid takes size from mode_key, even for director conversion.
-    size = normalize_image_size(REGEN_MODE_CONFIGS[mode_key]["image_size"], provider)
-    quality_key = (
-        "huimeng_image_quality"
-        if provider == "huimeng"
-        else "openai_sketch_image_quality" if is_sketch else "openai_image_quality"
-    )
+    size = normalize_image_size(REGEN_MODE_CONFIGS[mode_key]["image_size"])
     return {
         "feature_key": feature_key,
         "pricing_kind": "image",
@@ -1236,9 +1229,7 @@ def _mainline_generator_billing(
         "pricing_params": _image_billing_params(
             model=generation_config["model"],
             image_size=size,
-            quality=generation_config.get(
-                quality_key, "low" if is_sketch else "medium"
-            ),
+            quality=generation_config.get("quality") or ("low" if is_sketch else "medium"),
         ),
     }
 
@@ -2284,22 +2275,9 @@ async def _start_or_enqueue_mainline_scene_360_task(
     )
     artifact_dir = outputs_dir(project_dir, "mainline_scene_360") / job_id
     resolved_provider, resolved_model = _split_provider_and_model(
-        "newapi",
+        None,
         model or FREEZONE_DEFAULT_IMAGE_MODEL,
     )
-    if not execution_catalog_id:
-        from novelvideo.stage_asset_tasks import (
-            Scene360ImageModelSelectionError,
-            resolve_scene_360_image_model,
-        )
-
-        try:
-            resolve_scene_360_image_model(
-                resolved_provider or "newapi",
-                resolved_model or model or FREEZONE_DEFAULT_IMAGE_MODEL,
-            )
-        except Scene360ImageModelSelectionError as exc:
-            raise HTTPException(400, str(exc)) from exc
     from novelvideo.api.routes.model_credits import freezone_image_task_billing
 
     billing = freezone_image_task_billing(
@@ -2330,7 +2308,7 @@ async def _start_or_enqueue_mainline_scene_360_task(
             "step": step,
             "params": {
                 "description": (description or "").strip() or _build_scene_360_prompt(scene_id),
-                "provider": resolved_provider or "newapi",
+                "provider": resolved_provider or "",
                 "model": resolved_model or model or FREEZONE_DEFAULT_IMAGE_MODEL,
                 "image_size": image_size or MAINLINE_SCENE_360_IMAGE_SIZE,
                 "quality": quality or "medium",
@@ -2348,7 +2326,7 @@ async def _start_or_enqueue_mainline_scene_360_task(
                     "scene_360_model_authority": {
                         "kind": "catalog",
                         "catalog_id": execution_catalog_id,
-                        "provider": resolved_provider or "newapi",
+                        "provider": resolved_provider or "",
                         "model": resolved_model
                         or model
                         or FREEZONE_DEFAULT_IMAGE_MODEL,
@@ -7905,7 +7883,7 @@ async def _require_scoped_media_model(
     )
     if catalog is None:
         return None
-    clean_requested = str(requested or "").strip()
+    clean_requested = _current_image_model_name(media_type, requested)
     entry = next(
         (
             item
@@ -7917,6 +7895,16 @@ async def _require_scoped_media_model(
     if entry is None:
         raise _media_model_unavailable(media_type, catalog)
     return entry
+
+
+def _current_image_model_name(media_type: str, requested: str | None) -> str:
+    """Saved canvases may still name a retired image provider's selection key."""
+    from novelvideo.config import LEGACY_IMAGE_GENERATION_SELECTION_ALIASES
+
+    clean = str(requested or "").strip()
+    if media_type != "image":
+        return clean
+    return LEGACY_IMAGE_GENERATION_SELECTION_ALIASES.get(clean, clean)
 
 
 def _catalog_entry_identifiers(entry: dict[str, Any]) -> set[str]:
@@ -7981,8 +7969,10 @@ def _catalog_image_execution_selection(
     if clean_provider and clean_provider.casefold() != provider.casefold():
         raise HTTPException(400, "model provider does not match configured media model")
 
-    clean_model = str(requested_model or "").strip()
-    if clean_model and clean_model not in _catalog_entry_identifiers(entry):
+    clean_model = _current_image_model_name("image", requested_model)
+    identifiers = _catalog_entry_identifiers(entry)
+    # a Higgsfield row's catalog id is "higgsfield:<ref>"; the bare ref names it too
+    if clean_model and not {clean_model, f"{provider}:{clean_model}"} & identifiers:
         raise HTTPException(400, "model does not match configured media model")
     return provider, model
 
@@ -7995,7 +7985,7 @@ async def _resolve_catalog_request(
     mode: str | None = None,
     requester_user_id: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any] | None]:
-    requested = str(model or "").strip()
+    requested = _current_image_model_name(media_type, model)
     catalog = (
         await _scoped_media_model_catalog(
             media_type,
@@ -8352,23 +8342,7 @@ async def freezone_image_models(
         "image",
         requester_user_id=ctx.requester_user_id,
     )
-    if catalog is not None:
-        return {"ok": True, "data": catalog}
-    options = image_generation_selection_options()
-    data = []
-    for key, label in options.items():
-        entry = IMAGE_GENERATION_SELECTIONS.get(key, {})
-        data.append(
-            {
-                "id": key,
-                "providerId": entry.get("provider", "newapi"),
-                "provider": entry.get("provider", "newapi"),
-                "apiModel": key,
-                "api_model": key,
-                "label": label,
-            }
-        )
-    return {"ok": True, "data": data}
+    return {"ok": True, "data": catalog or []}
 
 
 @router.post(

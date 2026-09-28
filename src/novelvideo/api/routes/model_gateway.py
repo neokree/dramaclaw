@@ -366,11 +366,7 @@ def _build_media_model_channel_specs(
         upstream_model = (item.upstream_model or "").strip() or model
         media_type = str(item.media_type or "").strip().lower()
         if not media_type:
-            if model in {"LingShan-G2", "LingShan-NB-2"} or model.startswith(
-                "seedream-"
-            ):
-                media_type = "image"
-            elif model in {"index-tts-2", "LingShan-MU-11"}:
+            if model in {"index-tts-2", "LingShan-MU-11"}:
                 media_type = "audio"
             else:
                 media_type = "video"

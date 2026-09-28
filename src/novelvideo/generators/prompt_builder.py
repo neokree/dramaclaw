@@ -3818,9 +3818,7 @@ def _uses_gpt_image_sketch_profile(ctx: PromptContext) -> bool:
     model = (ctx.image_model or "").strip().lower()
     if not provider or not model:
         return False
-    if provider in {"openai", "huimeng"} and model == "image-2":
-        return True
-    return provider == "openrouter" and "gpt" in model and "image" in model
+    return provider == "higgsfield" and "gpt" in model and "image" in model
 
 
 def create_prompt_context(

@@ -238,7 +238,6 @@ def _scene_pano_billing_metadata(params: dict[str, Any]) -> dict[str, Any]:
     quality = str(
         params.get("quality")
         or os.environ.get("SCENE_360_IMAGE_QUALITY")
-        or os.environ.get("HUIMENG_IMAGE_QUALITY")
         or "medium"
     )
     return {

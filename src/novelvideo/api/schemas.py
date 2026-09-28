@@ -7,13 +7,14 @@ from typing import Annotated, Any, Literal, Optional
 from fastapi import HTTPException
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from novelvideo.config import DEFAULT_IMAGE_SELECTION
 from novelvideo.models import SceneRef
 from novelvideo.freezone.asset_copy import MAX_SOURCE_URL_LENGTH, MAX_SOURCES_PER_REQUEST
 from novelvideo.freezone.slots import PushTarget
 
 ProjectStatus = Literal["active", "archived", "deleted"]
 ProjectStatusFilter = Literal["all", "active", "archived", "deleted", "visible"]
-FREEZONE_DEFAULT_IMAGE_SELECTION = "newapi_gpt_image2"
+FREEZONE_DEFAULT_IMAGE_SELECTION = DEFAULT_IMAGE_SELECTION
 FREEZONE_DEFAULT_IMAGE_MODEL = FREEZONE_DEFAULT_IMAGE_SELECTION
 CANVAS_MAX_NODES = 50_000
 CANVAS_MAX_EDGES = 200_000

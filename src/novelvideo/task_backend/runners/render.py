@@ -592,8 +592,7 @@ async def _run_selected_regen_async(
     generator_config = get_generation_config(selection_override=image_selection)
     image_quality = str(config.get("image_quality") or "").strip().lower()
     if image_quality in {"low", "medium", "high"}:
-        generator_config["openai_image_quality"] = image_quality
-        generator_config["huimeng_image_quality"] = image_quality
+        generator_config["quality"] = image_quality
     log(
         f"[{'Sketch' if is_sketch else 'Render'} Image] "
         f"provider={generator_config.get('provider')}, model={generator_config.get('model')}"

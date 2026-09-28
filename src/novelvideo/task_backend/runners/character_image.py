@@ -241,7 +241,6 @@ async def _generate_character_portrait(
             usage_task_type=task_type,
             usage_scope=scope,
             raise_on_error=True,
-            egress_context=egress_context,
         )
         if not paths:
             raise RuntimeError("角色 Portrait 生成失败")
@@ -296,7 +295,6 @@ async def _generate_identity_portrait(
             usage_scope=scope,
             identity_name=identity.identity_name,
             raise_on_error=True,
-            egress_context=egress_context,
         )
         if not paths:
             raise RuntimeError("身份 Portrait 生成失败")
@@ -394,7 +392,6 @@ async def _generate_identity_image(
             usage_scope=scope,
             identity_name=identity.identity_name,
             raise_on_error=True,
-            egress_context=egress_context,
         )
         success = bool(result.get("success", False)) if isinstance(result, dict) else bool(result)
         if not success:

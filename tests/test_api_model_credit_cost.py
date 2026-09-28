@@ -335,6 +335,9 @@ async def test_generation_credit_cost_route_prices_audio_feature_by_model(monkey
     from novelvideo import config
     from novelvideo.api.routes import model_credits
 
+    # Import first: a module imported under the patch would keep "index-tts-2" forever.
+    import novelvideo.audio.indextts2_beat_audio_task  # noqa: F401
+
     monkeypatch.setattr(config, "INDEXTTS2_RECORD_MODEL", "index-tts-2")
     monkeypatch.setattr(
         "novelvideo.audio.indextts2_beat_audio_task.INDEXTTS2_RECORD_MODEL",
@@ -411,6 +414,9 @@ async def test_generation_credit_cost_route_prices_freezone_audio_speech_by_feat
 ):
     from novelvideo import config
     from novelvideo.api.routes import model_credits
+
+    # Import first: a module imported under the patch would keep "index-tts-2" forever.
+    import novelvideo.audio.indextts2_beat_audio_task  # noqa: F401
 
     monkeypatch.setattr(config, "INDEXTTS2_RECORD_MODEL", "index-tts-2")
     monkeypatch.setattr(
@@ -599,7 +605,7 @@ async def test_generation_credit_cost_route_prices_freezone_image_generate_by_mo
     from novelvideo import config
     from novelvideo.api.routes import model_credits
 
-    pricing_model = config.IMAGE_GENERATION_SELECTIONS["newapi_gpt_image2"]["model"]
+    pricing_model = config.IMAGE_GENERATION_SELECTIONS["higgsfield:gpt_image_2"]["model"]
     patch_quote_expect(
         monkeypatch,
         model_credits,
@@ -613,9 +619,9 @@ async def test_generation_credit_cost_route_prices_freezone_image_generate_by_mo
             "pricing_kind": "image",
             "pricing_model": pricing_model,
             "pricing_params": {"size": "2K", "quality": "low"},
-            "pricing_model_selection": "newapi_gpt_image2",
+            "pricing_model_selection": "higgsfield:gpt_image_2",
             "pricing_model_label": config.IMAGE_GENERATION_SELECTIONS[
-                "newapi_gpt_image2"
+                "higgsfield:gpt_image_2"
             ]["label"],
         },
         expected_quantity=3,
@@ -716,7 +722,7 @@ async def test_generation_credit_cost_route_prices_freezone_image_tools_by_featu
     from novelvideo import config
     from novelvideo.api.routes import model_credits
 
-    pricing_model = config.IMAGE_GENERATION_SELECTIONS["newapi_gpt_image2"]["model"]
+    pricing_model = config.IMAGE_GENERATION_SELECTIONS["higgsfield:gpt_image_2"]["model"]
     patch_quote_expect(
         monkeypatch,
         model_credits,
@@ -731,9 +737,9 @@ async def test_generation_credit_cost_route_prices_freezone_image_tools_by_featu
             "pricing_kind": "image",
             "pricing_model": pricing_model,
             "pricing_params": {"size": "2K", "quality": "low"},
-            "pricing_model_selection": "newapi_gpt_image2",
+            "pricing_model_selection": "higgsfield:gpt_image_2",
             "pricing_model_label": config.IMAGE_GENERATION_SELECTIONS[
-                "newapi_gpt_image2"
+                "higgsfield:gpt_image_2"
             ]["label"],
         },
         expected_quantity=1,
@@ -759,7 +765,7 @@ async def test_generation_credit_cost_route_resolves_image_selection(monkeypatch
     from novelvideo.api.routes import model_credits
     from novelvideo import config
 
-    expected_model = config.IMAGE_GENERATION_SELECTIONS["newapi_gpt_image2"]["model"]
+    expected_model = config.IMAGE_GENERATION_SELECTIONS["higgsfield:gpt_image_2"]["model"]
 
     patch_quote(monkeypatch, model_credits, expected_model=expected_model, cost=7)
 
@@ -777,13 +783,13 @@ async def test_generation_credit_cost_route_resolves_image_selection_label(monke
     from novelvideo.api.routes import model_credits
     from novelvideo import config
 
-    expected_model = config.IMAGE_GENERATION_SELECTIONS["newapi_gpt_image2"]["model"]
+    expected_model = config.IMAGE_GENERATION_SELECTIONS["higgsfield:gpt_image_2"]["model"]
 
     patch_quote(monkeypatch, model_credits, expected_model=expected_model, cost=7)
 
     result = await model_credits.get_generation_credit_cost(
         kind="image_selection",
-        value=config.character_image_selection_options()["newapi_gpt_image2"],
+        value=config.character_image_selection_options()["higgsfield:gpt_image_2"],
         user={"user_id": "usr_1"},
     )
 
@@ -845,28 +851,21 @@ def test_scene_reference_feature_quote_resolves_selected_bottom_model(monkeypatc
     from novelvideo import config
     from novelvideo.api.routes import model_credits
 
-    monkeypatch.setitem(
-        config.IMAGE_GENERATION_SELECTIONS,
-        "newapi_gpt_image2",
-        {"label": "LingShan-G2", "provider": "newapi", "model": "gpt-image-2"},
-    )
-
     params = model_credits._feature_billing_params(
         "mainline.scene_reference_image",
         {"image_selection": "newapi_gpt_image2"},
     )
 
     assert params["pricing_kind"] == "image"
-    assert params["pricing_model"] == "gpt-image-2"
+    assert params["pricing_model"] == "gpt_image_2"
     assert params["pricing_params"] == {"size": "1K", "quality": "medium"}
-    assert params["pricing_model_selection"] == "newapi_gpt_image2"
+    assert params["pricing_model_selection"] == "higgsfield:gpt_image_2"
 
 
 def test_scene_pano_feature_quote_resolves_runtime_model_and_params(monkeypatch):
     from novelvideo.api.routes import model_credits
 
-    monkeypatch.setenv("SCENE_360_IMAGE_PROVIDER", "newapi")
-    monkeypatch.setenv("SCENE_360_IMAGE_MODEL", "gpt-image-2")
+    monkeypatch.setenv("SCENE_360_IMAGE_SELECTION", "higgsfield:gpt_image_2")
     monkeypatch.setenv("SCENE_360_IMAGE_SIZE", "2K")
     monkeypatch.setenv("SCENE_360_IMAGE_QUALITY", "medium")
 
@@ -876,9 +875,9 @@ def test_scene_pano_feature_quote_resolves_runtime_model_and_params(monkeypatch)
     )
 
     assert params["pricing_kind"] == "image"
-    assert params["pricing_model"] == "gpt-image-2"
+    assert params["pricing_model"] == "gpt_image_2"
     assert params["pricing_params"] == {"size": "2k", "quality": "medium"}
-    assert params["provider"] == "newapi"
+    assert params["provider"] == "higgsfield"
 
 
 @pytest.mark.asyncio
@@ -886,7 +885,6 @@ async def test_generation_credit_cost_route_adds_image_mode_params(monkeypatch):
     from novelvideo import config
     from novelvideo.api.routes import model_credits
 
-    monkeypatch.setattr(config, "OPENAI_IMAGE_QUALITY", "medium")
     monkeypatch.setattr(
         model_credits,
         "_image_selection_cost_model",
@@ -953,7 +951,6 @@ async def test_generation_credit_cost_route_adds_character_image_params(monkeypa
     from novelvideo import config
     from novelvideo.api.routes import model_credits
 
-    monkeypatch.setattr(config, "OPENAI_IMAGE_QUALITY", "medium")
     monkeypatch.setattr(
         model_credits,
         "_image_selection_cost_model",

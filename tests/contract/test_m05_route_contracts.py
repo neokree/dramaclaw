@@ -629,7 +629,7 @@ def test_scene_reference_generation_accepts_image_source_model(m05_client_factor
     assert task_backend.calls[-1]["payload"]["billing"]["pricing_kind"] == "image"
     assert (
         task_backend.calls[-1]["payload"]["billing"]["pricing_model_selection"]
-        == "newapi_gpt_image2"
+        == "higgsfield:gpt_image_2"
     )
 
 

@@ -73,12 +73,13 @@ async def generate(
         width, height = size_for(aspect_ratio)
     payload: dict[str, object] = {
         "prompt": prompt,
-        "negative_prompt": negative_prompt,
         "width": width,
         "height": height,
         "seed": seed,
         "batch_size": 1,
     }
+    if negative_prompt:  # empty keeps the app's own negative prompt
+        payload["negative_prompt"] = negative_prompt
     if os.environ.get("DRAWTHINGS_MODEL"):
         payload["model"] = os.environ["DRAWTHINGS_MODEL"]
     if os.environ.get("DRAWTHINGS_STEPS"):

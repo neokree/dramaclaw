@@ -83,7 +83,7 @@ def test_render_settings_returns_current_selection_and_options(monkeypatch, tmp_
         monkeypatch,
         tmp_path,
         {
-            "render_image_selection": "newapi_nanobanana2",
+            "render_image_selection": "higgsfield:nano_banana_flash",
             "sketch_aspect_padding": True,
         },
     )
@@ -93,17 +93,15 @@ def test_render_settings_returns_current_selection_and_options(monkeypatch, tmp_
     assert response.status_code == 200
     body = response.json()
     assert body["ok"] is True
-    assert body["data"]["render_image_selection"] == "newapi_nanobanana2"
-    assert body["data"]["options"] == {
-        "newapi_gpt_image2": "LingShan-G2",
-        "newapi_nanobanana2": "LingShan-NB-2",
-    }
+    assert body["data"]["render_image_selection"] == "higgsfield:nano_banana_flash"
+    assert body["data"]["options"]["drawthings"] == "Draw Things (locale)"
+    assert body["data"]["options"]["higgsfield:nano_banana_flash"] == "Nano Banana 2"
     assert body["data"]["sketch_aspect_padding"] is True
     assert "force_half_k" not in body["data"]
 
 
 @pytest.mark.m09
-def test_render_settings_maps_legacy_selection_to_visible_newapi_option(monkeypatch, tmp_path):
+def test_render_settings_maps_legacy_selection_to_higgsfield_option(monkeypatch, tmp_path):
     client, _saved = _client(
         monkeypatch,
         tmp_path,
@@ -115,7 +113,7 @@ def test_render_settings_maps_legacy_selection_to_visible_newapi_option(monkeypa
     assert response.status_code == 200
     body = response.json()
     assert body["ok"] is True
-    assert body["data"]["render_image_selection"] == "newapi_gpt_image2"
+    assert body["data"]["render_image_selection"] == "higgsfield:gpt_image_2"
     assert body["data"]["render_image_selection"] in body["data"]["options"]
 
 
@@ -126,7 +124,7 @@ def test_render_settings_patch_persists_valid_settings(monkeypatch, tmp_path):
     response = client.patch(
         "/api/v1/projects/demo/render-settings",
         json={
-            "render_image_selection": "newapi_nanobanana2",
+            "render_image_selection": "higgsfield:nano_banana_flash",
             "sketch_aspect_padding": True,
         },
     )
@@ -136,7 +134,7 @@ def test_render_settings_patch_persists_valid_settings(monkeypatch, tmp_path):
     assert body["ok"] is True
     assert saved == [
         {
-            "render_image_selection": "newapi_nanobanana2",
+            "render_image_selection": "higgsfield:nano_banana_flash",
             "sketch_aspect_padding": True,
         }
     ]
@@ -163,7 +161,7 @@ def test_sketch_settings_returns_current_selection_and_options(monkeypatch, tmp_
     client, _saved = _client(
         monkeypatch,
         tmp_path,
-        {"sketch_image_selection": "newapi_nanobanana2"},
+        {"sketch_image_selection": "higgsfield:nano_banana_flash"},
     )
 
     response = client.get("/api/v1/projects/demo/sketch-settings")
@@ -171,14 +169,12 @@ def test_sketch_settings_returns_current_selection_and_options(monkeypatch, tmp_
     assert response.status_code == 200
     body = response.json()
     assert body["ok"] is True
-    assert body["data"]["sketch_image_selection"] == "newapi_nanobanana2"
-    assert body["data"]["options"] == {
-        "newapi_gpt_image2": "LingShan-G2",
-        "newapi_nanobanana2": "LingShan-NB-2",
-    }
+    assert body["data"]["sketch_image_selection"] == "higgsfield:nano_banana_flash"
+    assert body["data"]["options"]["drawthings"] == "Draw Things (locale)"
+    assert body["data"]["options"]["higgsfield:nano_banana_flash"] == "Nano Banana 2"
 
 
-def test_sketch_settings_maps_legacy_selection_to_visible_newapi_option(monkeypatch, tmp_path):
+def test_sketch_settings_maps_legacy_selection_to_higgsfield_option(monkeypatch, tmp_path):
     client, _saved = _client(
         monkeypatch,
         tmp_path,
@@ -190,7 +186,7 @@ def test_sketch_settings_maps_legacy_selection_to_visible_newapi_option(monkeypa
     assert response.status_code == 200
     body = response.json()
     assert body["ok"] is True
-    assert body["data"]["sketch_image_selection"] == "newapi_gpt_image2"
+    assert body["data"]["sketch_image_selection"] == "higgsfield:gpt_image_2"
     assert body["data"]["sketch_image_selection"] in body["data"]["options"]
 
 
@@ -199,14 +195,14 @@ def test_sketch_settings_patch_persists_valid_selection(monkeypatch, tmp_path):
 
     response = client.patch(
         "/api/v1/projects/demo/sketch-settings",
-        json={"sketch_image_selection": "newapi_nanobanana2"},
+        json={"sketch_image_selection": "higgsfield:nano_banana_flash"},
     )
 
     assert response.status_code == 200
     body = response.json()
     assert body["ok"] is True
-    assert saved == [{"sketch_image_selection": "newapi_nanobanana2"}]
-    assert body["data"]["sketch_image_selection"] == "newapi_nanobanana2"
+    assert saved == [{"sketch_image_selection": "higgsfield:nano_banana_flash"}]
+    assert body["data"]["sketch_image_selection"] == "higgsfield:nano_banana_flash"
 
 
 def test_sketch_settings_patch_rejects_unknown_selection(monkeypatch, tmp_path):

@@ -5,7 +5,7 @@
 
 > Deploy, configure, upgrade, and back up DramaClaw CE with Docker.
 
-CE ships three containers: `api` + `newapi` (the bundled DramaClaw gateway, idle until you switch to Custom or Local + Official Hybrid mode) + `web`, with **no PostgreSQL / no Redis / no Celery** (`ST_EDITION=ce`; tasks run inline within the process). Models go through the official DramaClaw gateway by default.
+CE ships three containers: `api` + `newapi` (the bundled DramaClaw gateway, now used only for Cognee embeddings) + `web`, with **no PostgreSQL / no Redis / no Celery** (`ST_EDITION=ce`; tasks run inline within the process). Generation does not go through the gateway: text runs on MTPLX (local) or OpenRouter, images on Draw Things (local), Higgsfield, or OpenRouter, video on Higgsfield or h3.c (local), and audio on Higgsfield.
 
 Two compose files ship in the repo: `docker-compose.yml` builds all three services from source (the default entry point — `docker compose up -d --build`), and `docker-compose.release.yml` only pulls published images (`docker compose -f docker-compose.release.yml up -d`). `docker-compose.yml` extends `docker-compose.release.yml` for the shared runtime definition (env / ports / volumes / healthchecks) and only adds `build:` plus local image names.
 
@@ -13,8 +13,9 @@ Two compose files ship in the repo: `docker-compose.yml` builds all three servic
 
 - Docker + `docker compose`.
 - Docker Compose ≥ 2.24 (`docker compose version`).
-- Resources: ≥ 2 vCPU / 4GB recommended (excluding model inference, which runs through an external gateway).
-- A DC key (the default official gateway is RelayClaw, see <https://relayclaw.cdnfg.com>), or your own OpenAI-compatible gateway.
+- Resources: ≥ 2 vCPU / 4GB recommended for the stack itself. The local engines (MTPLX, Draw Things, h3.c) run on the host and need their own hardware.
+- The engines you plan to use: the Higgsfield CLI signed in with `higgsfield auth login`, and/or an `OPENROUTER_API_KEY`, and/or the local engines.
+- For the knowledge-graph embedding: a DC key (official gateway RelayClaw, see <https://relayclaw.cdnfg.com>) or an embedding channel in the bundled NewAPI.
 
 ## 2. Get the compose file and configuration
 
@@ -46,18 +47,21 @@ Key points shared by both (defined once in `docker-compose.release.yml`, reused 
 
 ## 3. Configure `.env`
 
-> ⚠️ **Secret-type defaults (such as `PROMPT_EXPORT_PASSWORD=change_me`) must be changed.** For the model gateway, see [Model Configuration](#model-configuration).
+> ⚠️ **Secret-type defaults (such as `PROMPT_EXPORT_PASSWORD=change_me`) must be changed.** For the engines, see [Model Configuration](#model-configuration).
 
-Groups (each item is commented inline in `.env.example`): local NewAPI provisioner, reference-media OSS relay (OSS_RELAY_*), Cognee knowledge graph, text/image/video/audio models, image and video base parameters, UI, and output directories. Channel selection, gateway address, and token are saved from the web UI to `settings.db`.
+Groups (each item is commented inline in `.env.example`): local NewAPI provisioner (embedding only), text engine, Cognee knowledge graph, image engine selection, video engines (Higgsfield / h3.c), audio (Higgsfield), video base parameters, UI, and data directories. The embedding gateway's channel, address, and token are saved to `settings.db` through the model-gateway API.
 
 ### Model Configuration
 
-Recommended and alternative options (see [Configuring Model Providers](../getting-started/configuring-models.md) for details):
+Engines are chosen in `.env` (see [Configuring Model Providers](../getting-started/configuring-models.md) for details):
 
-- **A. DC official key (recommended)**: the default compose already uses the official gateway. After bringing the stack up, open `http://localhost:8080` → Settings → Model Configuration → Official Channel → paste your DC key and save to start using it, **no model mapping required**. Get a key at <https://relayclaw.cdnfg.com>.
-- **B. Local NewAPI**: the bundled gateway is already running; open Settings → Model Configuration → Custom, click Initialize, then configure upstream channels and model mappings from the Local NewAPI page.
+- **Text**: `TEXT_ENGINE=mtplx` (default, local, started on demand) or `TEXT_ENGINE=openrouter` with `OPENROUTER_API_KEY`.
+- **Images**: `DEFAULT_IMAGE_SELECTION` = `drawthings`, `higgsfield:<model>` (default `higgsfield:nano_banana_flash`), or `openrouter:<model>`.
+- **Video**: `VIDEO_BACKEND` = `higgsfield:<model>` (default `higgsfield:seedance_2_0?mode=fast`) or `h3c`.
+- **Audio**: Higgsfield (`HIGGSFIELD_TTS_*`).
+- **Embedding**: save a DC key with `POST /api/v1/model-gateway/official/config`, or initialize the bundled NewAPI and add an embedding channel.
 
-Local NewAPI must map DramaClaw's logical models to real upstream models. The reference-image feature needs `OSS_RELAY_AK/SK` (you can skip it for a text-only workflow).
+The Higgsfield CLI and h3.c are not part of the Docker image, and inside a container `127.0.0.1` is the container itself: point `DRAWTHINGS_URL` / `MTPLX_BASE_URL` at an address of the host reachable from `api`. After startup, **Settings → Engines** shows which engines are reachable.
 
 ## 4. Start / Stop
 
@@ -162,10 +166,10 @@ The script copies only missing files, never overwrites or deletes the source, an
 
 | Symptom | What to check |
 |---|---|
-| Container won't start | `docker compose logs api`; usually the `.env` gateway address/key was not changed or is unreachable |
+| Container won't start | `docker compose logs api`; follow the startup error to the `.env` value, port, or data volume at fault |
 | Port 8780 already in use | Change the left-hand value of `ports` in compose, e.g. `8888:8780` |
 | Port 3000 already in use (bundled gateway fails to start) | Set `ST_NEWAPI_PORT=<free port>` in `.env` and start the stack again. Note the gateway port is bound to `127.0.0.1` by default; `api` no longer waits on the gateway's health, so this does not block `api`. |
-| Model call errors | Confirm the gateway is reachable and that the `*_MODEL` names exist in the gateway backend |
+| Model call errors | Check **Settings → Engines**: the selected engines must show “Available”. See [Configuring Model Providers](../getting-started/configuring-models.md#troubleshooting) |
 
 ## Related
 

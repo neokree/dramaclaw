@@ -16,26 +16,38 @@
 | `NOVELVIDEO_RUNTIME_DIR` | `$DATA_ROOT/runtime` | Runtime temporary directory. |
 | `ST_CONTROL_PLANE_DSN` / `ST_REDIS_URL` / `ST_CELERY_BROKER_URL` / `ST_CELERY_RESULT_BACKEND` | Empty (forced empty in CE) | Used only by EE/distributed; CE runs tasks inline in-process, so leave empty. |
 
-## Model Gateway
+## Generation Engines
 
-In CE, the selected channel, gateway address, and token are written by
-**Settings → Model Configuration** to the local `settings.db`; they are not
-configured through environment variables. The official channel has a fixed
-address, while the local channel uses the NewAPI bundled with CE.
+Engines are chosen here, not in the web UI; **Settings → Engines** only shows their status. See [Configuring Models](../getting-started/configuring-models.md).
 
 | Variable | Default | Description |
 |---|---|---|
-| `NEWAPI_TEXT_TIMEOUT_SECONDS` | `120` | HTTP timeout for text models (seconds). |
-| `NEWAPI_TEXT_TRUST_ENV` | `true` | Whether the text client reads the system proxy; set `false` when an internal gateway is being blocked by a proxy. |
+| `TEXT_ENGINE` | `mtplx` | Text and vision engine: `mtplx` (local) or `openrouter`. |
+| `MTPLX_BASE_URL` / `MTPLX_MODEL` | `http://127.0.0.1:8000/v1` / see `.env.example` | Local MTPLX server, started on demand. `MTPLX_BINARY` and `MTPLX_MODEL_PATH` locate the binary and weights. |
+| `OPENROUTER_API_KEY` | Empty | Key for OpenRouter text (`TEXT_ENGINE=openrouter`) and OpenRouter images. |
+| `OPENROUTER_MODEL` | `google/gemma-4-26b-a4b-it` | Default OpenRouter text model. Per-feature `*_MODEL` overrides (`vendor/model`) apply only under OpenRouter. |
+| `OPENROUTER_IMAGE_MODELS` | `google/gemini-3.1-flash-image-preview,openai/gpt-5.4-image-2` | OpenRouter image models offered as `openrouter:<model>`. |
+| `TEXT_TIMEOUT_SECONDS` | `300` | HTTP timeout for text models (seconds). |
+| `TEXT_TRUST_ENV` | `false` for MTPLX, `true` for OpenRouter | Whether the text client reads the system proxy. |
+| `DEFAULT_IMAGE_SELECTION` | `higgsfield:nano_banana_flash` | Default image model: `drawthings`, `higgsfield:<model>`, or `openrouter:<model>`. `DEFAULT_CHARACTER_IMAGE_SELECTION`, `DEFAULT_SKETCH_IMAGE_SELECTION`, and `DEFAULT_RENDER_IMAGE_SELECTION` override it per stage. |
+| `VIDEO_BACKEND` | Empty | Default video backend: `higgsfield:<model>` (e.g. `higgsfield:kling3_0?mode=pro`) or `h3c`. Empty uses `HIGGSFIELD_VIDEO_MODEL`. |
+| `HIGGSFIELD_VIDEO_MODEL` / `HIGGSFIELD_VIDEO_MODE` / `HIGGSFIELD_VIDEO_RESOLUTION` | `seedance_2_0?mode=fast` / `fast` / `480p` | Default Higgsfield video model and parameters. |
+| `HIGGSFIELD_BINARY` | `PATH`, then `/opt/homebrew/bin/higgsfield` | Higgsfield CLI; sign in first with `higgsfield auth login`. |
+| `HIGGSFIELD_CACHE_DIR` | `~/.cache/dramaclaw/higgsfield` | Model catalog and schema cache (one day). |
+| `HIGGSFIELD_TTS_MODEL` / `HIGGSFIELD_TTS_VARIANT` / `HIGGSFIELD_TTS_VOICE` | `text2speech_v2` / `elevenlabs` / first preset voice | Speech in a Higgsfield voice. Reference-sample voices use `seed_audio`. |
+| `DRAWTHINGS_URL` | `http://127.0.0.1:7860` | Draw Things API server. `DRAWTHINGS_MODEL` and `DRAWTHINGS_STEPS` default to the current Draw Things settings. |
+| `H3C_BINARY` / `H3C_WEIGHTS` | `~/Developer/AI-Tools/h3.c/h3` / `~/Developer/AI-Tools/h3.c/MiniMax-H3` | Local h3.c binary and MiniMax H3 weights. |
 
-About **30 `*_MODEL` logical model names** (e.g. `HERMES_MODEL=DC-hermes-LLM`) map to real upstream models. Configure Local NewAPI mappings in the web UI—see [Configuring Model Providers](../getting-started/configuring-models.md).
+## Embedding Gateway
 
-## Reference Media Relay (optional)
+The bundled NewAPI now serves only the Cognee embedding model (`DC-cognee-embedding`). Its channel, address, and token are written to the local `settings.db` through the `/api/v1/model-gateway` API, not through environment variables.
 
-| Variable | Description |
-|---|---|
-| `OSS_RELAY_AK` / `OSS_RELAY_SK` | Object storage credentials required by the reference-image feature. A pure-text → video flow can skip these. |
-| `OSS_RELAY_ENDPOINT` / `OSS_RELAY_BUCKET` | Relay endpoint and bucket. |
+| Variable | Default | Description |
+|---|---|---|
+| `NEWAPI_PROVISIONER_ENABLED` | `true` | Enables one-click initialization of the bundled NewAPI. |
+| `NEWAPI_ADMIN_BASE_URL` | `http://127.0.0.1:3000` (set in `.env.example`) | NewAPI management address, without `/v1`. |
+| `COGNEE_EMBEDDING_MODEL` / `COGNEE_EMBEDDING_DIM` | `DC-cognee-embedding` / `1024` | Default embedding model and dimensions; each project stores its own in `project_config.json`. |
+| `EMBEDDING_BATCH_SIZE` | `10` | Texts per embedding request. |
 
 ## Video / Image Parameters
 
@@ -46,7 +58,7 @@ About **30 `*_MODEL` logical model names** (e.g. `HERMES_MODEL=DC-hermes-LLM`) m
 | `VIDEO_CODEC` | `libx264` | Video codec (H.264); the ffmpeg build must include this encoder, see the [ffmpeg guide](../guides/ffmpeg.md). |
 | `VIDEO_AUDIO_CODEC` | `aac` | Audio codec. |
 | `VIDEO_BITRATE` | `4M` | Bitrate. |
-| `IMAGE_DEFAULT_WIDTH` / `IMAGE_DEFAULT_HEIGHT` / `IMAGE_DEFAULT_STYLE` | `1440` / `2560` / `chinese_period_drama` | Default image dimensions and style. |
+| `IMAGE_DEFAULT_STYLE` | `chinese_period_drama` | Default image style. |
 
 ## Media Tools
 

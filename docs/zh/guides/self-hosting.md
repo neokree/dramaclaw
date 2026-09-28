@@ -5,7 +5,7 @@
 
 > 用 Docker 部署、配置、升级、备份 DramaClaw CE。
 
-CE 三个容器：`api` + `newapi`（内置 DramaClaw 网关，切到自定义/本地 + 官方混合模式前闲置）+ `web`，**无 PostgreSQL / 无 Redis / 无 Celery**（`ST_EDITION=ce`，任务在进程内 inline 执行）。模型默认走 DramaClaw 官方网关。
+CE 三个容器：`api` + `newapi`（内置 DramaClaw 网关，现在只用于 Cognee 的 embedding）+ `web`，**无 PostgreSQL / 无 Redis / 无 Celery**（`ST_EDITION=ce`，任务在进程内 inline 执行）。生成不走网关：文本用 MTPLX（本地）或 OpenRouter，图片用 Draw Things（本地）、Higgsfield 或 OpenRouter，视频用 Higgsfield 或 h3.c（本地），音频用 Higgsfield。
 
 仓库里有两份 compose 文件：`docker-compose.yml` 源码构建三个服务（默认入口 —— `docker compose up -d --build`），`docker-compose.release.yml` 只拉已发布镜像（`docker compose -f docker-compose.release.yml up -d`）。`docker-compose.yml` 通过 `extends` 复用 `docker-compose.release.yml` 里的运行定义（env / 端口 / 卷 / 健康检查），自己只加 `build:` 与本地镜像名。
 
@@ -13,8 +13,9 @@ CE 三个容器：`api` + `newapi`（内置 DramaClaw 网关，切到自定义/�
 
 - Docker + `docker compose`。
 - Docker Compose ≥ 2.24（`docker compose version` 确认）。
-- 资源：建议 ≥ 2 vCPU / 4GB（不含模型推理，推理走外部网关）。
-- 一个 DC key（默认官方网关 RelayClaw,见 <https://relayclaw.cdnfg.com>），或自己的 OpenAI 兼容网关。
+- 资源：服务栈本身建议 ≥ 2 vCPU / 4GB。本地引擎（MTPLX、Draw Things、h3.c）运行在宿主机上，需要各自的硬件。
+- 计划使用的引擎：已执行 `higgsfield auth login` 的 Higgsfield CLI，和/或 `OPENROUTER_API_KEY`，和/或本地引擎。
+- 知识图谱 embedding：一个 DC key（官方网关 RelayClaw，见 <https://relayclaw.cdnfg.com>），或内置 NewAPI 中的 embedding 渠道。
 
 ## 2. 拿到 compose 与配置
 
@@ -46,18 +47,21 @@ cp .env.example .env
 
 ## 3. 配置 `.env`
 
-> ⚠️ **密钥类默认值（如 `PROMPT_EXPORT_PASSWORD=change_me`）必须改。** 模型网关见 [模型配置](#模型配置)。
+> ⚠️ **密钥类默认值（如 `PROMPT_EXPORT_PASSWORD=change_me`）必须改。** 引擎配置见 [模型配置](#模型配置)。
 
-分组（`.env.example` 内有逐项注释）：本地 NewAPI provisioner、参考媒体 OSS relay（OSS_RELAY_*）、Cognee 知识图谱、文本/图片/视频/音频各模型、图像与视频基础参数、UI、输出目录。渠道、网关地址和 token 通过网页保存到 `settings.db`。
+分组（`.env.example` 内有逐项注释）：本地 NewAPI provisioner（仅 embedding）、文本引擎、Cognee 知识图谱、图像引擎选择、视频引擎（Higgsfield / h3.c）、音频（Higgsfield）、视频基础参数、UI、数据目录。embedding 网关的渠道、地址和 token 通过模型网关 API 保存到 `settings.db`。
 
 ### 模型配置
 
-推荐与备选(详见 [配置模型供应商](../getting-started/configuring-models.md)):
+引擎在 `.env` 中选择（详见 [配置模型供应商](../getting-started/configuring-models.md)）：
 
-- **A. DC 官方 key(推荐)**：默认 compose 已走官方网关。起栈后开 `http://localhost:8080` → 设置 → 模型配置 → 官方渠道 → 粘贴 DC key 保存即用,**无需映射模型**。到 <https://relayclaw.cdnfg.com> 取 key。
-- **B. 本地 NewAPI**：内置网关已在运行；到 设置 → 模型配置 → 自定义，点初始化，然后在「本地 NewAPI」页配置上游渠道和模型映射。
+- **文本**：`TEXT_ENGINE=mtplx`（默认，本地，按需启动）或 `TEXT_ENGINE=openrouter` 并设置 `OPENROUTER_API_KEY`。
+- **图片**：`DEFAULT_IMAGE_SELECTION` 取 `drawthings`、`higgsfield:<模型>`（默认 `higgsfield:nano_banana_flash`）或 `openrouter:<模型>`。
+- **视频**：`VIDEO_BACKEND` 取 `higgsfield:<模型>`（默认 `higgsfield:seedance_2_0?mode=fast`）或 `h3c`。
+- **音频**：Higgsfield（`HIGGSFIELD_TTS_*`）。
+- **Embedding**：用 `POST /api/v1/model-gateway/official/config` 保存 DC key，或初始化内置 NewAPI 并添加 embedding 渠道。
 
-本地 NewAPI 需把 DramaClaw 逻辑模型映射到真实上游模型。参考图功能需要 `OSS_RELAY_AK/SK`（纯文本流程可暂不配）。
+Docker 镜像中不包含 Higgsfield CLI 和 h3.c，且容器内的 `127.0.0.1` 指容器自身：把 `DRAWTHINGS_URL` / `MTPLX_BASE_URL` 改为 `api` 可访问的宿主机地址。启动后，**设置 → 引擎** 会显示哪些引擎可用。
 
 ## 4. 起停
 
@@ -162,10 +166,10 @@ docker compose up -d
 
 | 现象 | 排查 |
 |---|---|
-| 容器起不来 | `docker compose logs api`；多半是 `.env` 网关地址/Key 未改或不可达 |
+| 容器起不来 | `docker compose logs api`；按启动报错定位到出问题的 `.env` 值、端口或数据卷 |
 | 8780 端口占用 | 改 compose `ports` 左值，如 `8888:8780` |
 | 3000 端口被占用（内置网关起不来） | `.env` 设 `ST_NEWAPI_PORT=<空闲端口>` 后重新启动。该端口默认只绑 `127.0.0.1`；`api` 不再等网关健康，不会被这个卡住。 |
-| 模型调用报错 | 确认网关可达、`*_MODEL` 名在网关后台存在 |
+| 模型调用报错 | 查看 **设置 → 引擎**：所选引擎须显示“可用”。见 [配置模型供应商](../getting-started/configuring-models.md#常见问题) |
 
 ## 相关
 

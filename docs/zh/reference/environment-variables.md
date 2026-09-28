@@ -16,25 +16,38 @@
 | `NOVELVIDEO_RUNTIME_DIR` | `$DATA_ROOT/runtime` | 运行时临时目录。 |
 | `ST_CONTROL_PLANE_DSN` / `ST_REDIS_URL` / `ST_CELERY_BROKER_URL` / `ST_CELERY_RESULT_BACKEND` | 空(CE 强制清空) | EE/分布式才用;CE 任务进程内 inline 执行,留空。 |
 
-## 模型网关
+## 生成引擎
 
-CE 的渠道选择、网关地址和 token 由网页「设置 → 模型配置」写入本机
-`settings.db`，不通过环境变量配置。官方渠道地址固定；本地渠道使用 CE
-随附的 NewAPI。
+引擎在这里选择，不在网页中配置；**设置 → 引擎** 只显示各引擎的状态。详见[配置模型](../getting-started/configuring-models.md)。
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
-| `NEWAPI_TEXT_TIMEOUT_SECONDS` | `120` | 文本模型 HTTP 超时(秒)。 |
-| `NEWAPI_TEXT_TRUST_ENV` | `true` | 是否让文本客户端读系统代理;内网网关被代理拦截时设 `false`。 |
+| `TEXT_ENGINE` | `mtplx` | 文本与视觉理解引擎：`mtplx`（本地）或 `openrouter`。 |
+| `MTPLX_BASE_URL` / `MTPLX_MODEL` | `http://127.0.0.1:8000/v1` / 见 `.env.example` | 本机 MTPLX 服务，按需启动。`MTPLX_BINARY` 和 `MTPLX_MODEL_PATH` 指定二进制与权重位置。 |
+| `OPENROUTER_API_KEY` | 空 | OpenRouter 文本（`TEXT_ENGINE=openrouter`）和 OpenRouter 图片使用的 key。 |
+| `OPENROUTER_MODEL` | `google/gemma-4-26b-a4b-it` | OpenRouter 默认文本模型。按任务覆盖的 `*_MODEL`（`vendor/model` 形式）只在 OpenRouter 下生效。 |
+| `OPENROUTER_IMAGE_MODELS` | `google/gemini-3.1-flash-image-preview,openai/gpt-5.4-image-2` | 以 `openrouter:<模型>` 提供的 OpenRouter 图片模型。 |
+| `TEXT_TIMEOUT_SECONDS` | `300` | 文本模型 HTTP 超时(秒)。 |
+| `TEXT_TRUST_ENV` | MTPLX 为 `false`，OpenRouter 为 `true` | 文本客户端是否读取系统代理。 |
+| `DEFAULT_IMAGE_SELECTION` | `higgsfield:nano_banana_flash` | 默认图片模型：`drawthings`、`higgsfield:<模型>` 或 `openrouter:<模型>`。`DEFAULT_CHARACTER_IMAGE_SELECTION`、`DEFAULT_SKETCH_IMAGE_SELECTION`、`DEFAULT_RENDER_IMAGE_SELECTION` 按环节覆盖。 |
+| `VIDEO_BACKEND` | 空 | 默认视频后端：`higgsfield:<模型>`（如 `higgsfield:kling3_0?mode=pro`）或 `h3c`。留空时使用 `HIGGSFIELD_VIDEO_MODEL`。 |
+| `HIGGSFIELD_VIDEO_MODEL` / `HIGGSFIELD_VIDEO_MODE` / `HIGGSFIELD_VIDEO_RESOLUTION` | `seedance_2_0?mode=fast` / `fast` / `480p` | Higgsfield 默认视频模型与参数。 |
+| `HIGGSFIELD_BINARY` | 先查 `PATH`，再用 `/opt/homebrew/bin/higgsfield` | Higgsfield CLI；需先执行 `higgsfield auth login`。 |
+| `HIGGSFIELD_CACHE_DIR` | `~/.cache/dramaclaw/higgsfield` | 模型目录与 schema 缓存（一天）。 |
+| `HIGGSFIELD_TTS_MODEL` / `HIGGSFIELD_TTS_VARIANT` / `HIGGSFIELD_TTS_VOICE` | `text2speech_v2` / `elevenlabs` / 第一个预设声线 | 使用 Higgsfield 声线配音。参考样本声线走 `seed_audio`。 |
+| `DRAWTHINGS_URL` | `http://127.0.0.1:7860` | Draw Things API 服务。`DRAWTHINGS_MODEL`、`DRAWTHINGS_STEPS` 留空时用 Draw Things 当前设置。 |
+| `H3C_BINARY` / `H3C_WEIGHTS` | `~/Developer/AI-Tools/h3.c/h3` / `~/Developer/AI-Tools/h3.c/MiniMax-H3` | 本地 h3.c 二进制与 MiniMax H3 权重。 |
 
-约 **30 个 `*_MODEL` 逻辑模型名**（如 `HERMES_MODEL=DC-hermes-LLM`）映射到网关后台的真实模型。本地 NewAPI 的映射在网页配置——详见[配置模型供应商](../getting-started/configuring-models.md)。
+## Embedding 网关
 
-## 参考媒体 relay(可选)
+内置 NewAPI 现在只承载 Cognee 的 embedding 模型（`DC-cognee-embedding`）。其渠道、地址和 token 通过 `/api/v1/model-gateway` API 写入本机 `settings.db`，不通过环境变量配置。
 
-| 变量 | 说明 |
-|---|---|
-| `OSS_RELAY_AK` / `OSS_RELAY_SK` | 参考图功能所需的对象存储凭据。纯文本→成片流程可不配。 |
-| `OSS_RELAY_ENDPOINT` / `OSS_RELAY_BUCKET` | relay 端点与桶。 |
+| 变量 | 默认 | 说明 |
+|---|---|---|
+| `NEWAPI_PROVISIONER_ENABLED` | `true` | 启用内置 NewAPI 一键初始化。 |
+| `NEWAPI_ADMIN_BASE_URL` | `http://127.0.0.1:3000`（`.env.example` 中设置） | NewAPI 管理地址，不带 `/v1`。 |
+| `COGNEE_EMBEDDING_MODEL` / `COGNEE_EMBEDDING_DIM` | `DC-cognee-embedding` / `1024` | 默认 embedding 模型与维度；各项目在 `project_config.json` 中保存自己的值。 |
+| `EMBEDDING_BATCH_SIZE` | `10` | 每次 embedding 请求的文本条数。 |
 
 ## 视频 / 图像参数
 
@@ -45,7 +58,7 @@ CE 的渠道选择、网关地址和 token 由网页「设置 → 模型配置�
 | `VIDEO_CODEC` | `libx264` | 视频编码(H.264);ffmpeg build 须含此编码器,见 [ffmpeg 指南](../guides/ffmpeg.md)。 |
 | `VIDEO_AUDIO_CODEC` | `aac` | 音频编码。 |
 | `VIDEO_BITRATE` | `4M` | 码率。 |
-| `IMAGE_DEFAULT_WIDTH` / `IMAGE_DEFAULT_HEIGHT` / `IMAGE_DEFAULT_STYLE` | `1440` / `2560` / `chinese_period_drama` | 图像默认尺寸与风格。 |
+| `IMAGE_DEFAULT_STYLE` | `chinese_period_drama` | 图像默认风格。 |
 
 ## 媒体工具
 

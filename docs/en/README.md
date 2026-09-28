@@ -9,7 +9,7 @@
 |---|---|
 | [Quickstart](getting-started/quickstart.md) | Get it running locally with Docker |
 | [Installation Guide](getting-started/installation.md) | Prerequisites for macOS / Windows / Linux |
-| [Configuring Model Providers](getting-started/configuring-models.md) | Connect your own model gateway |
+| [Configuring Model Providers](getting-started/configuring-models.md) | Choose the text, image, video, and audio engines |
 
 ## Guides
 

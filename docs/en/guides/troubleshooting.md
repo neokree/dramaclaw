@@ -14,15 +14,17 @@
 | **Health check stays unhealthy** | The probe hits `/api/v1/config`; if the API itself errors, check the startup logs to pinpoint the real exception. |
 | **Local dev won't start: Python version** | Requires **3.11–3.12** (`>=3.11,<3.13`). Run `uv python pin 3.12` or install the matching version, then `uv sync`. |
 
-## Model / gateway
+## Models / engines
 
 | Symptom | Diagnosis |
 |---|---|
-| **Every model call errors** | Under Settings → Model Configuration, confirm the active channel is configured. Check the DC key for the official channel, or the service, runtime token, and upstream channels for Local NewAPI. |
-| **A stage reports "model does not exist"** | Local NewAPI is missing the corresponding logical model mapping, or the target channel is disabled. See [Configuring model providers](../getting-started/configuring-models.md). |
-| **Structured steps fail with `Exceeded maximum output retries`** (character extraction, script planning…) while plain text works | The upstream did not return a function/tool call. The task log (v2.0.3+) shows the retry prompt and cause. Relays that convert Chat Completions themselves (Codex2API and similar Codex-backed proxies) are known to drop `tool_calls` on `/v1/chat/completions`: in the bundled NewAPI admin, enable **ChatCompletions → Responses Compatibility** (`chat_completions_to_responses_policy`) for that channel so NewAPI sends `/v1/responses` upstream. See #490. |
-| **Text model times out** | Increase `NEWAPI_TEXT_TIMEOUT_SECONDS` (default 120); if a system proxy is intercepting an internal gateway, set `NEWAPI_TEXT_TRUST_ENV=false`. |
-| **Reference-image feature unavailable** | Requires `OSS_RELAY_AK/SK`; the plain text→video pipeline can run without it. |
+| **Every model call errors** | Open **Settings → Engines** and check that the engines you selected in `.env` show “Available”. See [Configuring models](../getting-started/configuring-models.md#troubleshooting). |
+| **Higgsfield unavailable or `higgsfield auth login` error** | Install the Higgsfield CLI (or set `HIGGSFIELD_BINARY`) and run `higgsfield auth login`; `higgsfield account status` shows the credit balance. |
+| **Draw Things unavailable** | Enable **Settings → API Server** (HTTP, port 7860) in Draw Things, or fix `DRAWTHINGS_URL`. |
+| **Text fails with MTPLX** | `MTPLX_BINARY` is missing, or another server at `MTPLX_BASE_URL` serves a model other than `MTPLX_MODEL`. |
+| **Structured steps fail with `Exceeded maximum output retries`** (character extraction, script planning…) while plain text works | The text model did not return a function/tool call. The task log (v2.0.3+) shows the retry prompt and cause. Under OpenRouter, pick a model that supports tool calling in `OPENROUTER_MODEL` or the per-feature `*_MODEL` override. |
+| **Text model times out** | Increase `TEXT_TIMEOUT_SECONDS` (default 300); if a system proxy intercepts a local engine, set `TEXT_TRUST_ENV=false`. |
+| **Knowledge-graph embedding fails** | Embeddings are the only calls through the bundled NewAPI: check the gateway key or embedding channel, upstream model, dimensions, and batch size. |
 
 ## Media / ffmpeg
 

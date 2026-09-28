@@ -5,7 +5,7 @@
 
 > Set up the runtime environment for DramaClaw CE on macOS / Windows / Linux. If you just want the fastest path to running it, go straight to [Quickstart](quickstart.md); this guide covers per-platform prerequisites and the two installation methods (Docker and local development).
 
-DramaClaw CE is a single-machine service that needs **no PostgreSQL / Redis**. Docker brings up `api` + the bundled `newapi` gateway + `web`; models are served through the DramaClaw official gateway RelayClaw by default, or through the bundled gateway once you switch to Custom mode in Settings. Nothing runs models on your machine, so an ordinary machine is enough.
+DramaClaw CE is a single-machine service that needs **no PostgreSQL / Redis**. Docker brings up `api` + the bundled `newapi` gateway (used only for knowledge-graph embeddings) + `web`. Generation runs on Higgsfield in the cloud and on OpenRouter, which need no local hardware, or on the local engines MTPLX (text), Draw Things (images), and h3.c (video), which run on the host and need a machine that can run them. See [Configuring Models](configuring-models.md).
 
 ## Pick one of two installation methods
 
@@ -39,7 +39,7 @@ docker compose up -d --build    # builds api, web and the gateway from the two c
 # no build? docker compose -f docker-compose.release.yml up -d   # pulls published images, no gateway clone needed
 ```
 
-After it's up, open **`http://localhost:8080`** in your browser (the app UI); the REST API is at `http://localhost:8780`. Go to Settings → Model Configuration → Official Channel, paste your DC key, save, and you're ready. For the full walkthrough see [Quickstart](quickstart.md); for start/stop/backup see the [Self-Hosting Handbook](../guides/self-hosting.md).
+After it's up, open **`http://localhost:8080`** in your browser (the app UI); the REST API is at `http://localhost:8780`. Open **Settings → Engines** to check which engines are reachable; engines are selected in `.env`. For the full walkthrough see [Quickstart](quickstart.md); for start/stop/backup see the [Self-Hosting Handbook](../guides/self-hosting.md).
 
 > Windows users should clone and run inside the **WSL2 terminal** (keep it on the Linux filesystem, not under `/mnt/c/...`) to avoid volume-mount performance and line-ending issues.
 
@@ -64,7 +64,7 @@ git clone https://github.com/dramaclaw/dramaclaw.git
 cd dramaclaw
 
 uv sync                                  # install dependencies into .venv per uv.lock
-cp .env.example .env && $EDITOR .env     # set the gateway and key
+cp .env.example .env && $EDITOR .env     # choose the engines and keys
 
 uv run novelvideo api --host 0.0.0.0 --port 8780
 ```
@@ -77,9 +77,9 @@ CE defaults to `ST_EDITION=ce`, no-login single local user, and in-process inlin
 curl http://localhost:8780/api/v1/config   # a 200 response means it's working
 ```
 
-### 4. Gateway (only for Custom / Local + Official Hybrid mode)
+### 4. Embedding gateway (only for a local NewAPI)
 
-Official mode needs nothing else. For the other two modes the API expects a gateway on `127.0.0.1:3000` (the `NEWAPI_ADMIN_BASE_URL` default in `.env`) whose SQLite file is `./state/newapi/one-api.db`, which is what **Initialize** in Settings writes to. Run the published image with that directory mounted:
+With an official DC key the embedding needs nothing else. For a local NewAPI the API expects a gateway on `127.0.0.1:3000` (the `NEWAPI_ADMIN_BASE_URL` default in `.env`) whose SQLite file is `./state/newapi/one-api.db`, which is what `POST /api/v1/model-gateway/custom/newapi/init` writes to. Run the published image with that directory mounted:
 
 ```bash
 mkdir -p state/newapi
@@ -88,7 +88,7 @@ docker run -d --name dramaclaw-gateway -p 127.0.0.1:3000:3000 \
   claymorelab/dramaclaw-gateway:v1.0.0-rc.24-dramaclaw.1
 ```
 
-or build and run the gateway from the sibling `dramaclaw-gateway` checkout with `SQLITE_PATH` pointing at that file. See [Configuring Models](configuring-models.md) for the mode setup.
+or build and run the gateway from the sibling `dramaclaw-gateway` checkout with `SQLITE_PATH` pointing at that file. See [Configuring Models](configuring-models.md#embedding-bundled-newapi) for the embedding setup.
 
 ---
 
@@ -110,6 +110,6 @@ Docker: `INSTALL_WORLD=1 docker compose up -d --build`. The slim base is CPU-onl
 ## Next steps
 
 - Get your first result working: [Quickstart](quickstart.md)
-- Connect your own model gateway: [Configuring Model Providers](configuring-models.md)
+- Choose and set up the engines: [Configuring Model Providers](configuring-models.md)
 - Install/verify ffmpeg: [ffmpeg guide](../guides/ffmpeg.md)
 - Running into problems: [Troubleshooting](../guides/troubleshooting.md)

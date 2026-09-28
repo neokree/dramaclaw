@@ -164,7 +164,7 @@ It's built for creators, indie studios and creative engineers — run the whole 
 
 - **18 node types on one canvas** &mdash; upload, image generation / edit, storyboard generation, script, beat context, video, video compose, video story, audio, style, skill, group, text annotation, 360° panorama viewer, 3D world, export and more. Connect them freely; every node keeps its own generation history.
 - **Image tools** &mdash; generate, edit, redraw, outpaint, relight, upscale, multi-view, template edit, reverse-prompt, mark detection; a **style wall of 45 short-drama looks** for image-to-image
-- **Video tools** &mdash; text / image / keyframe to video, omni-reference generation with **file, web-link and on-canvas references**, video edit, erase, upscale, audio separation, camera templates, shot analysis; Seedance 2.5 in the recommended catalog
+- **Video tools** &mdash; text / image / keyframe to video, omni-reference generation with **file, web-link and on-canvas references**, video edit, erase, upscale, audio separation, camera templates, shot analysis; Seedance 2.5 among the featured Higgsfield models
 - **Audio** &mdash; speech synthesis with a voice library, reference voices, music generation
 - **Canvas skills** &mdash; one-click skills such as sketch-from-context, frame-from-context, set-background, scene-360, frame review and beat-graph planning
 - **Built for big canvases** &mdash; canvas tabs, element outline, minimap and viewport bookmarks, snap-align, level-of-detail rendering, multi-select and group nodes, keyboard shortcuts, revision history with restore, per-canvas locking
@@ -264,18 +264,18 @@ The edge isn't "more generation" — it's organizing the whole short-drama produ
 
 ## System Requirements
 
-DramaClaw runs all inference through an **OpenAI-compatible gateway** — either the official RelayClaw service or the bundled [dramaclaw-gateway](https://github.com/dramaclaw/dramaclaw-gateway) routing to providers you configure. Nothing runs models on your machine, so the local footprint is light. An ordinary laptop or a small VPS is enough.
+Cloud generation runs on **Higgsfield** and **OpenRouter**, so with those alone an ordinary laptop or a small VPS is enough. The local engines (**MTPLX** for text, **Draw Things** for images, **h3.c** for video) run on the host and need a machine that can run them. The bundled [dramaclaw-gateway](https://github.com/dramaclaw/dramaclaw-gateway) serves only the knowledge-graph embedding.
 
 | Item | Requirement |
 |---|---|
-| **CPU / RAM** | ≥ 2 vCPU / 4 GB recommended (excludes model inference — that runs on the gateway) |
+| **CPU / RAM** | ≥ 2 vCPU / 4 GB recommended for the stack (excludes the local engines, which need their own hardware) |
 | **GPU** | Not required for the standard pipeline. Only the optional `world` extra (voxel / panorama-to-3D) needs a GPU + CUDA image |
 | **Disk** | A few GB for images plus generated media/state under the `ce-data` volume (no hard minimum) |
 | **OS** | macOS (Apple Silicon / Intel), Windows (Docker Desktop + WSL2 backend), Linux (Docker Engine + compose plugin) |
 | **Docker** | Docker + `docker compose` |
 | **Ports** | `8080` web UI · `8780` REST API · `3000` bundled gateway admin UI (host-only by default, can be widened) |
 | **Datastores** | None required — no Postgres, Redis, Celery or Ray. Tasks run in-process; state lives on the local filesystem (SQLite + files) |
-| **Network** | Outbound access to the official gateway `relayclaw.cdnfg.com`, and/or to the model providers you configure in the bundled gateway |
+| **Network** | Outbound access to Higgsfield and/or OpenRouter, plus the official gateway `relayclaw.cdnfg.com` or the embedding provider you configure in the bundled gateway |
 
 > Local development (non-Docker) additionally needs Python 3.11–3.12 + [`uv`](https://docs.astral.sh/uv/) + `ffmpeg`. Full prerequisites in the [Self-hosting guide](docs/en/guides/self-hosting.md).
 
@@ -308,11 +308,7 @@ Both checkouts are plain git repos: edit, `git pull`, rebuild. Only DramaClaw co
 docker compose -f docker-compose.release.yml up -d
 ```
 
-Open the app at <http://localhost:8080>; the REST API is at <http://localhost:8780>. In **Settings → Model Config** pick one of:
-
-- **Official** — paste your DC key (get one at <https://relayclaw.cdnfg.com>); no model mapping needed. The bundled gateway stays idle.
-- **Custom** — one click initializes the bundled `newapi` gateway; then add your own upstream channels.
-- **Local + Official Hybrid** — official for the main pipeline, bundled gateway for extra channels.
+Open the app at <http://localhost:8080>; the REST API is at <http://localhost:8780>. Engines are chosen in `.env` (`TEXT_ENGINE`, `DEFAULT_IMAGE_SELECTION`, `VIDEO_BACKEND`, `OPENROUTER_API_KEY`, ...); **Settings → Engines** shows which ones are reachable. Sign in to Higgsfield once with `higgsfield auth login`. The Higgsfield CLI and h3.c are not in the Docker image, and inside a container `127.0.0.1` is the container itself, so point `DRAWTHINGS_URL` / `MTPLX_BASE_URL` at the host.
 
 Full steps in the [Quick Start](docs/en/getting-started/quickstart.md).
 
@@ -334,7 +330,7 @@ uv run novelvideo api --port 8780   # start the REST API (CE defaults to inline 
 
 Frontend in a second terminal: `cd frontend && pnpm install && pnpm dev`.
 
-**Gateway.** In **Official** mode you need nothing else. For **Custom** or **Local + Official Hybrid** the API expects a gateway on `127.0.0.1:3000` whose SQLite file is `./state/newapi/one-api.db` (that is what "Initialize" in Settings writes to; `NEWAPI_ADMIN_BASE_URL` in `.env` already points there). Either run the published image with that directory mounted:
+**Embedding gateway.** With an official DC key you need nothing else. For a local NewAPI the API expects a gateway on `127.0.0.1:3000` whose SQLite file is `./state/newapi/one-api.db` (that is what `POST /api/v1/model-gateway/custom/newapi/init` writes to; `NEWAPI_ADMIN_BASE_URL` in `.env` already points there). Either run the published image with that directory mounted:
 
 ```bash
 mkdir -p state/newapi
@@ -354,19 +350,19 @@ Generation runs on local engines where possible and on Higgsfield in the cloud:
 | Stage                | Engine                                                                 |
 |----------------------|------------------------------------------------------------------------|
 | **Text / LLM**       | MTPLX (local, default, `TEXT_ENGINE=mtplx`) or OpenRouter (`TEXT_ENGINE=openrouter`) |
-| **Image**            | Draw Things (local, `drawthings`) or any Higgsfield image model (`higgsfield:<model>`) |
+| **Image**            | Draw Things (local, `drawthings`), any Higgsfield image model (`higgsfield:<model>`), or OpenRouter (`openrouter:<model>`) |
 | **Video**            | any Higgsfield video model (`higgsfield:<model>`) or h3.c / MiniMax H3 (local, `h3c`) |
 | **Voice / music / SFX** | Higgsfield (reference voices, TTS voices, music, sound effects)     |
 | **Story graph**      | Cognee, embeddings through the bundled gateway (`DC-cognee-embedding`) |
 | **Task runtime**     | in-process inline (no Ray / Redis / Celery)                            |
 | **Storage**          | local filesystem                                                       |
 
-Local engines cost nothing; Higgsfield jobs show Higgsfield's own credit price before they run.
+Local engines cost nothing; Higgsfield jobs show Higgsfield's own credit price before they run, and every job lands in the project's usage ledger (`GET /api/v1/projects/{project}/video-usage`).
 The settings screen shows which engines are reachable (`GET /api/v1/model-gateway/engines`). Full walkthrough in [Configuring Models](docs/en/getting-started/configuring-models.md).
 
 ### The bundled gateway: dramaclaw-gateway
 
-The `newapi` service in `docker-compose.yml` is [**dramaclaw-gateway**](https://github.com/dramaclaw/dramaclaw-gateway), DramaClaw's own fork of [New API](https://github.com/QuantumNous/new-api). It now only serves the Cognee embedding model: pick **Official** (paste your DC key from <https://relayclaw.cdnfg.com>) or **Custom** (one click initializes the bundled gateway, then add an embedding channel). Image: [`claymorelab/dramaclaw-gateway`](https://hub.docker.com/r/claymorelab/dramaclaw-gateway) on Docker Hub, pinned by `DRAMACLAW_GATEWAY_VERSION` in `.env`.
+The `newapi` service in `docker-compose.yml` is [**dramaclaw-gateway**](https://github.com/dramaclaw/dramaclaw-gateway), DramaClaw's own fork of [New API](https://github.com/QuantumNous/new-api). It now only serves the Cognee embedding model: either save your DC key from <https://relayclaw.cdnfg.com> (`POST /api/v1/model-gateway/official/config`), or initialize the bundled gateway and add an embedding channel (`/api/v1/model-gateway/custom/newapi/init`, then `/custom/newapi/embedding-model`). Image: [`claymorelab/dramaclaw-gateway`](https://hub.docker.com/r/claymorelab/dramaclaw-gateway) on Docker Hub, pinned by `DRAMACLAW_GATEWAY_VERSION` in `.env`.
 
 <br/>
 

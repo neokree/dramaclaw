@@ -3,7 +3,7 @@
 
 # Architecture
 
-DramaClaw Community Edition (CE) is a **single-machine** "novel → finished video" pipeline: one FastAPI service hosts every creative capability, tasks run in-process, data lands locally, and models are reached through an OpenAI-compatible gateway. **No PostgreSQL / Redis required.**
+DramaClaw Community Edition (CE) is a **single-machine** "novel → finished video" pipeline: one FastAPI service hosts every creative capability, tasks run in-process, data lands locally, and generation runs on local engines and on Higgsfield / OpenRouter in the cloud. **No PostgreSQL / Redis required.**
 
 ## System Architecture
 
@@ -75,7 +75,7 @@ No external database is required.
 
 ## Model Access
 
-All text / image / video / audio models are reached through a single **OpenAI-compatible gateway** (a bundled gateway or an official key); see [Configuring Model Providers](../getting-started/configuring-models.md) for details.
+Text runs on **MTPLX** (local) or **OpenRouter**; images on **Draw Things** (local), **Higgsfield**, or **OpenRouter**; video on **Higgsfield** or **h3.c** (local); voices, music, and sound effects on **Higgsfield**. The bundled NewAPI gateway serves only the knowledge-graph embedding. See [Configuring Model Providers](../getting-started/configuring-models.md) for details.
 
 ## Tech Stack
 

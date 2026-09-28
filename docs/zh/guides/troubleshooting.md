@@ -14,15 +14,17 @@
 | **健康检查一直 unhealthy** | 探活打 `/api/v1/config`;若 API 自身报错,看启动日志定位真正异常。 |
 | **本地开发起不来:Python 版本** | 需 **3.11–3.12**(`>=3.11,<3.13`)。`uv python pin 3.12` 或装对应版本后 `uv sync`。 |
 
-## 模型 / 网关类
+## 模型 / 引擎类
 
 | 现象 | 排查 |
 |---|---|
-| **模型调用全报错** | 在「设置 → 模型配置」确认当前渠道已配置；官方渠道检查 DC key，本地 NewAPI 检查服务、runtime token 和上游渠道。 |
-| **某个环节报"模型不存在"** | 本地 NewAPI 中没有对应逻辑模型映射，或目标渠道未启用。详见[配置模型供应商](../getting-started/configuring-models.md)。 |
-| **结构化环节报 `Exceeded maximum output retries`**（角色抽取、剧本规划等），纯文本环节正常 | 上游没有返回 function/tool call。任务日志（v2.0.3 起）会打出重试提示和底层原因。自己做 Chat Completions 格式转换的中转站（Codex2API 及类似的 Codex 反代）已知会在 `/v1/chat/completions` 上丢掉 `tool_calls`：到内置 NewAPI 后台给该渠道开启 **ChatCompletions → Responses Compatibility**（`chat_completions_to_responses_policy`），让 NewAPI 用 `/v1/responses` 发往上游。见 #490。 |
-| **文本模型超时** | 调大 `NEWAPI_TEXT_TIMEOUT_SECONDS`(默认 120);内网网关被系统代理拦截时设 `NEWAPI_TEXT_TRUST_ENV=false`。 |
-| **参考图功能不可用** | 需配 `OSS_RELAY_AK/SK`;纯文本→成片流程可不配。 |
+| **模型调用全报错** | 打开 **设置 → 引擎**，确认 `.env` 中选择的引擎显示“可用”。详见[配置模型](../getting-started/configuring-models.md#常见问题)。 |
+| **Higgsfield 不可用或报 `higgsfield auth login`** | 安装 Higgsfield CLI（或设置 `HIGGSFIELD_BINARY`），执行 `higgsfield auth login`；`higgsfield account status` 可查看积分余额。 |
+| **Draw Things 不可用** | 在 Draw Things 中开启 **Settings → API Server**（HTTP，端口 7860），或修正 `DRAWTHINGS_URL`。 |
+| **MTPLX 下文本失败** | `MTPLX_BINARY` 不存在，或 `MTPLX_BASE_URL` 上的其他服务提供的模型不是 `MTPLX_MODEL`。 |
+| **结构化环节报 `Exceeded maximum output retries`**（角色抽取、剧本规划等），纯文本环节正常 | 文本模型没有返回 function/tool call。任务日志（v2.0.3 起）会打出重试提示和底层原因。使用 OpenRouter 时，在 `OPENROUTER_MODEL` 或按任务覆盖的 `*_MODEL` 中换成支持 tool calling 的模型。 |
+| **文本模型超时** | 调大 `TEXT_TIMEOUT_SECONDS`(默认 300);本地引擎被系统代理拦截时设 `TEXT_TRUST_ENV=false`。 |
+| **知识图谱 embedding 失败** | 只有 embedding 仍经过内置 NewAPI：检查网关 Key 或 embedding 渠道、上游模型、维度和批量大小。 |
 
 ## 媒体 / ffmpeg 类
 

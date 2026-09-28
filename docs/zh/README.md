@@ -9,7 +9,7 @@
 |---|---|
 | [快速开始](getting-started/quickstart.md) | 本地 Docker 跑起来 |
 | [安装指南](getting-started/installation.md) | macOS / Windows / Linux 各平台前置 |
-| [配置模型供应商](getting-started/configuring-models.md) | 接入你自己的模型网关 |
+| [配置模型供应商](getting-started/configuring-models.md) | 选择文本、图片、视频和音频引擎 |
 
 ## 指南
 

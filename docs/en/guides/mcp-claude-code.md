@@ -12,8 +12,8 @@ inherits the same auth, project guards, and task queue as the web UI.
 ## Prerequisites
 
 - A running DramaClaw instance (`docker compose up -d`, REST API on `:8780`).
-- A configured, funded model gateway (Settings → Model Config) — the agent can
-  plan/script without it, but image/video/audio generation needs working models.
+- Working engines (check Settings → Engines): a text engine for planning and
+  scripting, and the image/video/audio engines for generation (Higgsfield jobs need credits).
 - Local checkout with [`uv`](https://docs.astral.sh/uv/) synced (`uv sync`) so the
   `novelvideo` package is importable.
 

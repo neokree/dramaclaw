@@ -5,12 +5,13 @@
 
 > Run DramaClaw locally and produce your first result.
 
-DramaClaw is the Community Edition (CE): it runs on a single machine with no PostgreSQL / Redis required. By default `docker compose` brings up three services: `api` (the creation backend, :8780), `newapi` (the bundled gateway, idle until you switch to Custom or Local + Official Hybrid mode), and `web` (the browser UI, :8080). Models are served through the **DramaClaw official gateway (RelayClaw)** by default — paste in a DC key and you're ready to go.
+DramaClaw is the Community Edition (CE): it runs on a single machine with no PostgreSQL / Redis required. By default `docker compose` brings up three services: `api` (the creation backend, :8780), `newapi` (the bundled gateway, used only for knowledge-graph embeddings), and `web` (the browser UI, :8080). Generation runs on local engines (MTPLX for text, Draw Things for images, h3.c for video) and on Higgsfield in the cloud (video, images, voices, music), with OpenRouter as an alternative for text and images.
 
 ## Prerequisites
 
 - Docker (Desktop or Engine) with `docker compose` support.
-- A **DC key** — sign up / purchase at <https://relayclaw.cdnfg.com>; alternatively use the local NewAPI bundled with CE.
+- The engines you want to use: the **Higgsfield CLI** signed in with `higgsfield auth login`, an `OPENROUTER_API_KEY`, and/or the local engines (MTPLX, Draw Things, h3.c).
+- For knowledge-graph embeddings: a **DC key** (sign up / purchase at <https://relayclaw.cdnfg.com>) or an embedding channel in the NewAPI bundled with CE.
 
 ## Steps
 
@@ -23,7 +24,7 @@ cd dramaclaw
 # 2. Prepare configuration
 cp .env.example .env
 #    Open .env and at minimum change PROMPT_EXPORT_PASSWORD to a non-default value.
-#    Configure the model channel and key in the web UI, not in .env.
+#    Choose the engines in .env (TEXT_ENGINE, DEFAULT_IMAGE_SELECTION, VIDEO_BACKEND, OPENROUTER_API_KEY...).
 
 # 3. Start — brings up api / newapi / web
 docker compose up -d --build   # builds api, web (this checkout) and the gateway (../dramaclaw-gateway) from source
@@ -33,17 +34,17 @@ docker compose up -d --build   # builds api, web (this checkout) and the gateway
 docker compose ps   # api, newapi, and web should all be running
 ```
 
-## Enter your DC key (one-time, required)
+## Check the engines
 
 1. Open **`http://localhost:8080`** in your browser — this is the DramaClaw UI.
-2. Go to Settings → **Model Configuration → Official Channel**. The gateway address is already prefilled as `https://relayclaw.cdnfg.com/v1`.
-3. **Paste your DC key** and click "Save and Enable". It works immediately, with **no model mapping required** (RelayClaw has everything configured on the backend).
+2. Open **Settings**. The **Engines** section shows which engines are reachable, the remaining Higgsfield credits, and the active text engine.
+3. An engine marked “Unavailable” shows the reason. Fix it in `.env` (or sign in with `higgsfield auth login`) and restart the API.
 
 > CE defaults to no-login, single local user (`ST_EDITION=ce`, enforced by compose). The REST API lives at `http://localhost:8780` (the browser only talks to `web`, which reverse-proxies to `api`).
 
-## Want to use your own model channels?
+## Embeddings
 
-The bundled NewAPI starts together with `docker compose up -d`. Initialize it and configure upstream keys and model mappings under Settings → Model Configuration → Custom. Its address and runtime token are stored in local `settings.db`, not `.env`. See [Configuring Model Providers](configuring-models.md).
+The knowledge graph needs the `DC-cognee-embedding` model from the bundled NewAPI. Save a DC key with `POST /api/v1/model-gateway/official/config`, or initialize the bundled NewAPI and add an embedding channel. The address and runtime token are stored in local `settings.db`, not `.env`. See [Configuring Model Providers](configuring-models.md#embedding-bundled-newapi).
 
 ## Next steps
 

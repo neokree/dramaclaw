@@ -4,7 +4,7 @@ import tomllib
 from pathlib import Path
 
 
-def test_aliyun_media_relay_sdk_is_packaged() -> None:
+def test_aliyun_oss_sdk_is_packaged() -> None:  # used by utils/oss_client.py
     pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     dependencies = {
         dependency.split("[", 1)[0].split("=", 1)[0].split("<", 1)[0].split(">", 1)[0].strip()

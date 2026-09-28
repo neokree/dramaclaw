@@ -4,7 +4,7 @@
 
 核心特性：
 - Cognee 统一图谱
-- 火山引擎 Seedream 图像生成
-- 角色一致性保障（参考图 + SeedEdit）
+- 图像：Draw Things（本地）/ Higgsfield；视频：Higgsfield / h3.c（本地）
+- 角色一致性保障（多参考图）
 - 多 Agent 协作生成
 """

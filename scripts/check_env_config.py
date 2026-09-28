@@ -88,15 +88,15 @@ COMMON_REVERSE_ENV_ALLOWLIST: tuple[tuple[re.Pattern[str], str], ...] = (
     ),
     (
         re.compile(
-            r"^(?:OPENAI|OPENROUTER|GEMINI|GOOGLE|GOOGLE_AI|DASHSCOPE|ARK|FAL|HUIMENGI|XAI|"
-            r"VOLCENGINE|COMFYUI|COSYVOICE|FISH|EDGE_TTS|NANOBANANA|HUIMENG|"
+            r"^(?:OPENAI|OPENROUTER|GEMINI|GOOGLE|GOOGLE_AI|DASHSCOPE|"
+            r"COSYVOICE|FISH|EDGE_TTS|NANOBANANA|"
             r"SKETCH_GATE|SKETCH_EDIT|VOXEL|PANO|SOG|STAGE_COLLISION|BACKUP_OSS)_.*$"
         ),
         "Optional legacy/provider-specific integration env outside the curated NewAPI template.",
     ),
     (
         re.compile(
-            r"^(?:FAL_KEY|REDIS_URL|FFMPEG_PATH|LOGFIRE_TOKEN|"
+            r"^(?:REDIS_URL|FFMPEG_PATH|LOGFIRE_TOKEN|"
             r"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT|ENABLE_BACKEND_ACCESS_CONTROL)$"
         ),
         "Third-party/runtime integration env, not part of the curated operator template.",
@@ -104,7 +104,7 @@ COMMON_REVERSE_ENV_ALLOWLIST: tuple[tuple[re.Pattern[str], str], ...] = (
     (
         re.compile(
             r"^(?:CHARACTER_IMAGE|DIRECTOR_CONTROL|FREEZONE_IMAGE_REVERSE_PROMPT|GLOBAL_VIDEO|"
-            r"KEYFRAME_PROMPT|SCENE_ASSET|SCENE_360|SEEDANCE|SEEDREAM|SEEDEDIT|VIDEO_PROMPT|"
+            r"KEYFRAME_PROMPT|SCENE_ASSET|SCENE_360|SEEDANCE|VIDEO_PROMPT|"
             r"TTS|MIGRATE_LEGACY|ML_SHARP|KEEP_RAW|DOWNLOAD_VIA_OSS|STATIC_VIA_OSS|"
             r"DISABLE_RENDER_PLAN|GRID_MODE|JR_ERROR_LOG|VIDEO_RESOLUTION|"
             r"SCENE_SPATIAL_CONTRACT|BLOCK_WORLD_|"

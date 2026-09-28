@@ -1093,7 +1093,7 @@ class FreezoneVideoGenRequest(BaseModel):
     generate_audio: bool = Field(default=False, description="是否生成原生音频")
     human_review: bool = Field(
         default=False,
-        description="是否开启 HuiMeng 真人素材审核/加白流程，用于可能包含真人人脸的素材",
+        description="是否开启真人素材审核/加白流程，用于可能包含真人人脸的素材",
     )
     scene_optimize: Optional[Literal["anime", "realistic"]] = Field(
         default=None,
@@ -1149,7 +1149,7 @@ class FreezoneImageToVideoRequest(BaseModel):
     generate_audio: bool = Field(default=False, description="是否生成原生音频")
     human_review: bool = Field(
         default=False,
-        description="是否开启 HuiMeng 真人素材审核/加白流程，用于可能包含真人人脸的素材",
+        description="是否开启真人素材审核/加白流程，用于可能包含真人人脸的素材",
     )
     scene_optimize: Optional[Literal["anime", "realistic"]] = Field(
         default=None,
@@ -1209,7 +1209,7 @@ class FreezoneKeyframeVideoRequest(BaseModel):
     generate_audio: bool = Field(default=False, description="是否生成原生音频")
     human_review: bool = Field(
         default=False,
-        description="是否开启 HuiMeng 真人素材审核/加白流程，用于可能包含真人人脸的素材",
+        description="是否开启真人素材审核/加白流程，用于可能包含真人人脸的素材",
     )
     scene_optimize: Optional[Literal["anime", "realistic"]] = Field(
         default=None,
@@ -1461,7 +1461,7 @@ class FreezoneVideoOmniGenRequest(BaseModel):
     generate_audio: bool = Field(default=False, description="是否生成原生音频")
     human_review: bool = Field(
         default=False,
-        description="是否开启 HuiMeng 真人素材审核/加白流程，用于可能包含真人人脸的素材",
+        description="是否开启真人素材审核/加白流程，用于可能包含真人人脸的素材",
     )
     scene_optimize: Optional[Literal["anime", "realistic"]] = Field(
         default=None,

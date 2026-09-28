@@ -21,7 +21,8 @@ load_dotenv()
 # Text and vision-with-text calls go to one OpenAI-compatible engine:
 #   mtplx      (default) local `mtplx serve`, started on first request.
 #   openrouter https://openrouter.ai, key from OPENROUTER_API_KEY.
-# NewAPI is no longer a text transport (it still serves embeddings/TTS/media).
+# NewAPI is no longer a text transport (it serves cognee embeddings and the
+# local model-credentials port).
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_DEFAULT_TEXT_MODEL = "google/gemma-4-26b-a4b-it"
@@ -473,11 +474,6 @@ def get_newapi_runtime_credentials(
 
 
 
-# Volcengine key, still read by the TTS config below.
-VOLCENGINE_VISUAL_API_KEY = os.environ.get(
-    "VOLCENGINE_VISUAL_API_KEY"
-) or os.environ.get("ARK_API_KEY")
-
 IMAGE_DEFAULT_STYLE = os.environ.get("IMAGE_DEFAULT_STYLE", "chinese_period_drama")
 
 
@@ -516,26 +512,6 @@ def get_style_preset(
     return config.to_legacy_dict()
 
 
-# =============================================================================
-# LLM 临时媒体中转（给 newAPI/视觉模型拉取本地参考图）
-# =============================================================================
-
-MEDIA_RELAY_PROVIDER = (
-    os.environ.get("MEDIA_RELAY_PROVIDER", "aliyun_oss").strip().lower()
-)
-MEDIA_RELAY_TTL_SECONDS = int(os.environ.get("MEDIA_RELAY_TTL_SECONDS", "1800"))
-
-OSS_RELAY_ENDPOINT = os.environ.get("OSS_RELAY_ENDPOINT", "oss-cn-chengdu.aliyuncs.com")
-OSS_RELAY_BUCKET = os.environ.get("OSS_RELAY_BUCKET", "claymore-llm-relay")
-OSS_RELAY_AK = os.environ.get("OSS_RELAY_AK", "")
-OSS_RELAY_SK = os.environ.get("OSS_RELAY_SK", "")
-
-CLOUDINARY_RELAY_CLOUD_NAME = os.environ.get("CLOUDINARY_RELAY_CLOUD_NAME", "")
-CLOUDINARY_RELAY_API_KEY = os.environ.get("CLOUDINARY_RELAY_API_KEY", "")
-CLOUDINARY_RELAY_API_SECRET = os.environ.get("CLOUDINARY_RELAY_API_SECRET", "")
-CLOUDINARY_RELAY_FOLDER = os.environ.get("CLOUDINARY_RELAY_FOLDER", "")
-
-
 def get_style_labels() -> dict[str, str]:
     """获取风格 ID -> 显示标签的映射。
 
@@ -564,9 +540,6 @@ def list_available_styles() -> list[dict]:
 
 TTS_PROVIDER = os.environ.get("TTS_PROVIDER", "cosyvoice")  # 默认 CosyVoice
 EDGE_TTS_VOICE = os.environ.get("EDGE_TTS_VOICE", "zh-CN-XiaoxiaoNeural")
-VOLCENGINE_TTS_ENDPOINT = os.environ.get(
-    "VOLCENGINE_TTS_ENDPOINT", "https://openspeech.bytedance.com/api/v1/tts"
-)
 
 # CosyVoice 配置（阿里云 DashScope）
 COSYVOICE_MODEL = os.environ.get("COSYVOICE_MODEL", "cosyvoice-v3-flash")
@@ -596,8 +569,6 @@ def get_tts_config() -> dict:
         "default_voice": EDGE_TTS_VOICE,
         "rate": os.environ.get("TTS_RATE", "+0%"),
         "pitch": os.environ.get("TTS_PITCH", "+0Hz"),
-        "volcengine_endpoint": VOLCENGINE_TTS_ENDPOINT,
-        "volcengine_api_key": VOLCENGINE_VISUAL_API_KEY,
         # CosyVoice
         "cosyvoice_model": COSYVOICE_MODEL,
         "cosyvoice_voice": COSYVOICE_VOICE,
@@ -712,11 +683,6 @@ def get_video_config() -> dict:
 # =============================================================================
 # 图像生成配置：Draw Things (locale) / Higgsfield (cloud)
 # =============================================================================
-
-# Keys other callers still use for text / vision LLMs (not image generation).
-GOOGLE_AI_API_KEY = os.environ.get("GOOGLE_AI_API_KEY")
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 # A selection is "drawthings" or "higgsfield:<model_ref>" (see media_catalog).
 # Default: Nano Banana 2 on Higgsfield — multi-reference, so characters and

@@ -1,13 +1,12 @@
 """NanoBananaPro 网格生成模块。
 
-使用 Google AI Studio (Gemini Pro Image) 生成网格图，
+通过 engines/image.py（Draw Things / Higgsfield）生成网格图，
 Sketch 模式使用 3x3 网格（每张 9 panel 位），按 beat 顺序分块，自动产出 ceil(N/9) 张网格。
 
 生成流程:
 1. 从 beats 数据构建网格 Prompt
-2. 调用 NanoBananaPro API 生成网格图
+2. 调用图像引擎生成网格图
 3. 使用 grid_splitter 分割成独立分镜
-4. 使用 Seedream 图生图做高清修复
 """
 
 import contextvars
@@ -30,7 +29,6 @@ from pydantic import BaseModel, Field
 from novelvideo.config import (
     IMAGE_DEFAULT_STYLE,
     get_grid_generation_config,
-    get_style_preset,
 )
 from novelvideo.egress_context import (
     TrustedEgressContext,
@@ -3012,10 +3010,6 @@ class NanoBananaGridGenerator:
             if sketch:
                 # Sketch 模式使用 UnifiedPromptBuilder（与导出逻辑一致）
                 print("[NanoBananaPro] 进入 Sketch 模式")
-
-                # 当前网格的全局 beat 范围 (1-based)
-                grid_beat_start = beat_start_index + 1
-                grid_beat_end = beat_start_index + grid_capacity
 
                 # prompt_aspect_ratio 优先（two-pass 时图用 1:1 但 prompt 写 2:3）
                 _prompt_ar = prompt_aspect_ratio or (

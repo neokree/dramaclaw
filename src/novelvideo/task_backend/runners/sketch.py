@@ -608,7 +608,6 @@ async def _run_sketch_generation_async(
         f"{_format_generation_time(result.generation_time)}",
         progress=0.8,
     )
-    log("[Deface] 跳过去脸后处理（SeedEdit 模型暂不可用）")
     log("切割草图入池...", progress=0.85)
     ts = datetime.now().strftime("%Y%m%d%H%M%S")
     sketches_dir = paths.sketches_dir()

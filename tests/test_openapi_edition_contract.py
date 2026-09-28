@@ -104,7 +104,6 @@ def test_default_ce_starts_and_serves_config_without_edition_settings(tmp_path) 
         """
 import json
 import os
-from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 import novelvideo.env
 import dotenv
@@ -117,18 +116,17 @@ for key in ("ST_EDITION", "ST_CONTROL_PLANE_DSN"):
 
 from novelvideo.api.app import create_app
 from novelvideo.ports.registry import get_port
-with patch("novelvideo.official_media_catalog_remote.run_official_media_catalog_updater", new=AsyncMock()):
-    app = create_app()
-    # Exercise the real lifespan, including bootstrap and the local lifecycle.
-    with TestClient(app) as client:
-        response = client.get("/api/v1/config")
-        paths = app.openapi()["paths"]
-        result = {
-            "status_code": response.status_code,
-            "data": response.json()["data"],
-            "lifecycle": type(get_port("lifecycle")).__name__,
-            "has_ee_users_route": "/api/v1/users/search" in paths,
-        }
+app = create_app()
+# Exercise the real lifespan, including bootstrap and the local lifecycle.
+with TestClient(app) as client:
+    response = client.get("/api/v1/config")
+    paths = app.openapi()["paths"]
+    result = {
+        "status_code": response.status_code,
+        "data": response.json()["data"],
+        "lifecycle": type(get_port("lifecycle")).__name__,
+        "has_ee_users_route": "/api/v1/users/search" in paths,
+    }
 print(json.dumps(result), end="")
 """,
         env_updates={

@@ -1768,7 +1768,7 @@ class VideoPoolEntry(BaseModel):
     generated_at: datetime
     duration: float = 5.0
     video_mode: str = "first_frame"
-    backend: str = "comfyui"
+    backend: str = "higgsfield"  # rows written before the engine swap may say "comfyui"
     prompt: str = ""
 
 

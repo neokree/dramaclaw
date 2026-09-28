@@ -848,7 +848,6 @@ async def test_generation_credit_cost_route_adds_scene_pano_params(monkeypatch):
 
 
 def test_scene_reference_feature_quote_resolves_selected_bottom_model(monkeypatch):
-    from novelvideo import config
     from novelvideo.api.routes import model_credits
 
     params = model_credits._feature_billing_params(
@@ -882,7 +881,6 @@ def test_scene_pano_feature_quote_resolves_runtime_model_and_params(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_generation_credit_cost_route_adds_image_mode_params(monkeypatch):
-    from novelvideo import config
     from novelvideo.api.routes import model_credits
 
     monkeypatch.setattr(
@@ -948,7 +946,6 @@ async def test_generation_credit_cost_route_canvas_uses_only_explicit_params(
 
 @pytest.mark.asyncio
 async def test_generation_credit_cost_route_adds_character_image_params(monkeypatch):
-    from novelvideo import config
     from novelvideo.api.routes import model_credits
 
     monkeypatch.setattr(

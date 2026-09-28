@@ -66,8 +66,7 @@ def wired(monkeypatch):
 
     Patches runtime.get_egress_operation_port, not ports.get_egress_operation_port:
     model_gateway_runtime.py:17 binds the name at module import, so patching the
-    ports module would not be seen. (media_relay re-imports inside the function,
-    which is why its own tests patch the other one.)
+    ports module would not be seen.
     """
     from novelvideo import model_gateway_runtime as runtime
     from novelvideo.cognee import config as cognee_config

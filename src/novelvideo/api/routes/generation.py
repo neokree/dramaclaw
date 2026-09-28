@@ -24,7 +24,6 @@ from novelvideo.api.deps import (
 )
 from novelvideo.api.schemas import (
     GlobalOptimizeRequest,
-    VideoGenerateRequest,
     VideoBackendOption,
     VideoComposeRequest,
     TTSGenerateRequest,

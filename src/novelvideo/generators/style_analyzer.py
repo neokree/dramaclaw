@@ -1,12 +1,11 @@
 """风格分析器 - 从参考图片自动提取风格预设。"""
 
-import asyncio
 import io
 import os
 
 from PIL import Image
 from pydantic import BaseModel, Field
-from pydantic_ai import Agent, ImageUrl
+from pydantic_ai import Agent, BinaryContent
 
 
 class StyleAnalysisResult(BaseModel):
@@ -91,16 +90,13 @@ Return ONLY valid JSON with no markdown formatting:
         Returns:
             包含风格字段的字典
         """
-        from novelvideo.storage.media_relay import upload_image_bytes
-
-        # 压缩图片以减少 token 消耗
-        compressed_bytes, _compressed_mime = self._compress_image(image_bytes)
-        image_url = await asyncio.to_thread(upload_image_bytes, compressed_bytes, ext="jpg")
+        # 压缩图片以减少 token 消耗；inline, the text engine needs no public URL
+        compressed_bytes, compressed_mime = self._compress_image(image_bytes)
 
         response = await self.agent.run(
             [
                 self.ANALYSIS_PROMPT,
-                ImageUrl(url=image_url, media_type="image/jpeg"),
+                BinaryContent(data=compressed_bytes, media_type=compressed_mime),
             ]
         )
         return response.output.model_dump()

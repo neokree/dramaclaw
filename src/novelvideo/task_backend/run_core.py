@@ -669,7 +669,6 @@ def _completion_metadata_with_provider_task_id(
     if isinstance(result, dict):
         provider_task_id = (
             result.get("provider_task_id")
-            or result.get("huimeng_task_id")
             or result.get("newapi_task_id")
         )
         if provider_task_id:

@@ -80,7 +80,7 @@ def add_video_to_pool(
     source_video_path: Path,
     duration: float = 5.0,
     video_mode: str = "first_frame",
-    backend: str = "comfyui",
+    backend: str = "higgsfield",
     prompt: str = "",
 ) -> VideoPoolEntry:
     """将视频添加到视频池。

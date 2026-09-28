@@ -337,9 +337,8 @@ def _render(
         # original, so a phone photo the user sees upright is stored rotated.
         # Bake the rotation in, or the variant stands in for the original while
         # disagreeing with it — the node shows the photo sideways and the
-        # fullscreen viewer (always the original) snaps it upright. Both other
-        # resize paths in the codebase do this: media_relay.py and the freezone
-        # crop route.
+        # fullscreen viewer (always the original) snaps it upright. The freezone
+        # crop route does the same.
         im = ImageOps.exif_transpose(opened) or opened
         try:
             im.thumbnail((max_edge, max_edge), Image.LANCZOS)

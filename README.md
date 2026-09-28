@@ -349,29 +349,24 @@ or run the gateway from source in the sibling checkout (`make dev-api` / `make d
 
 ## Supported Models & Providers
 
-DramaClaw stays model-neutral — all text / image / video / audio models connect through an **OpenAI-compatible gateway**. Pick the mode in **Settings → Model Config**:
+Generation runs on local engines where possible and on Higgsfield in the cloud:
 
-- **Official (recommended)** — paste your DC key (get one at <https://relayclaw.cdnfg.com>), save, done. RelayClaw already ships every model mapping DramaClaw needs; nothing to configure.
-- **Custom** — one click initializes the bundled `dramaclaw-gateway`, then add your own provider channels (API keys, model IDs) in its admin UI. Every model DramaClaw calls goes through your channels.
-- **Local + Official Hybrid** — keep the official models for the main pipeline and add extra channels (for example a local ComfyUI video workflow) through the bundled gateway.
+| Stage                | Engine                                                                 |
+|----------------------|------------------------------------------------------------------------|
+| **Text / LLM**       | MTPLX (local, default, `TEXT_ENGINE=mtplx`) or OpenRouter (`TEXT_ENGINE=openrouter`) |
+| **Image**            | Draw Things (local, `drawthings`) or any Higgsfield image model (`higgsfield:<model>`) |
+| **Video**            | any Higgsfield video model (`higgsfield:<model>`) or h3.c / MiniMax H3 (local, `h3c`) |
+| **Voice / music / SFX** | Higgsfield (reference voices, TTS voices, music, sound effects)     |
+| **Story graph**      | Cognee, embeddings through the bundled gateway (`DC-cognee-embedding`) |
+| **Task runtime**     | in-process inline (no Ray / Redis / Celery)                            |
+| **Storage**          | local filesystem                                                       |
 
-Full walkthrough in [Configuring Models](docs/en/getting-started/configuring-models.md).
+Local engines cost nothing; Higgsfield jobs show Higgsfield's own credit price before they run.
+The settings screen shows which engines are reachable (`GET /api/v1/model-gateway/engines`). Full walkthrough in [Configuring Models](docs/en/getting-started/configuring-models.md).
 
 ### The bundled gateway: dramaclaw-gateway
 
-The `newapi` service in `docker-compose.yml` is [**dramaclaw-gateway**](https://github.com/dramaclaw/dramaclaw-gateway), DramaClaw's own fork of [New API](https://github.com/QuantumNous/new-api). It speaks the **DC-Media** contract DramaClaw uses for image / video / audio (media roles, references, first / last frames) and converts each request into the provider's native API. Image: [`claymorelab/dramaclaw-gateway`](https://hub.docker.com/r/claymorelab/dramaclaw-gateway) on Docker Hub, pinned by `DRAMACLAW_GATEWAY_VERSION` in `.env`. It stays idle in Official mode and is only used once you switch to **Custom** or **Local + Official Hybrid**.
-
-Provider adapters shipped in the gateway today (see the [channel support matrix](https://github.com/dramaclaw/dramaclaw-gateway/blob/main/docs/providers/en/README.md) for verification status): ComfyUI · MiniMax / Hailuo · VolcEngine Doubao / Seedance · fal.ai · Alibaba · Kling · Jimeng · Vertex AI · Gemini · OpenAI / Sora · Suno. Want another provider? The gateway has a [scaffold generator and contribution guide](https://github.com/dramaclaw/dramaclaw-gateway/blob/main/CONTRIBUTING.md).
-
-| Stage                | Official mode (RelayClaw)                          | Custom / Hybrid mode (bundled gateway)                    |
-|----------------------|----------------------------------------------------|-----------------------------------------------------------|
-| **Text / LLM**       | `DC-*-LLM` models, no mapping needed               | any OpenAI-compatible chat channel                        |
-| **Image**            | gpt-image · nano-banana                            | any image channel registered in the gateway              |
-| **Video**            | Seedance 1.0 / 1.5 / 2.0 series · happyhorse       | any DC-Media video adapter (Seedance, Hailuo, Kling, ComfyUI, …) |
-| **Voice-over**       | IndexTTS2                                          | any audio channel registered in the gateway              |
-| **Story graph**      | Cognee (`DC-cognee-embedding`)                     | any embedding channel                                     |
-| **Task runtime**     | in-process inline (no Ray / Redis / Celery)        | same                                                      |
-| **Storage**          | local filesystem                                   | same                                                      |
+The `newapi` service in `docker-compose.yml` is [**dramaclaw-gateway**](https://github.com/dramaclaw/dramaclaw-gateway), DramaClaw's own fork of [New API](https://github.com/QuantumNous/new-api). It now only serves the Cognee embedding model: pick **Official** (paste your DC key from <https://relayclaw.cdnfg.com>) or **Custom** (one click initializes the bundled gateway, then add an embedding channel). Image: [`claymorelab/dramaclaw-gateway`](https://hub.docker.com/r/claymorelab/dramaclaw-gateway) on Docker Hub, pinned by `DRAMACLAW_GATEWAY_VERSION` in `.env`.
 
 <br/>
 

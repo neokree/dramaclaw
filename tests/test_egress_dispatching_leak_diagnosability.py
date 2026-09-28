@@ -1,6 +1,6 @@
 """OI-58 C 层：`mark_unknown` 失败时,那行泄漏必须留下痕迹。
 
-两条服务出网路径（relay / newapi 管理面）的收尾形状逐字相同：
+服务出网路径（newapi 管理面；media relay 已随旧引擎删除）的收尾形状：
 
     except Exception:
         try:
@@ -32,23 +32,15 @@ import logging
 
 import pytest
 
-from novelvideo.egress_context import TrustedEgressContext
 from novelvideo.newapi_provisioner import (
     NewApiAdminServiceIdentity,
     ServiceInvocationFailed as NewApiInvocationFailed,
     run_newapi_admin_operation,
 )
-from novelvideo.ports.authz import BillingPrincipal
 from novelvideo.ports.egress_operations import (
     OperationClaimResult,
     OperationSnapshot,
     OperationState,
-)
-from novelvideo.ports.model_credentials import CredentialReference
-from novelvideo.storage.media_relay import (
-    ServiceInvocationFailed,
-    StorageRelayIdentity,
-    relay_tenant_image_bytes,
 )
 
 CANARY = "transition-token-and-signed-url-canary"
@@ -95,49 +87,6 @@ class _Operations:
         raise AssertionError("unused")
 
 
-class _ExplodingRelay:
-    def upload_bytes(self, *_args, **_kwargs):
-        raise RuntimeError(f"PUT https://bucket.invalid/x?sig={CANARY} -> 403")
-
-
-def _org_context() -> TrustedEgressContext:
-    return TrustedEgressContext(
-        envelope_id="envelope-oi58",
-        project_id="project-oi58",
-        task_type="image.edit",
-        requester_user_id="user-oi58",
-        root_task_id="root-oi58",
-        admission_id="admission-oi58",
-        admitted_at="2026-08-12T04:05:00Z",
-        membership_id="membership-oi58",
-        authz_version=4,
-        billing_principal=BillingPrincipal(kind="organization", id="org-oi58"),
-        credential=CredentialReference(
-            source="organization",
-            credential_id="credential-oi58",
-            key_version=9,
-            org_id="org-oi58",
-        ),
-    )
-
-
-async def _drive_relay(operations) -> None:
-    context = _org_context()
-    await relay_tenant_image_bytes(
-        b"image-bytes",
-        object_id="object-oi58",
-        context=context,
-        identity=StorageRelayIdentity(
-            credential_id="svc-media-relay",
-            credential_version=1,
-            organization_id=context.billing_principal.id,
-            project_id=context.project_id,
-        ),
-        operations=operations,
-        relay=_ExplodingRelay(),
-    )
-
-
 async def _drive_newapi_admin(operations) -> None:
     def _boom():
         raise RuntimeError(f"admin call failed with token {CANARY}")
@@ -157,12 +106,9 @@ async def _drive_newapi_admin(operations) -> None:
     )
 
 
-# `capability` 逐条写死而不是从 driver 回读：这两个串是日志里唯一能区分「哪条服务路径
+# `capability` 逐条写死而不是从 driver 回读：这个串是日志里唯一能区分「哪条服务路径
 # 漏了」的东西，从被测代码回读就等于用它自己证明自己。
 CALL_SITES = [
-    pytest.param(
-        _drive_relay, ServiceInvocationFailed, "storage.media.relay", id="relay"
-    ),
     pytest.param(
         _drive_newapi_admin,
         NewApiInvocationFailed,

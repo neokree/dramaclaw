@@ -146,17 +146,6 @@ NEWAPI_MUTATION_CASES = (
             "dimension": 1024,
         },
     ),
-    (
-        "/model-gateway/custom/newapi/media-models",
-        {
-            "models": {
-                "LingShan-G2": {
-                    "provider": "ali",
-                    "upstreamModel": "media-model-canary",
-                }
-            }
-        },
-    ),
 )
 
 REQUEST_SECRET_CANARIES = (
@@ -196,7 +185,6 @@ def _install_newapi_side_effect_spies(
         "upsert_channel",
         "save_newapi_provider_channels",
         "save_newapi_embedding_model_config",
-        "save_newapi_media_model_mappings",
         "save_custom_newapi_gateway",
         "save_newapi_database_config",
         "refresh_model_gateway_runtime",

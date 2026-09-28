@@ -157,8 +157,8 @@ def test_variant_follows_the_orientation_the_browser_shows(tmp_path):
     phone photo the user sees upright is stored rotated. Resizing the stored
     pixels without transposing produces a variant that disagrees with the
     original it stands in for -- the node shows the photo on its side and the
-    fullscreen viewer snaps it upright. media_relay and the freezone crop route
-    both transpose before resizing; this path must too.
+    fullscreen viewer snaps it upright. The freezone crop route transposes
+    before resizing; this path must too.
     """
 
     source = tmp_path / "images" / "portrait.jpg"

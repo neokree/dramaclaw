@@ -189,7 +189,7 @@ def test_operation_key_ignores_handle_kind() -> None:
 
 
 def test_every_claim_site_declares_a_handle_kind() -> None:
-    """7 个生产构造点逐个显式声明；新增一个不声明的即红。
+    """6 个生产构造点逐个显式声明；新增一个不声明的即红。
 
     只认字面量 `HandleKind.X`：间接取值等于把类别推迟到运行期，那就没法在这里看出
     它到底声明了什么。
@@ -215,7 +215,7 @@ def test_every_claim_site_declares_a_handle_kind() -> None:
             ), f"{site} 的 handle_kind 不是 HandleKind 字面量"
             declared[site] = value.attr
 
-    assert len(declared) == 7, declared
+    assert len(declared) == 6, declared
 
 
 @pytest.mark.asyncio
@@ -257,64 +257,6 @@ async def test_service_paths_reach_completed_through_accepted() -> None:
     assert (
         completed_kwargs["expected_version"] == accepted_kwargs["expected_version"] + 1
     )
-
-
-@pytest.mark.asyncio
-async def test_media_relay_reaches_completed_through_accepted() -> None:
-    from novelvideo.egress_context import TrustedEgressContext
-    from novelvideo.ports.authz import BillingPrincipal
-    from novelvideo.ports.model_credentials import CredentialReference
-    from novelvideo.storage.media_relay import (
-        StorageRelayIdentity,
-        relay_tenant_image_bytes,
-    )
-
-    class _Relay:
-        def upload_bytes(self, _data, *, ext, ttl, object_key):
-            return f"https://cdn.example/{object_key}?ttl={ttl}&ext={ext}"
-
-    context = TrustedEgressContext(
-        envelope_id="envelope-1",
-        project_id="project-a",
-        task_type="image.generate",
-        requester_user_id="user-1",
-        root_task_id="root-1",
-        admission_id="admission-1",
-        admitted_at="2026-08-11T04:05:00Z",
-        membership_id="membership-1",
-        authz_version=1,
-        billing_principal=BillingPrincipal(kind="organization", id="org-a"),
-        credential=CredentialReference(
-            source="organization",
-            credential_id="credential-1",
-            key_version=2,
-            org_id="org-a",
-        ),
-    )
-    operations = StateMachineOperations()
-
-    url = await relay_tenant_image_bytes(
-        b"image-bytes",
-        object_id="object-1",
-        context=context,
-        identity=StorageRelayIdentity(
-            credential_id="svc-relay",
-            credential_version=1,
-            organization_id="org-a",
-            project_id="project-a",
-        ),
-        operations=operations,
-        relay=_Relay(),
-    )
-
-    assert url.startswith("https://cdn.example/")
-    assert [verb for verb, _kwargs in operations.transitions] == [
-        "accepted",
-        "completed",
-    ]
-    assert operations.claims[0].handle_kind is HandleKind.NONE
-    assert operations.transitions[0][1]["provider_job_id"] is None
-    assert operations.transitions[1][1]["result_ref"] is None
 
 
 @pytest.mark.asyncio

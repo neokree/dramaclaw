@@ -17,7 +17,6 @@ import httpx
 
 from novelvideo.model_gateway_settings import (
     build_newapi_embedding_model_status,
-    build_newapi_media_model_mappings_status,
     build_newapi_provider_channels_status,
     build_newapi_database_status,
     get_model_gateway_settings,
@@ -924,11 +923,6 @@ def build_channel_payload(
     else:
         channel_name = (name or f"DC-type-{channel_type}").strip()
     resolved_upstream_key = upstream_key.strip()
-    # NewAPI's generic channel validator rejects an empty key even for ComfyUI.
-    # ComfyUI itself may run without authentication, so keep the CE setting
-    # empty while using a non-secret sentinel only in the NewAPI channel row.
-    if provider_key == "comfyui" and not resolved_upstream_key:
-        resolved_upstream_key = "none"
     channel = {
         "name": channel_name,
         "type": int(channel_type or preset["type"]),
@@ -951,7 +945,7 @@ def build_channel_payload(
         "other": "",
         "remark": f"created by DramaClaw CE provisioner for {provider_label}",
     }
-    if not channel["key"] and provider_key != "comfyui":
+    if not channel["key"]:
         raise ValueError("upstreamKey is required")
     return {"mode": "single", "channel": channel}
 
@@ -1088,42 +1082,6 @@ def find_channel_by_name(
     if not matches:
         return None
     return sorted(matches, key=lambda item: int(item.get("id") or 0), reverse=True)[0]
-
-
-def delete_channel_by_name(
-    cfg: NewApiProvisionerConfig,
-    admin: AdminToken,
-    *,
-    name: str,
-    channel_type: int | None = None,
-) -> bool:
-    """Delete one managed NewAPI channel; return False when it does not exist."""
-    existing = find_channel_by_name(
-        cfg,
-        admin,
-        name=name,
-        channel_type=channel_type,
-    )
-    if not existing:
-        return False
-    channel_id = existing.get("id")
-    if channel_id is None:
-        raise RuntimeError(f"delete channel {name} failed: missing channel id")
-    with httpx.Client(timeout=15) as client:
-        res = client.delete(
-            f"{cfg.admin_base_url}/api/channel/{channel_id}",
-            headers=admin_headers(admin),
-        )
-    try:
-        body: Any = res.json()
-    except ValueError:
-        body = res.text
-    if res.status_code >= 400:
-        raise RuntimeError(
-            f"delete channel {name} failed: HTTP {res.status_code} {body}"
-        )
-    require_newapi_success(body, f"delete channel {name}")
-    return True
 
 
 def get_channel_detail(
@@ -1539,7 +1497,6 @@ def build_provisioner_status() -> dict[str, Any]:
         "relayTokenName": cfg.relay_token_name,
         "providers": PROVIDER_PRESETS,
         "providerChannels": build_newapi_provider_channels_status(),
-        "mediaModels": build_newapi_media_model_mappings_status(),
         "embeddingModel": build_newapi_embedding_model_status(),
         "relayBaseUrl": normalize_relay_base_url(cfg.admin_base_url),
     }

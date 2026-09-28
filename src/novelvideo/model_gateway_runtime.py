@@ -140,8 +140,7 @@ def next_model_gateway_business_task_id(
     helper have no business coordinates to name a request by — cognee's unit
     of work is an arbitrary text batch, and TrustedEgressContext carries no
     episode/beat/scope. Where a call site *does* have a real identity it
-    should pass that instead; see generators/video_generator.py:2682 and
-    storage/media_relay.py:433.
+    should pass that instead; see generators/video_generator.py.
 
     Two byte-identical payloads in one envelope are still two side effects
     that each need a result, so an occurrence ordinal separates them. It is

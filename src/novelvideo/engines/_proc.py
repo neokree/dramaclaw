@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import subprocess
+from pathlib import Path
 from typing import Sequence
 
 from novelvideo.task_backend.subprocesses import run_project_subprocess
@@ -14,7 +15,7 @@ class EngineError(RuntimeError):
 
 
 async def run(
-    args: Sequence[str], *, timeout: float | None = None
+    args: Sequence[str], *, timeout: float | None = None, cwd: str | Path | None = None
 ) -> subprocess.CompletedProcess:
     """Run a CLI off the event loop, in its own process group, killed on task cancel."""
     return await asyncio.to_thread(
@@ -23,6 +24,7 @@ async def run(
         capture_output=True,
         text=True,
         timeout=timeout,
+        cwd=cwd,
     )
 
 

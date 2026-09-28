@@ -17,7 +17,8 @@ from novelvideo.engines import higgsfield
 from novelvideo.engines._proc import EngineError
 
 VOICE_CLONE_MODEL = "seed_audio"
-OnAccepted = Callable[[str, float], None] | None
+OnAccepted = Callable[[str, float | None], None] | None  # None: reattached, already paid
+MIME_TYPES = {".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/wav"}
 
 
 def tts_model() -> str:
@@ -87,7 +88,25 @@ async def _run(
     path, _job_id = await higgsfield.generate(
         job_type, params, out, audio_refs=list(audio_refs), on_accepted=on_accepted
     )
-    return path
+    return _true_suffix(path)
+
+
+def _true_suffix(path: Path) -> Path:
+    """Rename to the container Higgsfield really sent (`format` is a hint; sonilo sends MP4/AAC)."""
+    with path.open("rb") as fh:
+        head = fh.read(12)
+    if head[4:8] == b"ftyp":
+        suffix = ".m4a"
+    elif head[:4] == b"RIFF":
+        suffix = ".wav"
+    elif head[:3] == b"ID3" or (len(head) > 1 and head[0] == 0xFF and head[1] & 0xE0 == 0xE0):
+        suffix = ".mp3"
+    else:
+        return path  # unknown: leave it as requested
+    fixed = path.with_suffix(suffix)
+    if fixed != path:
+        os.replace(path, fixed)
+    return fixed
 
 
 async def tts(

@@ -3,15 +3,14 @@
 Port of MacGen's `mtplx_text_engine.rs`, reduced: a server already serving the
 model is used as is; otherwise `mtplx serve` is started with
 MTPLX_APP_PARENT_PID so it stops by itself when this backend exits.
-
-ponytail: no explicit stop after each job (MacGen stops its own server to free
-~32 GB before an h3 job). Add `mtplx stop` + launch-id record when h3 and MTPLX
-must alternate on the same machine.
+`stop()` shuts down a server this process started (h3.c calls it to free
+~30 GB); the next text request starts it again.
 """
 
 from __future__ import annotations
 
 import os
+import signal
 import subprocess
 import threading
 import time
@@ -23,6 +22,7 @@ from novelvideo.engines._proc import EngineError
 
 START_TIMEOUT_SECONDS = 120
 _lock = threading.Lock()
+_started: subprocess.Popen | None = None
 
 
 def base_url() -> str:
@@ -71,6 +71,7 @@ def status() -> dict[str, object]:
 
 def ensure_running() -> str:
     """Return the base URL of a server serving `model_id()`, starting one if needed."""
+    global _started
     with _lock:
         models = served_models()
         if models is not None:
@@ -96,7 +97,23 @@ def ensure_running() -> str:
             if proc.poll() is not None:
                 raise EngineError(f"mtplx serve è uscito con codice {proc.returncode}.")
             if model_id() in (served_models() or []):
+                _started = proc
                 return base_url()
             time.sleep(0.25)
         proc.terminate()
         raise EngineError(f"MTPLX non pronto dopo {START_TIMEOUT_SECONDS}s.")
+
+
+def stop() -> None:
+    """Stop the server this process started, if any; a server started elsewhere is left alone."""
+    global _started
+    with _lock:
+        proc, _started = _started, None
+        if proc is None or proc.poll() is not None:
+            return
+        os.killpg(proc.pid, signal.SIGTERM)
+        try:
+            proc.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
+            proc.wait()

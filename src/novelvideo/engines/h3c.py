@@ -1,16 +1,18 @@
 """h3.c driver: MiniMax H3 on Metal, local (port of MacGen's `h3_video_engine.rs`).
 
 Runbook: /Users/fabiobiola/Developer/AI-Tools/h3.c/AGENTS.md. Canvas sides are
-multiples of 32 with area <= 768x1344, frames are 5 + 17n at 24 fps, and
+multiples of 32 with area <= 768x1344, frames are 5 + 17n (n >= 1) at 24 fps, and
 `--ssd-streaming` is always on (without it the model swaps on a 48 GB Mac).
 """
 
 from __future__ import annotations
 
+import asyncio
 import math
 import os
 from pathlib import Path
 
+from novelvideo.engines import mtplx
 from novelvideo.engines._proc import EngineError, run
 
 FPS = 24
@@ -51,7 +53,7 @@ def canvas(aspect_ratio: str) -> tuple[int, int]:
 
 
 def frames(duration: float) -> int:
-    wanted = max(5, round(duration * FPS))
+    wanted = max(22, round(duration * FPS))  # h3 refuses less than one 17-frame chunk
     return 5 + math.ceil((wanted - 5) / 17) * 17
 
 
@@ -99,7 +101,9 @@ async def generate(
         cmd += ["--last-frame", await _fit(last_frame, width, height, out.with_suffix(".last.png"))]
     cmd += ["-o", str(out)]
 
-    proc = await run(cmd, timeout=None)
+    await asyncio.to_thread(mtplx.stop)  # ~30 GB MTPLX + ~20 GB h3 swap a 48 GB Mac
+    # h3 loads h3_shaders.metal from its cwd.
+    proc = await run(cmd, timeout=None, cwd=Path(binary()).parent)
     for tmp in (out.with_suffix(".first.png"), out.with_suffix(".last.png")):
         tmp.unlink(missing_ok=True)
     if proc.returncode != 0:

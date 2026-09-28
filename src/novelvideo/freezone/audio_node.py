@@ -556,13 +556,14 @@ async def generate_freezone_audio_speech(
     if not result.success:
         raise RuntimeError(result.error or "audio generation failed")
 
+    output_path = Path(result.audio_path or output_path)  # renamed to its real container
     duration_ms = int((result.duration_seconds or 0) * 1000) or _duration_ms(
         output_path
     )
     return FreezoneAudioSpeechResult(
         audio_path=output_path,
         duration_ms=duration_ms,
-        mime_type="audio/mpeg",
+        mime_type=audio.MIME_TYPES.get(output_path.suffix, "application/octet-stream"),
         model=INDEXTTS2_RECORD_MODEL,
         voice_source=selected_voice.source,
         voice_sha256=selected_voice.sha256,
@@ -602,7 +603,7 @@ async def generate_freezone_audio_eleven_music(
         project_dir, task_type="freezone_audio_music", scope=job_id, model=model_name
     )
     try:
-        await audio.music(
+        output_path = await audio.music(
             clean_prompt,
             output_path,
             duration=length / 1000,
@@ -616,7 +617,7 @@ async def generate_freezone_audio_eleven_music(
     return FreezoneAudioSpeechResult(
         audio_path=output_path,
         duration_ms=_duration_ms(output_path) or length,
-        mime_type="audio/mpeg",
+        mime_type=audio.MIME_TYPES.get(output_path.suffix, "application/octet-stream"),
         model=model_name,
         voice_source=model_name,
         voice_sha256="",

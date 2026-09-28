@@ -180,7 +180,7 @@ class HiggsfieldLedger:
         self.episode, self.speaker = episode, speaker
         self.jobs: list[str] = []
 
-    def accepted(self, job_id: str, credits: float) -> None:
+    def accepted(self, job_id: str, credits: float | None) -> None:
         self.jobs.append(job_id)
         try:
             record_audio_generation_attempt(

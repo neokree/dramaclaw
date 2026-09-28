@@ -24,7 +24,7 @@ def test_h3_canvas_frames_seed():
     assert h3c.canvas("9:16") == (576, 1024)
     assert h3c.canvas("16:9") == (1024, 576)
     assert h3c.canvas("4:5") == (896, 1120)
-    assert [h3c.frames(s) for s in (0.1, 1, 4)] == [5, 39, 107]
+    assert [h3c.frames(s) for s in (0.1, 0.9, 1, 4)] == [22, 22, 39, 107]
     assert h3c.seed_of("block.v1") == h3c.seed_of("block.v1") != h3c.seed_of("block.v2")
 
 
@@ -206,6 +206,40 @@ def test_h3_failure_is_reported_and_leaves_no_output(tmp_path, monkeypatch):
     assert result.status is VideoGenStatus.FAILED
     assert result.error == "h3.c rifiutato: h3: prompt rejected"
     assert not out.exists()
+
+
+def test_h3_runs_from_its_own_dir_after_stopping_mtplx(tmp_path, monkeypatch):
+    import asyncio
+
+    from novelvideo.engines import mtplx
+
+    bin_dir = tmp_path / "h3c"
+    bin_dir.mkdir()
+    fake = bin_dir / "h3"
+    fake.write_text('#!/bin/sh\necho "h3: cwd $(pwd -P)" >&2\nexit 2\n')
+    fake.chmod(0o755)
+    monkeypatch.setenv("H3C_BINARY", str(fake))
+    stopped = []
+    monkeypatch.setattr(mtplx, "stop", lambda: stopped.append(True))
+
+    with pytest.raises(EngineError) as err:
+        asyncio.run(h3c.generate("p", tmp_path / "o.mp4", duration=0.5))
+
+    assert str(err.value) == f"h3.c rifiutato: h3: cwd {bin_dir.resolve()}"
+    assert stopped == [True]
+
+
+def test_mtplx_stop_ends_only_the_server_this_process_started(monkeypatch):
+    import subprocess
+
+    from novelvideo.engines import mtplx
+
+    mtplx.stop()  # nothing started: no-op
+    proc = subprocess.Popen(["sleep", "30"], start_new_session=True)
+    monkeypatch.setattr(mtplx, "_started", proc)
+    mtplx.stop()
+
+    assert proc.poll() is not None and mtplx._started is None
 
 
 def test_media_catalog_video_entries_come_from_model_schemas(higgsfield_catalog):

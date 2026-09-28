@@ -514,7 +514,7 @@ async def test_freezone_audio_music_runs_sonilo_on_higgsfield_and_records_credit
         on_accepted("job-music", 12.0)
         Path(out).parent.mkdir(parents=True, exist_ok=True)
         Path(out).write_bytes(b"music")
-        return Path(out)
+        return Path(out).rename(Path(out).with_suffix(".m4a"))  # sonilo sends MP4/AAC
 
     monkeypatch.setattr(audio_node.audio, "music", fake_music)
     monkeypatch.setattr(audio_node, "_duration_ms", lambda _path: 0)
@@ -529,6 +529,7 @@ async def test_freezone_audio_music_runs_sonilo_on_higgsfield_and_records_credit
 
     assert result.model == "sonilo_music"
     assert result.duration_ms == 30_000
+    assert (result.audio_path.suffix, result.mime_type) == (".m4a", "audio/mp4")
     assert calls == [
         {
             "prompt": "Mysterious original soundtrack, rainforest.",

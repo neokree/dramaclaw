@@ -165,3 +165,22 @@ def test_ledger_v1_table_gains_cost_column(tmp_path):
         assert conn.execute(
             "SELECT request_id, cost_credits FROM audio_request_usage"
         ).fetchall() == [("job-9", 1.5)]
+
+
+@pytest.mark.parametrize(("head", "suffix"), [
+    (b"\x00\x00\x00\x20ftypM4A ", ".m4a"),
+    (b"RIFF\x00\x00\x00\x00WAVE", ".wav"),
+    (b"ID3\x04\x00", ".mp3"),
+    (b"\xff\xfb\x90\x00", ".mp3"),
+    (b"audio", ".mp3"),  # unknown: left as requested
+])
+async def test_audio_is_renamed_to_the_container_higgsfield_sent(jobs, tmp_path, monkeypatch, head, suffix):
+    async def fake_generate(job_type, params, out, **_):
+        Path(out).write_bytes(head)
+        return Path(out), "job-1"
+
+    monkeypatch.setattr(higgsfield, "generate", fake_generate)
+    path = await audio.music("rain", tmp_path / "m.mp3", duration=5)
+
+    assert path == tmp_path / f"m{suffix}" and path.read_bytes() == head
+    assert sorted(p.name for p in tmp_path.iterdir()) == [path.name]

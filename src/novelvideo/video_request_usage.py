@@ -193,7 +193,8 @@ def get_video_usage_summary(
     with _connect(project_output_dir) as conn:
         total_row = conn.execute(
             f"""
-            SELECT COUNT(*), COALESCE(SUM(duration_seconds), 0)
+            SELECT COUNT(*), COALESCE(SUM(duration_seconds), 0),
+                   COALESCE(SUM(cost_estimate), 0)
             FROM video_request_usage
             {where_sql}
             """,
@@ -201,7 +202,8 @@ def get_video_usage_summary(
         ).fetchone()
         today_row = conn.execute(
             f"""
-            SELECT COUNT(*), COALESCE(SUM(duration_seconds), 0)
+            SELECT COUNT(*), COALESCE(SUM(duration_seconds), 0),
+                   COALESCE(SUM(cost_estimate), 0)
             FROM video_request_usage
             {today_sql}
             """,
@@ -213,4 +215,6 @@ def get_video_usage_summary(
         "total_duration_seconds": float(total_row[1] or 0.0) if total_row else 0.0,
         "today_requests": int(today_row[0] or 0) if today_row else 0,
         "today_duration_seconds": float(today_row[1] or 0.0) if today_row else 0.0,
+        "total_credits": float(total_row[2] or 0.0) if total_row else 0.0,
+        "today_credits": float(today_row[2] or 0.0) if today_row else 0.0,
     }

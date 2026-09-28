@@ -167,6 +167,51 @@ def _log(kwargs: dict[str, Any], message: str) -> None:
     logger.info(message)
 
 
+def _track_usage(
+    project_output_dir: str | None,
+    status: str,
+    job_id: str,
+    *,
+    model: str = "",
+    credits: float | None = None,
+    duration: float | None = None,
+    error: str | None = None,
+    kwargs: dict[str, Any] | None = None,
+) -> None:
+    """Record a paid Higgsfield job in the project's video usage table.
+
+    Credits come from `higgsfield generate cost`, taken just before the job was
+    sent. A failed write is logged, never raised: the video is already paid for.
+    """
+    if not project_output_dir:
+        return
+    from novelvideo import video_request_usage as usage
+
+    try:
+        if status == "accepted":
+            kwargs = kwargs or {}
+            usage.record_video_request(
+                project_output_dir=project_output_dir,
+                request_id=job_id,
+                provider="higgsfield",
+                model_name=model,
+                episode=kwargs.get("episode"),
+                beat_num=kwargs.get("beat_num"),
+                task_type=kwargs.get("task_type"),
+                duration_seconds=duration,
+                cost_estimate=credits,
+            )
+        else:
+            usage.update_video_request_status(
+                project_output_dir=project_output_dir,
+                request_id=job_id,
+                status=status,
+                error_message=error,
+            )
+    except Exception:  # noqa: BLE001
+        logger.warning("could not record Higgsfield usage for %s", job_id, exc_info=True)
+
+
 class HiggsfieldVideoGenerator(VideoGeneratorBase):
     """Any Higgsfield video model; the request is shaped by the model's schema."""
 
@@ -186,6 +231,16 @@ class HiggsfieldVideoGenerator(VideoGeneratorBase):
         first, last, images, videos, audios = _split_references(
             image_path, kwargs.get("last_frame_path"), kwargs.get("references")
         )
+        usage_dir = kwargs.get("project_output_dir")
+        accepted: list[str] = []
+
+        def on_accepted(job_id: str, credits: float) -> None:
+            accepted.append(job_id)
+            _track_usage(
+                usage_dir, "accepted", job_id,
+                model=self.model, credits=credits, duration=duration, kwargs=kwargs,
+            )
+
         try:
             out, job_id, params, notes = await higgsfield.generate_with_schema(
                 self.model,
@@ -201,11 +256,15 @@ class HiggsfieldVideoGenerator(VideoGeneratorBase):
                 refs=images,
                 video_refs=videos[:HIGGSFIELD_MAX_MEDIA_REFS],
                 audio_refs=audios[:HIGGSFIELD_MAX_MEDIA_REFS],
+                on_accepted=on_accepted,
             )
         except (TaskCancelled, TaskTimedOut):
             raise
         except (EngineError, OSError, ValueError) as exc:
+            for job_id in accepted:
+                _track_usage(usage_dir, "failed", job_id, error=str(exc))
             return VideoGenResult(status=VideoGenStatus.FAILED, error=str(exc))
+        _track_usage(usage_dir, "downloaded", job_id)
         for note in notes:
             _log(kwargs, f"Higgsfield {self.model}: {note}")
         last_frame = await asyncio.to_thread(_last_frame, out) if _wants_last_frame(kwargs) else None

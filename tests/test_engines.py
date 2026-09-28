@@ -39,3 +39,25 @@ def test_drawthings_size_is_multiple_of_64():
     w, h = drawthings.size_for("9:16")
     assert w % 64 == 0 and h % 64 == 0 and w < h
     assert drawthings.size_for("1:1") == (1024, 1024)
+
+
+def test_higgsfield_job_credits_are_recorded(tmp_path, monkeypatch):
+    import asyncio
+
+    from novelvideo.generators import video_generator as vg
+    from novelvideo.video_request_usage import get_video_usage_summary
+
+    async def fake_generate_with_schema(model, output_path, *, on_accepted, **_):
+        on_accepted("job-1", 6.0)
+        return output_path, "job-1", {"duration": 5}, []
+
+    monkeypatch.setattr(vg.higgsfield, "generate_with_schema", fake_generate_with_schema)
+    result = asyncio.run(
+        vg.HiggsfieldVideoGenerator(model="seedance_2_0").generate(
+            None, "p", str(tmp_path / "a.mp4"),
+            project_output_dir=str(tmp_path), episode=1, beat_num=2, task_type="single_video",
+        )
+    )
+    assert result.status is vg.VideoGenStatus.DONE
+    summary = get_video_usage_summary(project_output_dir=tmp_path)
+    assert summary["total_requests"] == 1 and summary["total_credits"] == 6.0

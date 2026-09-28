@@ -20,7 +20,7 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 from urllib.parse import parse_qsl, urlencode
 
 import httpx
@@ -483,10 +483,13 @@ async def generate(
     video_refs: Iterable[str] = (),
     audio_refs: Iterable[str] = (),
     wait_timeout: str = "60m",
+    on_accepted: Callable[[str, float], None] | None = None,
 ) -> tuple[Path, str]:
     """Create (or reattach to) one job and download its result to `output_path`.
 
     `params` may be adjusted in place (duration moved inside the model's bounds).
+    `on_accepted(job_id, credits)` runs once, right after a new job is paid for;
+    a reattached job was already reported when it was created.
     Returns `(output_path, job_id)`.
     """
     out = Path(output_path)
@@ -522,6 +525,8 @@ async def generate(
         tmp = pending.with_name(pending.name + ".tmp")
         tmp.write_text(job_id)
         os.replace(tmp, pending)
+        if on_accepted:
+            on_accepted(job_id, price)
 
     state, url = _outcome(await _json(["generate", "get", job_id]))
     if state == "running":
@@ -563,6 +568,7 @@ async def generate_with_schema(
     refs: Iterable[str] = (),
     video_refs: Iterable[str] = (),
     audio_refs: Iterable[str] = (),
+    on_accepted: Callable[[str, float], None] | None = None,
 ) -> tuple[Path, str, dict[str, Any], list[str]]:
     """Shape a request to a model's schema (plus its preset) and run it.
 
@@ -592,5 +598,7 @@ async def generate_with_schema(
     if params.get("mode") == "fast" and params.get("resolution") in ("1080p", "4k"):
         params["resolution"] = "720p"  # Seedance 2.0 fast renders 480p/720p only
         notes.append("risoluzione portata a 720p: la modalità fast non va oltre")
-    out, job_id = await generate(job_type, params, output_path, **media)
+    out, job_id = await generate(
+        job_type, params, output_path, on_accepted=on_accepted, **media
+    )
     return out, job_id, params, notes

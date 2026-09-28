@@ -1660,6 +1660,8 @@ async def run_freezone_video_gen(
         references=references,
         audio_setting=audio_setting or ("on" if generate_audio else "off"),
         gen_mode=gen_mode,
+        project_output_dir=str(project_dir),
+        task_type="freezone_video_gen",
     )
     if not result or result.status.value != "done":
         err = result.error if result else "unknown error"

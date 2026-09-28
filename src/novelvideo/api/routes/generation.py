@@ -1676,6 +1676,27 @@ async def get_sketch_image_usage(
     return {"ok": True, "data": summary}
 
 
+@router.get("/projects/{project}/video-usage")
+async def get_video_usage(
+    project: str,
+    episode: int | None = None,
+    user: dict = Depends(get_api_user),
+):
+    """Video jobs and credits spent in this project, plus the Higgsfield balance."""
+    from novelvideo.engines import higgsfield
+    from novelvideo.utils.async_ops import call_blocking
+    from novelvideo.video_request_usage import get_video_usage_summary
+
+    resolved = await _resolve_generation_project(project, user, required_role="viewer")
+    summary = await call_blocking(
+        get_video_usage_summary,
+        project_output_dir=resolved.output_dir,
+        episode=episode,
+    )
+    account = await higgsfield.status()
+    return {"ok": True, "data": {**summary, "higgsfield_credits_left": account["credits"]}}
+
+
 def _image_generation_guard_payload(attempt_count: int, subject: str) -> dict:
     next_attempt = attempt_count + 1
     if next_attempt >= 5:

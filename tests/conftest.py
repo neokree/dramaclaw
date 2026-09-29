@@ -4,6 +4,10 @@ import os
 
 import pytest
 
+# Tests never read the developer's .env: every load_dotenv() call (config.py at
+# import, load_project_dotenv, subprocesses inheriting this env) becomes a no-op.
+os.environ["PYTHON_DOTENV_DISABLED"] = "1"
+
 
 @pytest.fixture(autouse=True)
 def restore_ports_registry_globals():

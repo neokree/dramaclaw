@@ -7,7 +7,7 @@
     ]
   },
   "dataLicense": "CC0-1.0",
-  "documentNamespace": "https://supertale.local/spdx/supertale-ce/6ee8829e3cdae46d",
+  "documentNamespace": "https://supertale.local/spdx/supertale-ce/24a083172889cd8c",
   "name": "supertale-ce-p0b-sbom",
   "packages": [
     {
@@ -19,16 +19,6 @@
       "licenseDeclared": "Elastic-2.0",
       "name": "supertale-ce",
       "versionInfo": "2.0.6"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-aiofiles",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "Apache-2.0",
-      "licenseDeclared": "Apache-2.0",
-      "name": "aiofiles",
-      "versionInfo": "25.1.0"
     },
     {
       "SPDXID": "SPDXRef-Package-aiohappyeyeballs",
@@ -51,16 +41,6 @@
       "versionInfo": "3.14.1"
     },
     {
-      "SPDXID": "SPDXRef-Package-aiolimiter",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "aiolimiter",
-      "versionInfo": "1.2.1"
-    },
-    {
       "SPDXID": "SPDXRef-Package-aiosignal",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -79,16 +59,6 @@
       "licenseDeclared": "MIT",
       "name": "aiosqlite",
       "versionInfo": "0.22.1"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-alembic",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "alembic",
-      "versionInfo": "1.18.4"
     },
     {
       "SPDXID": "SPDXRef-Package-aliyun-python-sdk-core",
@@ -161,36 +131,6 @@
       "versionInfo": "4.14.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-argcomplete",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "Apache-2.0",
-      "licenseDeclared": "Apache-2.0",
-      "name": "argcomplete",
-      "versionInfo": "3.6.3"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-argon2-cffi",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "argon2-cffi",
-      "versionInfo": "25.1.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-argon2-cffi-bindings",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "argon2-cffi-bindings",
-      "versionInfo": "25.1.0"
-    },
-    {
       "SPDXID": "SPDXRef-Package-async-timeout",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -221,16 +161,6 @@
       "versionInfo": "26.1.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-bcrypt",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "Apache-2.0",
-      "licenseDeclared": "Apache-2.0",
-      "name": "bcrypt",
-      "versionInfo": "5.0.0"
-    },
-    {
       "SPDXID": "SPDXRef-Package-billiard",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -239,26 +169,6 @@
       "licenseDeclared": "BSD-3-Clause",
       "name": "billiard",
       "versionInfo": "4.2.4"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-black",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "black",
-      "versionInfo": "26.5.1"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-cbor2",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "cbor2",
-      "versionInfo": "6.1.2"
     },
     {
       "SPDXID": "SPDXRef-Package-celery",
@@ -349,16 +259,6 @@
       "licenseDeclared": "MIT",
       "name": "click-repl",
       "versionInfo": "0.3.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-cognee",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "Apache-2.0",
-      "licenseDeclared": "Apache-2.0",
-      "name": "cognee",
-      "versionInfo": "1.0.5"
     },
     {
       "SPDXID": "SPDXRef-Package-colorama",
@@ -461,46 +361,6 @@
       "versionInfo": "1.25.23"
     },
     {
-      "SPDXID": "SPDXRef-Package-datamodel-code-generator",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "datamodel-code-generator",
-      "versionInfo": "0.65.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-deprecated",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "deprecated",
-      "versionInfo": "1.3.1"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-deprecation",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "Apache-2.0",
-      "licenseDeclared": "Apache-2.0",
-      "name": "deprecation",
-      "versionInfo": "2.1.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-diskcache",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "Apache-2.0",
-      "licenseDeclared": "Apache-2.0",
-      "name": "diskcache",
-      "versionInfo": "5.6.3"
-    },
-    {
       "SPDXID": "SPDXRef-Package-distro",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -509,16 +369,6 @@
       "licenseDeclared": "Apache-2.0",
       "name": "distro",
       "versionInfo": "1.9.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-dnspython",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "ISC",
-      "licenseDeclared": "ISC",
-      "name": "dnspython",
-      "versionInfo": "2.8.0"
     },
     {
       "SPDXID": "SPDXRef-Package-docstring-parser",
@@ -551,16 +401,6 @@
       "versionInfo": "0.8.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-email-validator",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "Unlicense",
-      "licenseDeclared": "Unlicense",
-      "name": "email-validator",
-      "versionInfo": "2.3.0"
-    },
-    {
       "SPDXID": "SPDXRef-Package-execnet",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -591,36 +431,6 @@
       "versionInfo": "0.138.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-fastapi-users",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "fastapi-users",
-      "versionInfo": "15.0.5"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-fastapi-users-db-sqlalchemy",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "fastapi-users-db-sqlalchemy",
-      "versionInfo": "7.0.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-fastjsonschema",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "BSD-3-Clause",
-      "licenseDeclared": "BSD-3-Clause",
-      "name": "fastjsonschema",
-      "versionInfo": "2.21.2"
-    },
-    {
       "SPDXID": "SPDXRef-Package-fastuuid",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -639,16 +449,6 @@
       "licenseDeclared": "MIT",
       "name": "filelock",
       "versionInfo": "3.29.4"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-filetype",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "filetype",
-      "versionInfo": "1.2.0"
     },
     {
       "SPDXID": "SPDXRef-Package-fonttools",
@@ -691,16 +491,6 @@
       "versionInfo": "0.0.66"
     },
     {
-      "SPDXID": "SPDXRef-Package-genson",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "genson",
-      "versionInfo": "1.3.0"
-    },
-    {
       "SPDXID": "SPDXRef-Package-google-auth",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -719,16 +509,6 @@
       "licenseDeclared": "Apache-2.0",
       "name": "google-genai",
       "versionInfo": "2.9.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-greenlet",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT AND PSF-2.0",
-      "licenseDeclared": "MIT AND PSF-2.0",
-      "name": "greenlet",
-      "versionInfo": "3.5.2"
     },
     {
       "SPDXID": "SPDXRef-Package-griffelib",
@@ -871,16 +651,6 @@
       "versionInfo": "8.9.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-inflect",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "inflect",
-      "versionInfo": "7.5.0"
-    },
-    {
       "SPDXID": "SPDXRef-Package-iniconfig",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -889,26 +659,6 @@
       "licenseDeclared": "MIT",
       "name": "iniconfig",
       "versionInfo": "2.3.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-instructor",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "instructor",
-      "versionInfo": "1.15.3"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-isort",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "isort",
-      "versionInfo": "8.0.1"
     },
     {
       "SPDXID": "SPDXRef-Package-jaxtyping",
@@ -971,16 +721,6 @@
       "versionInfo": "2025.9.1"
     },
     {
-      "SPDXID": "SPDXRef-Package-jupyter-core",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "BSD-3-Clause",
-      "licenseDeclared": "BSD-3-Clause",
-      "name": "jupyter-core",
-      "versionInfo": "5.9.1"
-    },
-    {
       "SPDXID": "SPDXRef-Package-kiwisolver",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -999,46 +739,6 @@
       "licenseDeclared": "BSD-3-Clause",
       "name": "kombu",
       "versionInfo": "5.6.2"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-ladybug",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "ladybug",
-      "versionInfo": "0.16.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-lance-namespace",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "Apache-2.0",
-      "licenseDeclared": "Apache-2.0",
-      "name": "lance-namespace",
-      "versionInfo": "0.8.6"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-lance-namespace-urllib3-client",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "Apache-2.0",
-      "licenseDeclared": "Apache-2.0",
-      "name": "lance-namespace-urllib3-client",
-      "versionInfo": "0.8.6"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-lancedb",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "Apache-2.0",
-      "licenseDeclared": "Apache-2.0",
-      "name": "lancedb",
-      "versionInfo": "0.33.0"
     },
     {
       "SPDXID": "SPDXRef-Package-langdetect",
@@ -1061,16 +761,6 @@
       "versionInfo": "1.1.6"
     },
     {
-      "SPDXID": "SPDXRef-Package-limits",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "limits",
-      "versionInfo": "4.8.0"
-    },
-    {
       "SPDXID": "SPDXRef-Package-litellm",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -1091,16 +781,6 @@
       "versionInfo": "4.37.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-lupa",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "lupa",
-      "versionInfo": "2.8"
-    },
-    {
       "SPDXID": "SPDXRef-Package-lxml",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -1109,26 +789,6 @@
       "licenseDeclared": "BSD-3-Clause",
       "name": "lxml",
       "versionInfo": "6.1.1"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-makefun",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "BSD-3-Clause",
-      "licenseDeclared": "BSD-3-Clause",
-      "name": "makefun",
-      "versionInfo": "1.16.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-mako",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "mako",
-      "versionInfo": "1.3.12"
     },
     {
       "SPDXID": "SPDXRef-Package-markdown-it-py",
@@ -1181,16 +841,6 @@
       "versionInfo": "0.1.2"
     },
     {
-      "SPDXID": "SPDXRef-Package-more-itertools",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "more-itertools",
-      "versionInfo": "11.1.0"
-    },
-    {
       "SPDXID": "SPDXRef-Package-mpmath",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -1209,26 +859,6 @@
       "licenseDeclared": "Apache-2.0",
       "name": "multidict",
       "versionInfo": "6.7.1"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-mypy-extensions",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "mypy-extensions",
-      "versionInfo": "1.1.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-nbformat",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "BSD-3-Clause",
-      "licenseDeclared": "BSD-3-Clause",
-      "name": "nbformat",
-      "versionInfo": "5.10.4"
     },
     {
       "SPDXID": "SPDXRef-Package-nest-asyncio",
@@ -1441,16 +1071,6 @@
       "versionInfo": "2.19.1"
     },
     {
-      "SPDXID": "SPDXRef-Package-overrides",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "Apache-2.0",
-      "licenseDeclared": "Apache-2.0",
-      "name": "overrides",
-      "versionInfo": "7.7.0"
-    },
-    {
       "SPDXID": "SPDXRef-Package-packaging",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -1459,16 +1079,6 @@
       "licenseDeclared": "Apache-2.0 OR BSD-2-Clause",
       "name": "packaging",
       "versionInfo": "24.2"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-pathspec",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MPL-2.0",
-      "licenseDeclared": "MPL-2.0",
-      "name": "pathspec",
-      "versionInfo": "1.1.1"
     },
     {
       "SPDXID": "SPDXRef-Package-pillow",
@@ -1489,16 +1099,6 @@
       "licenseDeclared": "BSD-3-Clause",
       "name": "pillow-heif",
       "versionInfo": "1.4.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-platformdirs",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "platformdirs",
-      "versionInfo": "4.10.0"
     },
     {
       "SPDXID": "SPDXRef-Package-pluggy",
@@ -1569,26 +1169,6 @@
       "licenseDeclared": "LGPL-3.0-only",
       "name": "psycopg-binary",
       "versionInfo": "3.3.4"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-pwdlib",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "pwdlib",
-      "versionInfo": "0.3.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-pyarrow",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "Apache-2.0",
-      "licenseDeclared": "Apache-2.0",
-      "name": "pyarrow",
-      "versionInfo": "24.0.0"
     },
     {
       "SPDXID": "SPDXRef-Package-pyasn1",
@@ -1701,26 +1281,6 @@
       "versionInfo": "2.13.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-pylance",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "Apache-2.0",
-      "licenseDeclared": "Apache-2.0",
-      "name": "pylance",
-      "versionInfo": "0.36.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-pympler",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "Apache-2.0",
-      "licenseDeclared": "Apache-2.0",
-      "name": "pympler",
-      "versionInfo": "1.1"
-    },
-    {
       "SPDXID": "SPDXRef-Package-pymysql",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -1739,16 +1299,6 @@
       "licenseDeclared": "MIT",
       "name": "pyparsing",
       "versionInfo": "3.3.2"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-pypdf",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "BSD-3-Clause",
-      "licenseDeclared": "BSD-3-Clause",
-      "name": "pypdf",
-      "versionInfo": "6.13.3"
     },
     {
       "SPDXID": "SPDXRef-Package-pypinyin",
@@ -1821,16 +1371,6 @@
       "versionInfo": "1.2.2"
     },
     {
-      "SPDXID": "SPDXRef-Package-python-magic-bin",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "python-magic-bin",
-      "versionInfo": "0.4.14"
-    },
-    {
       "SPDXID": "SPDXRef-Package-python-multipart",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -1851,16 +1391,6 @@
       "versionInfo": "3.1.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-pytokens",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "pytokens",
-      "versionInfo": "0.4.1"
-    },
-    {
       "SPDXID": "SPDXRef-Package-pywin32",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -1879,16 +1409,6 @@
       "licenseDeclared": "MIT",
       "name": "pyyaml",
       "versionInfo": "6.0.3"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-rdflib",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "BSD-3-Clause",
-      "licenseDeclared": "BSD-3-Clause",
-      "name": "rdflib",
-      "versionInfo": "7.1.4"
     },
     {
       "SPDXID": "SPDXRef-Package-redis",
@@ -2051,16 +1571,6 @@
       "versionInfo": "2.4.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-sqlalchemy",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "sqlalchemy",
-      "versionInfo": "2.0.51"
-    },
-    {
       "SPDXID": "SPDXRef-Package-sse-starlette",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -2079,16 +1589,6 @@
       "licenseDeclared": "BSD-3-Clause",
       "name": "starlette",
       "versionInfo": "1.3.1"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-structlog",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT OR Apache-2.0",
-      "licenseDeclared": "MIT OR Apache-2.0",
-      "name": "structlog",
-      "versionInfo": "25.5.0"
     },
     {
       "SPDXID": "SPDXRef-Package-sympy",
@@ -2181,16 +1681,6 @@
       "versionInfo": "4.68.3"
     },
     {
-      "SPDXID": "SPDXRef-Package-traitlets",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "BSD-3-Clause",
-      "licenseDeclared": "BSD-3-Clause",
-      "name": "traitlets",
-      "versionInfo": "5.15.1"
-    },
-    {
       "SPDXID": "SPDXRef-Package-transformers",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -2219,16 +1709,6 @@
       "licenseDeclared": "MIT",
       "name": "truststore",
       "versionInfo": "0.10.4"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-typeguard",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "typeguard",
-      "versionInfo": "4.5.2"
     },
     {
       "SPDXID": "SPDXRef-Package-typer",
@@ -2381,16 +1861,6 @@
       "versionInfo": "2.0.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-wrapt",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "BSD-2-Clause",
-      "licenseDeclared": "BSD-2-Clause",
-      "name": "wrapt",
-      "versionInfo": "2.2.2"
-    },
-    {
       "SPDXID": "SPDXRef-Package-yarl",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -2413,11 +1883,6 @@
   ],
   "relationships": [
     {
-      "relatedSpdxElement": "SPDXRef-Package-aiofiles",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-aiohappyeyeballs",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
@@ -2428,22 +1893,12 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-aiolimiter",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-aiosignal",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-aiosqlite",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-alembic",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -2483,21 +1938,6 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-argcomplete",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-argon2-cffi",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-argon2-cffi-bindings",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-async-timeout",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
@@ -2513,22 +1953,7 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-bcrypt",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-billiard",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-black",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-cbor2",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -2574,11 +1999,6 @@
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-click-repl",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-cognee",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -2633,32 +2053,7 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-datamodel-code-generator",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-deprecated",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-deprecation",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-diskcache",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-distro",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-dnspython",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -2678,11 +2073,6 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-email-validator",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-execnet",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
@@ -2698,32 +2088,12 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-fastapi-users",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-fastapi-users-db-sqlalchemy",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-fastjsonschema",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-fastuuid",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-filelock",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-filetype",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -2748,22 +2118,12 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-genson",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-google-auth",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-google-genai",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-greenlet",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -2838,22 +2198,7 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-inflect",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-iniconfig",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-instructor",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-isort",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -2888,37 +2233,12 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-jupyter-core",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-kiwisolver",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-kombu",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-ladybug",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-lance-namespace",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-lance-namespace-urllib3-client",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-lancedb",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -2933,11 +2253,6 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-limits",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-litellm",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
@@ -2948,22 +2263,7 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-lupa",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-lxml",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-makefun",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-mako",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -2993,27 +2293,12 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-more-itertools",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-mpmath",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-multidict",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-mypy-extensions",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-nbformat",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -3123,17 +2408,7 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-overrides",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-packaging",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-pathspec",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -3144,11 +2419,6 @@
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-pillow-heif",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-platformdirs",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -3184,16 +2454,6 @@
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-psycopg-binary",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-pwdlib",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-pyarrow",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -3253,27 +2513,12 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-pylance",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-pympler",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-pymysql",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-pyparsing",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-pypdf",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -3313,11 +2558,6 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-python-magic-bin",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-python-multipart",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
@@ -3328,22 +2568,12 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-pytokens",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-pywin32",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-pyyaml",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-rdflib",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -3428,22 +2658,12 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-sqlalchemy",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-sse-starlette",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-starlette",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-structlog",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -3493,11 +2713,6 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-traitlets",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-transformers",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
@@ -3509,11 +2724,6 @@
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-truststore",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-typeguard",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -3589,11 +2799,6 @@
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-wordninja",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-wrapt",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },

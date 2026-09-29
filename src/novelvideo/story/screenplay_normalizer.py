@@ -214,12 +214,12 @@ def _create_batch_normalizer_agent():
     from pydantic_ai import Agent
 
     from novelvideo.config import (
-        get_newapi_structured_output_model_settings,
-        get_newapi_text_pydantic_model,
+        get_structured_output_model_settings,
+        get_text_pydantic_model,
     )
 
     return Agent(
-        get_newapi_text_pydantic_model(
+        get_text_pydantic_model(
             "SCREENPLAY_NORMALIZER_MODEL",
             "gemini-3.5-flash",
             capability="text.generate",
@@ -229,7 +229,7 @@ def _create_batch_normalizer_agent():
             + "\n\n本次一次给出多个场景头。请对每一个分别规范化，"
             "并用 index 标明它对应输入中的哪一条。不要遗漏任何一条。"
         ),
-        model_settings=get_newapi_structured_output_model_settings(),
+        model_settings=get_structured_output_model_settings(),
         output_type=NormalizedSceneHeaderBatch,
         output_retries=2,
         name="剧本标准化分析师（批量）",
@@ -268,18 +268,18 @@ def _create_screenplay_normalizer_agent():
     from pydantic_ai import Agent
 
     from novelvideo.config import (
-        get_newapi_structured_output_model_settings,
-        get_newapi_text_pydantic_model,
+        get_structured_output_model_settings,
+        get_text_pydantic_model,
     )
 
     return Agent(
-        get_newapi_text_pydantic_model(
+        get_text_pydantic_model(
             "SCREENPLAY_NORMALIZER_MODEL",
             "gemini-3.5-flash",
             capability="text.generate",
         ),
         system_prompt=SCREENPLAY_NORMALIZER_SYSTEM_PROMPT,
-        model_settings=get_newapi_structured_output_model_settings(),
+        model_settings=get_structured_output_model_settings(),
         output_type=NormalizedSceneHeader,
         output_retries=2,
         name="剧本标准化分析师",

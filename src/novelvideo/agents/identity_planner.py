@@ -16,8 +16,8 @@ from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_va
 
 from pydantic_ai import Agent
 from novelvideo.config import (
-    get_newapi_structured_output_model_settings,
-    get_newapi_text_pydantic_model,
+    get_structured_output_model_settings,
+    get_text_pydantic_model,
 )
 from novelvideo.models import CharacterIdentity
 from novelvideo.sqlite_store import load_episode_planning_content
@@ -404,7 +404,7 @@ class IdentityPlanner:
 
     @staticmethod
     def _identity_model(model_env: str, default_model: str = "gemini-3.5-flash"):
-        return get_newapi_text_pydantic_model(
+        return get_text_pydantic_model(
             model_env,
             default_model,
             capability="text.generate.agent",
@@ -412,7 +412,7 @@ class IdentityPlanner:
 
     @staticmethod
     def _identity_model_settings() -> dict:
-        return get_newapi_structured_output_model_settings()
+        return get_structured_output_model_settings()
 
     async def plan_single_episode(
         self,

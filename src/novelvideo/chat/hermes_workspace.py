@@ -31,7 +31,7 @@ _warned_repo_state_fallback = False
 _DEFAULT_HERMES_MODEL = "DC-hermes-LLM"
 _DRAMACLAW_HERMES_PROVIDER_NAME = "dramaclaw"
 _DRAMACLAW_HERMES_PROVIDER = f"custom:{_DRAMACLAW_HERMES_PROVIDER_NAME}"
-_DRAMACLAW_HERMES_KEY_ENV = "NEWAPI_API_KEY"
+_DRAMACLAW_HERMES_KEY_ENV = "DRAMACLAW_TEXT_API_KEY"
 _DEFAULT_HERMES_MODEL_API_MODE = "chat_completions"
 _DEFAULT_HERMES_MODEL_CONTEXT_LENGTH = "131072"
 
@@ -42,13 +42,12 @@ _CONFIG_YAML_TEMPLATE = """# DramaClaw-managed hermes config.
 #
 # Model routes through the DramaClaw text engine (TEXT_ENGINE: local MTPLX or
 # OpenRouter, OpenAI-compatible). The endpoint is non-secret workspace config;
-# DramaClaw injects the key into the worker process as NEWAPI_API_KEY (legacy
-# env name, kept so existing workspaces need no migration).
+# DramaClaw injects the key into the worker process as DRAMACLAW_TEXT_API_KEY.
 
 custom_providers:
   - name: dramaclaw
     base_url: {base_url}
-    key_env: NEWAPI_API_KEY
+    key_env: DRAMACLAW_TEXT_API_KEY
     api_mode: {api_mode}
 
 model:
@@ -125,7 +124,7 @@ def _text_engine(*, start: bool = False) -> tuple[str, str]:
     return get_text_engine_credentials(start=start)
 
 
-def _newapi_base_url() -> str:
+def _text_engine_base_url() -> str:
     return _text_engine()[1]
 
 
@@ -146,9 +145,9 @@ def effective_gateway_credentials() -> tuple[str, str]:
 
 def _hermes_model_default() -> str:
     """Model of the text engine (HERMES_MODEL only applies to OpenRouter)."""
-    from novelvideo.config import get_newapi_text_model_name
+    from novelvideo.config import get_text_model_name
 
-    return get_newapi_text_model_name("HERMES_MODEL", _DEFAULT_HERMES_MODEL)
+    return get_text_model_name("HERMES_MODEL", _DEFAULT_HERMES_MODEL)
 
 
 def _hermes_model_api_mode() -> str:
@@ -170,7 +169,7 @@ def _hermes_model_context_length() -> str:
 def _default_config_yaml() -> str:
     return _CONFIG_YAML_TEMPLATE.format(
         model=_hermes_model_default(),
-        base_url=_newapi_base_url(),
+        base_url=_text_engine_base_url(),
         api_mode=_hermes_model_api_mode(),
         context_length=_hermes_model_context_length(),
     )
@@ -500,11 +499,12 @@ def _migrate_acp_toolsets(text: str) -> str:
 
 
 def _ensure_model_gateway_config(config_yaml: Path) -> None:
-    """Reconcile the managed NewAPI provider without persisting its secret.
+    """Reconcile the managed text-engine provider without persisting its secret.
 
     Hermes 0.18 resolves ``custom_providers[].key_env`` from the subprocess
     environment. Existing workspaces are normalized lazily on their next spawn,
-    so releases need no separate workspace migration.
+    so releases need no separate workspace migration (this also moves
+    workspaces written with the old ``key_env: NEWAPI_API_KEY``).
     """
     try:
         text = config_yaml.read_text(encoding="utf-8")
@@ -557,7 +557,7 @@ def _ensure_model_gateway_config(config_yaml: Path) -> None:
         changed = True
     desired_provider = {
         "name": _DRAMACLAW_HERMES_PROVIDER_NAME,
-        "base_url": _newapi_base_url(),
+        "base_url": _text_engine_base_url(),
         "key_env": _DRAMACLAW_HERMES_KEY_ENV,
         "api_mode": _hermes_model_api_mode(),
     }

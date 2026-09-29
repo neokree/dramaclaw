@@ -91,8 +91,8 @@ def _assert_no_retries(model) -> None:
 # Every construction site of the text transport.
 #
 # There is exactly one place that builds the AsyncOpenAI client
-# (config._newapi_text_openai_provider), reached only through
-# config._newapi_text_openai_model. These tests enter from the five callers of
+# (config._text_openai_provider), reached only through
+# config._text_openai_model. These tests enter from the five callers of
 # that funnel, not from the funnel itself, so that a new branch which forgets
 # to route through it still fails here.
 # --------------------------------------------------------------------------
@@ -113,7 +113,7 @@ def test_ce_platform_model_disables_transport_retry(monkeypatch):
         lambda **_kwargs: ("platform-key", "https://platform.test/v1"),
     )
 
-    model = config.get_newapi_text_pydantic_model("RETRY_OFF_MODEL", "gpt-test")
+    model = config.get_text_pydantic_model("RETRY_OFF_MODEL", "gpt-test")
     try:
         _assert_no_retries(model)
     finally:
@@ -199,7 +199,7 @@ def _counting_transport(built: list, monkeypatch):
         calls.append(request)
         return httpx.Response(500, json={"error": {"message": "boom"}})
 
-    real_factory = config._newapi_text_http_client_factory
+    real_factory = config._text_http_client_factory
 
     def patched_factory(*, timeout_seconds: float):
         real_factory(timeout_seconds=timeout_seconds)  # keep its env parsing honest
@@ -211,9 +211,9 @@ def _counting_transport(built: list, monkeypatch):
 
         return factory
 
-    monkeypatch.setattr(config, "_newapi_text_http_client_factory", patched_factory)
+    monkeypatch.setattr(config, "_text_http_client_factory", patched_factory)
 
-    real_model_factory = config._newapi_text_openai_model
+    real_model_factory = config._text_openai_model
 
     def spy(model_name, **kwargs):
         model = real_model_factory(model_name, **kwargs)
@@ -227,8 +227,8 @@ def _gateway_model(delegate_factory, monkeypatch):
     """The text-engine model (TEXT_ENGINE, default MTPLX) built through the spy."""
     import novelvideo.config as config
 
-    monkeypatch.setattr(config, "_newapi_text_openai_model", delegate_factory)
-    return config.get_newapi_text_pydantic_model("RETRY_OFF_MODEL", "gpt-test")
+    monkeypatch.setattr(config, "_text_openai_model", delegate_factory)
+    return config.get_text_pydantic_model("RETRY_OFF_MODEL", "gpt-test")
 
 
 def _one_message():

@@ -9,7 +9,7 @@ from pydantic_ai import Agent
 from pydantic import BaseModel, Field
 
 from novelvideo.config import (
-    get_newapi_structured_output_model_settings,
+    get_structured_output_model_settings,
     get_pydantic_model,
 )
 
@@ -88,7 +88,7 @@ def create_character_reviewer_agent(tools: Optional[list[Callable]] = None) -> A
         get_pydantic_model(),
         system_prompt=REVIEWER_INSTRUCTIONS,
         output_type=CharacterReviewReport,
-        model_settings=get_newapi_structured_output_model_settings(),
+        model_settings=get_structured_output_model_settings(),
         tools=tools or [],
         name="角色审核员",
     )

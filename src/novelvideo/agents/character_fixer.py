@@ -9,7 +9,7 @@ from pydantic_ai import Agent
 from pydantic import BaseModel, Field
 
 from novelvideo.config import (
-    get_newapi_structured_output_model_settings,
+    get_structured_output_model_settings,
     get_pydantic_model,
 )
 
@@ -92,7 +92,7 @@ def create_character_fixer_agent(tools: Optional[list[Callable]] = None) -> Agen
         get_pydantic_model(),
         system_prompt=FIXER_INSTRUCTIONS,
         output_type=CharacterFixReport,
-        model_settings=get_newapi_structured_output_model_settings(),
+        model_settings=get_structured_output_model_settings(),
         tools=tools or [],
         name="角色修复员",
     )

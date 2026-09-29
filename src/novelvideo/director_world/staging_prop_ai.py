@@ -230,9 +230,9 @@ def resolve_model_config(
     from novelvideo.task_backend.subprocesses import require_direct_model_egress_allowed
 
     require_direct_model_egress_allowed(egress_context)
-    from novelvideo.config import get_newapi_text_model_name, get_text_engine_credentials
+    from novelvideo.config import get_text_model_name, get_text_engine_credentials
 
-    model = get_newapi_text_model_name(
+    model = get_text_model_name(
         "STAGING_PROP_MODEL",
         STAGING_PROP_MODEL,
         str(request.get("model") or "").strip() or None,
@@ -256,21 +256,21 @@ def create_staging_prop_agent(
 
     from novelvideo.config import (
         _env_float,
-        _get_newapi_text_model_profile,
-        _newapi_text_openai_model,
-        get_newapi_structured_output_model_settings,
+        _get_text_model_profile,
+        _text_openai_model,
+        get_structured_output_model_settings,
     )
 
     return Agent(
-        _newapi_text_openai_model(
+        _text_openai_model(
             model,
             api_key=api_key,
             base_url=base_url,
             timeout_seconds=_env_float("STAGING_PROP_TIMEOUT_SECONDS", 120.0),
-            profile=_get_newapi_text_model_profile(model),
+            profile=_get_text_model_profile(model),
         ),
         system_prompt=SYSTEM_PROMPT,
-        model_settings=get_newapi_structured_output_model_settings(),
+        model_settings=get_structured_output_model_settings(),
         output_type=StagingPropAgentOutput,
         output_retries=2,
         name="DirectorWorld Staging Prop Planner",
@@ -615,7 +615,7 @@ def generate_ai_staging_prop(
         egress_context=egress_context,
     )
     if not api_key:
-        raise RuntimeError("missing AI api key: set NEWAPI_API_KEY")
+        raise RuntimeError("missing AI api key: configure the text engine (TEXT_ENGINE, OPENROUTER_API_KEY)")
 
     generated = asyncio.run(
         run_staging_prop_agent(

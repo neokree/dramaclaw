@@ -66,10 +66,10 @@ Output ONLY the transition prompt in the requested language.
 
 def create_keyframe_prompt_builder_agent(language: str = "zh") -> Agent:
     """创建首尾帧过渡提示词生成 Agent。"""
-    from novelvideo.config import get_newapi_text_pydantic_model
+    from novelvideo.config import get_text_pydantic_model
     from novelvideo.official_defaults import DEFAULT_VIDEO_PROMPT_OPTIMIZER_MODEL
 
-    model = get_newapi_text_pydantic_model(
+    model = get_text_pydantic_model(
         "KEYFRAME_PROMPT_MODEL",
         DEFAULT_VIDEO_PROMPT_OPTIMIZER_MODEL,
         capability="text.generate.agent",

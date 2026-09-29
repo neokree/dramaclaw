@@ -9,8 +9,8 @@ from pydantic_ai import Agent
 from pydantic_ai.exceptions import ContentFilterError, UnexpectedModelBehavior
 
 from novelvideo.config import (
-    get_newapi_structured_output_model_settings,
-    get_newapi_text_pydantic_model,
+    get_structured_output_model_settings,
+    get_text_pydantic_model,
 )
 from novelvideo.model_gateway_runtime import model_gateway_output_retries
 from novelvideo.models import (
@@ -413,7 +413,7 @@ class LiteralScriptWritingWorkflow:
     def agent(self) -> Agent:
         if self._agent is None:
             self._agent = Agent(
-                get_newapi_text_pydantic_model(
+                get_text_pydantic_model(
                     "LITERAL_BEAT_META_MODEL",
                     "gemini-3.5-flash",
                     capability="text.generate.workflow",
@@ -422,7 +422,7 @@ class LiteralScriptWritingWorkflow:
                     f"{LITERAL_SCRIPT_PROMPT}\n"
                     f"{asset_language_instruction(self._output_language)}"
                 ),
-                model_settings=get_newapi_structured_output_model_settings(),
+                model_settings=get_structured_output_model_settings(),
                 output_type=LiteralBeatMetaOutput,
                 output_retries=model_gateway_output_retries(2),
                 validation_context={

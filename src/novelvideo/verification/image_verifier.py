@@ -48,7 +48,7 @@ class ImageVerifier:
     def _get_agent(self) -> Agent:
         if self._agent is None:
             from novelvideo.config import (
-                get_newapi_structured_output_model_settings,
+                get_structured_output_model_settings,
                 get_pydantic_model,
             )
 
@@ -56,7 +56,7 @@ class ImageVerifier:
                 get_pydantic_model(),
                 system_prompt=SKETCH_VERIFY_PROMPT,
                 output_type=VerificationResult,
-                model_settings=get_newapi_structured_output_model_settings(),
+                model_settings=get_structured_output_model_settings(),
                 output_retries=2,
                 name="草图验证员",
             )

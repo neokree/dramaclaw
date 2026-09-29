@@ -203,9 +203,9 @@ def resolve_freezone_vision_model(model_override: str | None = None) -> str:
     Vision rides the text engine: the default MTPLX model (Qwen3.6 + vision
     tower) accepts OpenAI ``image_url`` parts; OpenRouter models likewise.
     """
-    from novelvideo.config import get_newapi_text_model_name
+    from novelvideo.config import get_text_model_name
 
-    return get_newapi_text_model_name(
+    return get_text_model_name(
         "FREEZONE_VISION_MODEL",
         DEFAULT_FREEZONE_VISION_MODEL,
         str(model_override or "").strip() or None,
@@ -233,10 +233,10 @@ async def call_freezone_vision_model(
         raise TypeError("transport_context must be a VisionTransportContext")
 
     if transport_context is None:
-        from novelvideo.config import get_newapi_text_pydantic_model
+        from novelvideo.config import get_text_pydantic_model
 
         model = resolve_freezone_vision_model(model_override)
-        transport_model = get_newapi_text_pydantic_model(
+        transport_model = get_text_pydantic_model(
             "FREEZONE_VISION_MODEL",
             DEFAULT_FREEZONE_VISION_MODEL,
             model_name_override=model,

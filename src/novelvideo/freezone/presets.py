@@ -107,12 +107,12 @@ async def prepare_freezone_vision_egress(
     )
     if image_egress is None:
         return None
-    transport_model = config._newapi_text_openai_model(
+    transport_model = config._text_openai_model(
         model_name,
         api_key=image_egress.credential.api_key,
         base_url=image_egress.credential.base_url,
         timeout_seconds=timeout_seconds,
-        profile=config._get_newapi_text_model_profile(model_name),
+        profile=config._get_text_model_profile(model_name),
     )
     return FreezoneVisionEgress(
         image_egress=image_egress,

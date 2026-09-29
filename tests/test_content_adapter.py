@@ -292,7 +292,7 @@ async def test_generate_rewrite_does_not_refund_success_when_confirm_is_pending(
 
 
 @pytest.mark.asyncio
-async def test_content_rewriter_uses_newapi_text_model(monkeypatch) -> None:
+async def test_content_rewriter_uses_text_model(monkeypatch) -> None:
     from novelvideo.agents import content_rewriter
 
     calls: dict[str, object] = {}
@@ -314,7 +314,7 @@ async def test_content_rewriter_uses_newapi_text_model(monkeypatch) -> None:
                 },
             )()
 
-    def fake_newapi_model(
+    def fake_text_model(
         model_env: str, default_model: str, *, capability: str = "text.generate"
     ):
         calls["model_env"] = model_env
@@ -332,13 +332,13 @@ async def test_content_rewriter_uses_newapi_text_model(monkeypatch) -> None:
     monkeypatch.setattr(content_rewriter, "Agent", FakeAgent)
     monkeypatch.setattr(
         content_rewriter,
-        "get_newapi_text_pydantic_model",
-        fake_newapi_model,
+        "get_text_pydantic_model",
+        fake_text_model,
         raising=False,
     )
     monkeypatch.setattr(
         content_rewriter,
-        "get_newapi_structured_output_model_settings",
+        "get_structured_output_model_settings",
         fake_newapi_settings,
         raising=False,
     )

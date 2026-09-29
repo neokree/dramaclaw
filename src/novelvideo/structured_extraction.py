@@ -177,19 +177,19 @@ def _create_character_extraction_agent(agent: Any = None):
     from pydantic_ai import Agent
 
     from novelvideo.config import (
-        get_newapi_structured_output_model_settings,
-        get_newapi_text_pydantic_model,
+        get_structured_output_model_settings,
+        get_text_pydantic_model,
     )
     from novelvideo.model_gateway_runtime import model_gateway_output_retries
 
     return Agent(
-        get_newapi_text_pydantic_model(
+        get_text_pydantic_model(
             "CHARACTER_BUILD_MODEL",
             "gemini-3-flash-preview",
             capability="text.generate.agent",
         ),
         system_prompt=CHARACTER_EXTRACTION_SYSTEM_PROMPT,
-        model_settings=get_newapi_structured_output_model_settings(),
+        model_settings=get_structured_output_model_settings(),
         output_type=ChunkCharacterOutput,
         retries={"output": model_gateway_output_retries(2)},
         name="Structured Character Extractor",
@@ -809,18 +809,18 @@ def _create_adjudication_agent(agent: Any = None):
     from pydantic_ai import Agent
 
     from novelvideo.config import (
-        get_newapi_structured_output_model_settings,
-        get_newapi_text_pydantic_model,
+        get_structured_output_model_settings,
+        get_text_pydantic_model,
     )
 
     return Agent(
-        get_newapi_text_pydantic_model(
+        get_text_pydantic_model(
             "CHARACTER_BUILD_MODEL",
             "gemini-3-flash-preview",
             capability="text.generate.agent",
         ),
         system_prompt=ADJUDICATION_SYSTEM_PROMPT,
-        model_settings=get_newapi_structured_output_model_settings(),
+        model_settings=get_structured_output_model_settings(),
         output_type=CharacterAdjudication,
         name="Structured Character Adjudicator",
     )
@@ -1040,18 +1040,18 @@ def _create_character_appearance_agent(agent: Any = None):
     from pydantic_ai import Agent
 
     from novelvideo.config import (
-        get_newapi_structured_output_model_settings,
-        get_newapi_text_pydantic_model,
+        get_structured_output_model_settings,
+        get_text_pydantic_model,
     )
 
     return Agent(
-        get_newapi_text_pydantic_model(
+        get_text_pydantic_model(
             "CHARACTER_BUILD_MODEL",
             "gemini-3-flash-preview",
             capability="text.generate.agent",
         ),
         system_prompt=CHARACTER_APPEARANCE_SYSTEM_PROMPT,
-        model_settings=get_newapi_structured_output_model_settings(),
+        model_settings=get_structured_output_model_settings(),
         output_type=CharacterAppearanceList,
         name="Structured Character Appearance",
     )
@@ -1558,18 +1558,18 @@ def _create_scene_adjudication_agent(agent: Any = None):
     from pydantic_ai import Agent
 
     from novelvideo.config import (
-        get_newapi_structured_output_model_settings,
-        get_newapi_text_pydantic_model,
+        get_structured_output_model_settings,
+        get_text_pydantic_model,
     )
 
     return Agent(
-        get_newapi_text_pydantic_model(
+        get_text_pydantic_model(
             "SCENE_BUILD_MODEL",
             "gemini-3-flash-preview",
             capability="text.generate.agent",
         ),
         system_prompt=SCENE_ADJUDICATION_SYSTEM_PROMPT,
-        model_settings=get_newapi_structured_output_model_settings(),
+        model_settings=get_structured_output_model_settings(),
         output_type=SceneAdjudication,
         name="Structured Scene Adjudicator",
     )

@@ -37,7 +37,7 @@ def test_global_video_optimizer_applies_language_to_system_and_task(
 
     monkeypatch.setattr(module, "Agent", FactoryAgent)
     monkeypatch.setattr(
-        "novelvideo.config.get_newapi_text_pydantic_model",
+        "novelvideo.config.get_text_pydantic_model",
         lambda *_args, **_kwargs: object(),
     )
 

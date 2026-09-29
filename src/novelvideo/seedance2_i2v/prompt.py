@@ -838,10 +838,10 @@ def build_seedance2_prompt_composer_task(
 def create_seedance2_prompt_composer_agent(language: AssetLanguage = "zh"):
     from pydantic_ai import Agent
 
-    from novelvideo.config import get_newapi_text_pydantic_model
+    from novelvideo.config import get_text_pydantic_model
 
     return Agent(
-        get_newapi_text_pydantic_model(
+        get_text_pydantic_model(
             "SEEDANCE2_PROMPT_COMPOSER_MODEL",
             "gemini-3.5-flash",
             capability="text.generate.workflow",

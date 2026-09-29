@@ -47,8 +47,8 @@ def isolated_workspace(tmp_path, monkeypatch):
     monkeypatch.delenv("ST_CONTROL_PLANE_DSN", raising=False)
     monkeypatch.setenv("NOVELVIDEO_STATE_DIR", str(state_root))
     for key in (
-        "NEWAPI_API_KEY",
-        "NEWAPI_BASE_URL",
+        "DRAMACLAW_TEXT_API_KEY",
+        "DRAMACLAW_TEXT_BASE_URL",
         "MODEL_GATEWAY_RUNTIME_VERSION",
         "OPENAI_API_KEY",
         "OPENAI_API_BASE",
@@ -233,7 +233,7 @@ def test_state_root_falls_back_to_repo(monkeypatch, tmp_path):
     assert hw._state_root() == tmp_path / "repo" / "state"
 
 
-def test_fresh_config_uses_mtplx_text_engine_not_newapi(
+def test_fresh_config_uses_mtplx_text_engine(
     isolated_workspace, repo_skills, repo_plugins, monkeypatch
 ):
     from novelvideo.engines import mtplx
@@ -241,7 +241,7 @@ def test_fresh_config_uses_mtplx_text_engine_not_newapi(
     (isolated_workspace / ".env").write_text(
         "\n".join(
             [
-                "NEWAPI_API_KEY=root-key",
+                "DRAMACLAW_TEXT_API_KEY=root-key",
                 "HERMES_MODEL=DC-hermes-LLM",
                 "HERMES_MODEL_API_MODE=responses",
                 "HERMES_MODEL_CONTEXT_LENGTH=65536",
@@ -262,7 +262,7 @@ def test_fresh_config_uses_mtplx_text_engine_not_newapi(
     assert _dramaclaw_provider(parsed) == {
         "name": "dramaclaw",
         "base_url": mtplx.base_url(),
-        "key_env": "NEWAPI_API_KEY",
+        "key_env": "DRAMACLAW_TEXT_API_KEY",
         "api_mode": "responses",
     }
     assert "root-key" not in text
@@ -292,7 +292,7 @@ def test_openrouter_text_engine_config_and_endpoint_sync(
 
     assert parsed["model"]["default"] == "qwen/qwen3-32b"
     assert _dramaclaw_provider(parsed)["base_url"] == app_config.OPENROUTER_BASE_URL
-    assert _dramaclaw_provider(parsed)["key_env"] == "NEWAPI_API_KEY"
+    assert _dramaclaw_provider(parsed)["key_env"] == "DRAMACLAW_TEXT_API_KEY"
     assert "or-secret" not in text
     assert parsed["custom_block"]["keep"] is True
     assert _enabled_toolsets(text) == ["hermes-acp", "memory"]
@@ -312,11 +312,11 @@ def test_idempotent_rerun(isolated_workspace, repo_skills, repo_plugins):
     assert "OPENROUTER_API_KEY=secret" in (home1 / ".env").read_text()
 
 
-def test_fresh_workspace_does_not_persist_newapi_key(
+def test_fresh_workspace_does_not_persist_text_key(
     isolated_workspace, repo_skills, repo_plugins, monkeypatch
 ):
     (isolated_workspace / ".env").write_text(
-        "NEWAPI_API_KEY=test-newapi-key\n",
+        "DRAMACLAW_TEXT_API_KEY=test-newapi-key\n",
         encoding="utf-8",
     )
 
@@ -325,7 +325,7 @@ def test_fresh_workspace_does_not_persist_newapi_key(
     config = yaml.safe_load((home / "config.yaml").read_text(encoding="utf-8"))
 
     assert "api_key" not in config["model"]
-    assert _dramaclaw_provider(config)["key_env"] == "NEWAPI_API_KEY"
+    assert _dramaclaw_provider(config)["key_env"] == "DRAMACLAW_TEXT_API_KEY"
     assert "test-newapi-key" not in (home / "config.yaml").read_text(encoding="utf-8")
     assert "OPENAI_API_KEY" not in env_text
 
@@ -345,6 +345,9 @@ custom_providers:
   - name: user-provider
     base_url: https://user.example/v1
     key_env: USER_PROVIDER_KEY
+  - name: dramaclaw
+    base_url: https://old-gateway.example/v1
+    key_env: NEWAPI_API_KEY
 """,
         encoding="utf-8",
     )
@@ -353,6 +356,7 @@ custom_providers:
     text = (home / "config.yaml").read_text(encoding="utf-8")
     config = yaml.safe_load(text)
 
+    assert "NEWAPI_API_KEY" not in text
     assert config["model"]["provider"] == "custom:dramaclaw"
     assert "api_key" not in config["model"]
     assert "legacy-key" not in text
@@ -360,17 +364,17 @@ custom_providers:
         item.get("name") == "user-provider"
         for item in config["custom_providers"]
     )
-    assert _dramaclaw_provider(config)["key_env"] == "NEWAPI_API_KEY"
+    assert _dramaclaw_provider(config)["key_env"] == "DRAMACLAW_TEXT_API_KEY"
 
 
 def test_existing_env_is_preserved(
     isolated_workspace, repo_skills, repo_plugins, monkeypatch
 ):
     (isolated_workspace / ".env").write_text(
-        "NEWAPI_API_KEY=root-key\n",
+        "DRAMACLAW_TEXT_API_KEY=root-key\n",
         encoding="utf-8",
     )
-    monkeypatch.setenv("NEWAPI_API_KEY", "root-key")
+    monkeypatch.setenv("DRAMACLAW_TEXT_API_KEY", "root-key")
     home = isolated_workspace / "state" / "admin" / ".hermes"
     home.mkdir(parents=True)
     (home / ".env").write_text("OPENAI_API_KEY=user-key\n", encoding="utf-8")
@@ -396,7 +400,7 @@ def test_legacy_config_gets_default_plugin_block(isolated_workspace, repo_skills
 
     assert parsed["model"]["default"] == mtplx.model_id()
     assert parsed["model"]["provider"] == "custom:dramaclaw"
-    assert _dramaclaw_provider(parsed)["key_env"] == "NEWAPI_API_KEY"
+    assert _dramaclaw_provider(parsed)["key_env"] == "DRAMACLAW_TEXT_API_KEY"
 
 
 def test_legacy_identity_context_is_migrated(isolated_workspace, repo_skills, repo_plugins):

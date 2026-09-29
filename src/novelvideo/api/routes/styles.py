@@ -40,11 +40,11 @@ def _requester_user_id_for_billing(resolved: Any, user: dict) -> str:
 
 
 def style_analysis_billing_params() -> dict[str, Any]:
-    from novelvideo.config import get_newapi_text_model_name
+    from novelvideo.config import get_text_model_name
 
     return {
         "pricing_kind": "text",
-        "pricing_model": get_newapi_text_model_name(
+        "pricing_model": get_text_model_name(
             "STYLE_ANALYZER_MODEL",
             "gemini-3.5-flash",
         ),

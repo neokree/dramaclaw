@@ -63,7 +63,7 @@ class EventExtractor:
         """
         from pydantic_ai import Agent
         from novelvideo.config import (
-            get_newapi_structured_output_model_settings,
+            get_structured_output_model_settings,
             get_pydantic_model,
         )
 
@@ -100,7 +100,7 @@ class EventExtractor:
         try:
             agent = Agent(
                 get_pydantic_model(),
-                model_settings=get_newapi_structured_output_model_settings(),
+                model_settings=get_structured_output_model_settings(),
                 output_type=ExtractedEventList,
             )
             ai_result = await agent.run(prompt)

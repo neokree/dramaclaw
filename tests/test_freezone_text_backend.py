@@ -132,7 +132,7 @@ def test_text_writer_uses_plain_text_agent_without_structured_output_settings(
 
     monkeypatch.setattr(
         config,
-        "get_newapi_text_pydantic_model",
+        "get_text_pydantic_model",
         lambda model_env, default_model: (model_env, default_model),
     )
     monkeypatch.setattr(text_node, "Agent", FakeAgent)

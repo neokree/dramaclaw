@@ -22,7 +22,7 @@ class SketchComparer:
     def _get_agent(self) -> Agent:
         if self._agent is None:
             from novelvideo.config import (
-                get_newapi_structured_output_model_settings,
+                get_structured_output_model_settings,
                 get_pydantic_model,
             )
 
@@ -30,7 +30,7 @@ class SketchComparer:
                 get_pydantic_model(),
                 system_prompt=SKETCH_COMPARE_PROMPT,
                 output_type=CompareResult,
-                model_settings=get_newapi_structured_output_model_settings(),
+                model_settings=get_structured_output_model_settings(),
                 output_retries=2,
                 name="导演级分镜评审",
             )

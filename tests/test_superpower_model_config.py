@@ -98,7 +98,7 @@ def test_keyframe_prompt_builder_uses_video_optimizer_model(monkeypatch):
 
     calls: list[tuple[str, str]] = []
 
-    def fake_get_newapi_text_pydantic_model(
+    def fake_get_text_pydantic_model(
         model_env: str, default_model: str, *, capability: str = "text.generate"
     ):
         calls.append((model_env, default_model))
@@ -106,8 +106,8 @@ def test_keyframe_prompt_builder_uses_video_optimizer_model(monkeypatch):
 
     monkeypatch.setattr(
         config,
-        "get_newapi_text_pydantic_model",
-        fake_get_newapi_text_pydantic_model,
+        "get_text_pydantic_model",
+        fake_get_text_pydantic_model,
     )
     monkeypatch.setattr(keyframe_prompt_builder, "Agent", FakeAgent)
 

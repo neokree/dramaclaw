@@ -32,7 +32,7 @@ async def test_vision_gateway_uses_explicit_request_scoped_transport_without_glo
     environment_before = dict(os.environ)
     monkeypatch.setattr(
         config,
-        "get_newapi_text_pydantic_model",
+        "get_text_pydantic_model",
         lambda *_args, **_kwargs: pytest.fail(
             "explicit transport must bypass global config"
         ),
@@ -57,7 +57,7 @@ async def test_vision_gateway_rejects_untyped_transport_context_before_model_cal
 ) -> None:
     monkeypatch.setattr(
         config,
-        "get_newapi_text_pydantic_model",
+        "get_text_pydantic_model",
         lambda *_args, **_kwargs: pytest.fail("malformed context must fail closed"),
     )
 
@@ -86,7 +86,7 @@ async def test_vision_gateway_uses_pydantic_agent_and_logical_model(
         )
         return TestModel(custom_output_text="视觉解析结果")
 
-    monkeypatch.setattr(config, "get_newapi_text_pydantic_model", fake_get_model)
+    monkeypatch.setattr(config, "get_text_pydantic_model", fake_get_model)
     monkeypatch.setenv("TEXT_ENGINE", "openrouter")
     monkeypatch.setenv("FREEZONE_VISION_MODEL", "test/custom-vision-model")
 

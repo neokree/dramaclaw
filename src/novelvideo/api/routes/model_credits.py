@@ -214,9 +214,9 @@ def _generation_credit_cost_model(kind: str, value: str) -> str:
 
         return resolve_freezone_vision_model()
     if kind == "style_analyzer":
-        from novelvideo.config import get_newapi_text_model_name
+        from novelvideo.config import get_text_model_name
 
-        return get_newapi_text_model_name("STYLE_ANALYZER_MODEL", "gemini-3.5-flash")
+        return get_text_model_name("STYLE_ANALYZER_MODEL", "gemini-3.5-flash")
     if kind == "feature":
         if not clean_value:
             raise HTTPException(status_code=400, detail="feature key is required")

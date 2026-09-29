@@ -185,8 +185,8 @@ def build_hermes_child_env(
         "TMPDIR": str(home / "tmp"),
         "DRAMACLAW_USER": username,
         "DRAMACLAW_API_URL": api_url,
-        "NEWAPI_API_KEY": authorization.credential.api_key,
-        "NEWAPI_BASE_URL": authorization.credential.base_url,
+        "DRAMACLAW_TEXT_API_KEY": authorization.credential.api_key,
+        "DRAMACLAW_TEXT_BASE_URL": authorization.credential.base_url,
     }
     env.update(
         {

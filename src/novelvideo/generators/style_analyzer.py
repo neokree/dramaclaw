@@ -63,8 +63,8 @@ Return ONLY valid JSON with no markdown formatting:
         model: str | None = None,
     ):
         from novelvideo.config import (
-            get_newapi_structured_output_model_settings,
-            get_newapi_text_pydantic_model,
+            get_structured_output_model_settings,
+            get_text_pydantic_model,
         )
 
         self.model = (
@@ -73,9 +73,9 @@ Return ONLY valid JSON with no markdown formatting:
             or "gemini-3.5-flash"
         )
         self.agent = Agent(
-            get_newapi_text_pydantic_model("STYLE_ANALYZER_MODEL", self.model),
+            get_text_pydantic_model("STYLE_ANALYZER_MODEL", self.model),
             system_prompt="You analyze reference images and return reusable visual style settings.",
-            model_settings=get_newapi_structured_output_model_settings(),
+            model_settings=get_structured_output_model_settings(),
             output_type=StyleAnalysisResult,
             name="Style Analyzer",
         )

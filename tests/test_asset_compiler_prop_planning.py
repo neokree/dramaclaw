@@ -94,7 +94,7 @@ async def test_standard_drama_prop_planner_reports_string_list_validation_error(
 
     captured: dict[str, object] = {}
 
-    def fake_newapi_model(
+    def fake_text_model(
         model_env: str, default_model: str, *, capability: str = "text.generate"
     ) -> str:
         return "prop-model"
@@ -117,10 +117,10 @@ async def test_standard_drama_prop_planner_reports_string_list_validation_error(
                 )
             )
 
-    monkeypatch.setattr(asset_compiler, "get_newapi_text_pydantic_model", fake_newapi_model)
+    monkeypatch.setattr(asset_compiler, "get_text_pydantic_model", fake_text_model)
     monkeypatch.setattr(
         asset_compiler,
-        "get_newapi_structured_output_model_settings",
+        "get_structured_output_model_settings",
         fake_settings,
     )
     monkeypatch.setattr(asset_compiler, "Agent", FakeAgent)

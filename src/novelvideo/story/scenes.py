@@ -266,18 +266,18 @@ def _create_scene_build_agent(system_prompt: str, output_type: Any, name: str):
     """
     from pydantic_ai import Agent
     from novelvideo.config import (
-        get_newapi_structured_output_model_settings,
-        get_newapi_text_pydantic_model,
+        get_structured_output_model_settings,
+        get_text_pydantic_model,
     )
 
     return Agent(
-        get_newapi_text_pydantic_model(
+        get_text_pydantic_model(
             "SCENE_BUILD_MODEL",
             "gemini-3-flash-preview",
             capability="text.generate",
         ),
         system_prompt=system_prompt,
-        model_settings=get_newapi_structured_output_model_settings(),
+        model_settings=get_structured_output_model_settings(),
         output_type=output_type,
         name=name,
     )

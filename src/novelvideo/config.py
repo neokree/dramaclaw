@@ -84,7 +84,7 @@ def get_pydantic_model(
     decides the transport. ``model_name_override`` only applies to OpenRouter.
     """
     del provider_override
-    return get_newapi_text_pydantic_model(
+    return get_text_pydantic_model(
         "MODEL_NAME",
         OPENROUTER_DEFAULT_TEXT_MODEL,
         model_name_override=model_name_override,
@@ -110,7 +110,7 @@ def _openrouter_model_id(value: str | None) -> str | None:
     return value if "/" in value else None
 
 
-def get_newapi_text_model_name(
+def get_text_model_name(
     model_env: str,
     default_model: str,
     model_name_override: str | None = None,
@@ -139,7 +139,7 @@ def get_newapi_text_model_name(
     return OPENROUTER_DEFAULT_TEXT_MODEL
 
 
-def _get_newapi_text_model_profile(model_name: str):
+def _get_text_model_profile(model_name: str):
     """PydanticAI profile for the text engine's model."""
     if get_text_engine() == "mtplx":
         from pydantic_ai.profiles.openai import OpenAIModelProfile
@@ -155,7 +155,7 @@ def _get_newapi_text_model_profile(model_name: str):
     return OpenRouterProvider.model_profile(model_name)
 
 
-def _newapi_text_http_client_factory(
+def _text_http_client_factory(
     *,
     timeout_seconds: float,
 ) -> Any:
@@ -173,7 +173,7 @@ def _newapi_text_http_client_factory(
     return factory
 
 
-def _newapi_text_openai_provider(
+def _text_openai_provider(
     *,
     api_key: str,
     base_url: str,
@@ -184,7 +184,7 @@ def _newapi_text_openai_provider(
 
     class _LifecycleManagedOpenAIProvider(OpenAIProvider):
         def __init__(self) -> None:
-            http_client_factory = _newapi_text_http_client_factory(
+            http_client_factory = _text_http_client_factory(
                 timeout_seconds=timeout_seconds,
             )
             http_client = http_client_factory()
@@ -203,7 +203,7 @@ def _newapi_text_openai_provider(
     return _LifecycleManagedOpenAIProvider()
 
 
-def _newapi_text_openai_model(
+def _text_openai_model(
     model_name: str,
     *,
     api_key: str,
@@ -238,7 +238,7 @@ def _newapi_text_openai_model(
 
     return _AutoClosingOpenAIChatModel(
         model_name,
-        provider=_newapi_text_openai_provider(
+        provider=_text_openai_provider(
             api_key=api_key,
             base_url=base_url,
             timeout_seconds=timeout_seconds,
@@ -247,7 +247,7 @@ def _newapi_text_openai_model(
     )
 
 
-def get_newapi_text_pydantic_model(
+def get_text_pydantic_model(
     model_env: str,
     default_model: str,
     *,
@@ -257,13 +257,12 @@ def get_newapi_text_pydantic_model(
 ):
     """Create a PydanticAI OpenAI-compatible model on the text engine.
 
-    The name is historical: text no longer routes through NewAPI (nor, in EE,
-    through the request-scoped organization gateway). ``capability`` is kept
-    for call-site compatibility and is unused.
+    Text never routes through the request-scoped organization gateway, in EE
+    either. ``capability`` is kept for call-site compatibility and is unused.
     """
     del capability
     engine = get_text_engine()
-    model_name = get_newapi_text_model_name(
+    model_name = get_text_model_name(
         model_env, default_model, model_name_override
     )
     timeout_seconds = (
@@ -277,17 +276,17 @@ def get_newapi_text_pydantic_model(
     api_key, base_url = get_text_engine_credentials(start=False)
     if not api_key:
         raise ValueError("OPENROUTER_API_KEY not set (TEXT_ENGINE=openrouter).")
-    return _newapi_text_openai_model(
+    return _text_openai_model(
         model_name,
         api_key=api_key,
         base_url=base_url,
         timeout_seconds=timeout_seconds,
-        profile=_get_newapi_text_model_profile(model_name),
+        profile=_get_text_model_profile(model_name),
         ensure_ready=ensure_text_engine_ready if engine == "mtplx" else None,
     )
 
 
-def get_newapi_structured_output_model_settings() -> dict:
+def get_structured_output_model_settings() -> dict:
     """Model settings for PydanticAI structured output requests.
 
     OpenRouter: reasoning off (``reasoning_effort=none``), as before.
@@ -299,16 +298,6 @@ def get_newapi_structured_output_model_settings() -> dict:
     if get_text_engine() == "mtplx":
         return {}
     return {"openai_reasoning_effort": "none"}
-
-
-def get_newapi_structured_output_litellm_kwargs() -> dict:
-    """LiteLLM twin of :func:`get_newapi_structured_output_model_settings`."""
-    if get_text_engine() == "mtplx":
-        return {}
-    return {
-        "reasoning_effort": "none",
-        "allowed_openai_params": ["reasoning_effort"],
-    }
 
 
 def get_superpower_pydantic_model(

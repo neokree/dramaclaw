@@ -321,7 +321,7 @@ async def test_text_model_never_routes_through_organization_gateway(
     monkeypatch.setattr(OpenAIChatModel, "request", fake_request)
     monkeypatch.setattr(OpenAIChatModel, "request_stream", fake_stream)
 
-    model = config.get_newapi_text_pydantic_model(
+    model = config.get_text_pydantic_model(
         "P0G4A_MODEL", "DC-p0g4a", capability="text.generate"
     )
     messages = [ModelRequest(parts=[UserPromptPart(content="hello")])]
@@ -524,7 +524,7 @@ def test_c1_eg02_and_eg03_calling_leaves_declare_capability() -> None:
             for node in ast.walk(tree)
             if isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
-            and node.func.id == "get_newapi_text_pydantic_model"
+            and node.func.id == "get_text_pydantic_model"
         ]
         assert calls, relative_path
         for call in calls:
@@ -551,7 +551,7 @@ def test_c1_eg03_seedance_composer_leaf_declares_workflow_capability() -> None:
         for node in ast.walk(composer)
         if isinstance(node, ast.Call)
         and isinstance(node.func, ast.Name)
-        and node.func.id == "get_newapi_text_pydantic_model"
+        and node.func.id == "get_text_pydantic_model"
     ]
 
     assert len(calls) == 1
@@ -687,7 +687,7 @@ def test_all_agent_and_story_text_leaves_declare_capability() -> None:
                 for node in ast.walk(tree)
                 if isinstance(node, ast.Call)
                 and isinstance(node.func, ast.Name)
-                and node.func.id == "get_newapi_text_pydantic_model"
+                and node.func.id == "get_text_pydantic_model"
             ]
             for call in calls:
                 keyword = next(
@@ -710,7 +710,7 @@ def test_legacy_agent_factory_forwards_explicit_agent_capability(
         captured.update(kwargs)
         return object()
 
-    monkeypatch.setattr(config, "get_newapi_text_pydantic_model", fake_factory)
+    monkeypatch.setattr(config, "get_text_pydantic_model", fake_factory)
 
     config.get_pydantic_model(model_name_override="DC-agent")
 

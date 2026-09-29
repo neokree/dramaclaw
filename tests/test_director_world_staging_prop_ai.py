@@ -21,7 +21,7 @@ def test_create_staging_prop_agent_uses_request_model_config(monkeypatch) -> Non
         return agent_instance
 
     monkeypatch.setenv("STAGING_PROP_TIMEOUT_SECONDS", "45")
-    monkeypatch.setattr(config, "_newapi_text_openai_model", fake_model)
+    monkeypatch.setattr(config, "_text_openai_model", fake_model)
     monkeypatch.setattr(pydantic_ai, "Agent", fake_agent)
 
     result = staging_prop_ai.create_staging_prop_agent(
@@ -36,7 +36,7 @@ def test_create_staging_prop_agent_uses_request_model_config(monkeypatch) -> Non
         "api_key": "request-key",
         "base_url": "https://request.example/v1",
         "timeout_seconds": 45.0,
-        "profile": config._get_newapi_text_model_profile("request-model"),
+        "profile": config._get_text_model_profile("request-model"),
     }
     assert captured["agent_model"] is model_instance
 

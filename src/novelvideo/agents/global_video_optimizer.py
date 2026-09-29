@@ -159,7 +159,7 @@ def _format_color_mapping_descriptor(info: dict) -> str:
 def create_global_video_reviewer_agent(language: str = "en") -> Agent:
     """创建全局视频审核 Agent。"""
     from novelvideo.config import (
-        get_newapi_structured_output_model_settings,
+        get_structured_output_model_settings,
         get_superpower_pydantic_model,
     )
 
@@ -171,18 +171,18 @@ def create_global_video_reviewer_agent(language: str = "en") -> Agent:
         model,
         system_prompt=GLOBAL_VIDEO_REVIEWER_INSTRUCTIONS_EN,
         output_type=NativeOutput(ReviewResult),
-        model_settings=get_newapi_structured_output_model_settings(),
+        model_settings=get_structured_output_model_settings(),
         name="Video Prompt Reviewer",
     )
 
 
 def create_global_video_optimizer_agent(language: str = "zh") -> Agent:
     """创建全局视频优化 Agent。"""
-    from novelvideo.config import get_newapi_text_pydantic_model
+    from novelvideo.config import get_text_pydantic_model
 
     legacy_model = os.environ.get("GLOBAL_VIDEO_MODEL", "").strip()
     return Agent(
-        get_newapi_text_pydantic_model(
+        get_text_pydantic_model(
             "GLOBAL_VIDEO_OPTIMIZER_MODEL",
             legacy_model or "gemini-3.5-flash",
             capability="text.generate.agent",
@@ -741,19 +741,19 @@ Output a JSON array of objects, one per panel:
 def _create_identity_detector_agent() -> Agent:
     """创建 AI 角色颜色识别 Agent。"""
     from novelvideo.config import (
-        get_newapi_structured_output_model_settings,
-        get_newapi_text_pydantic_model,
+        get_structured_output_model_settings,
+        get_text_pydantic_model,
     )
 
     legacy_model = os.environ.get("GLOBAL_VIDEO_MODEL", "").strip()
     return Agent(
-        get_newapi_text_pydantic_model(
+        get_text_pydantic_model(
             "GLOBAL_VIDEO_IDENTITY_DETECTOR_MODEL",
             legacy_model or "gemini-3.5-flash",
             capability="text.generate.agent",
         ),
         system_prompt=AI_IDENTITY_DETECTOR_INSTRUCTIONS,
-        model_settings=get_newapi_structured_output_model_settings(),
+        model_settings=get_structured_output_model_settings(),
         output_type=NativeOutput(list[BeatIdentity]),
         name="角色颜色识别",
     )

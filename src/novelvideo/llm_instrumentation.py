@@ -26,10 +26,6 @@ _RESOURCE_KIND_CTX: contextvars.ContextVar[str] = contextvars.ContextVar(
 _BILLING_METADATA_CTX: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVar(
     "novelvideo_billing_metadata", default={}
 )
-_CREDIT_RESERVATION_STACK: contextvars.ContextVar[tuple[str, ...]] = contextvars.ContextVar(
-    "st_credit_reservation_stack",
-    default=(),
-)
 _MODEL_CALL_INSTRUMENTATION_ACTIVE: contextvars.ContextVar[bool] = contextvars.ContextVar(
     "st_model_call_instrumentation_active",
     default=False,
@@ -56,8 +52,6 @@ _PROVIDER_REQUEST_ID_HEADER_NAMES = (
 
 _pydantic_ai_openai_trace_patched = False
 _agent_run_patched = False
-_litellm_hook_installed = False
-_litellm_acompletion_patched = False
 
 
 def set_project_context(project_id: Optional[str]) -> None:
@@ -98,22 +92,6 @@ def set_llm_usage_context(
     kind = resource_kind if resource_kind in _ALLOWED_RESOURCE_KINDS else ""
     _RESOURCE_KIND_CTX.set(kind)
     _BILLING_METADATA_CTX.set(dict(billing_metadata or {}))
-
-
-def _push_credit_reservation(reservation_id: str) -> None:
-    if not reservation_id:
-        return
-    stack = _CREDIT_RESERVATION_STACK.get()
-    _CREDIT_RESERVATION_STACK.set((*stack, reservation_id))
-
-
-def _pop_credit_reservation() -> str:
-    stack = _CREDIT_RESERVATION_STACK.get()
-    if not stack:
-        return ""
-    reservation_id = stack[-1]
-    _CREDIT_RESERVATION_STACK.set(stack[:-1])
-    return reservation_id
 
 
 def set_model_call_instrumentation_active(active: bool = True):
@@ -167,16 +145,6 @@ def _text_billing_params_from_model_settings(
         if clean_effort:
             params["effort"] = clean_effort
     return params or None
-
-
-def _text_billing_params_from_openai_kwargs(kwargs: dict | None) -> dict[str, str] | None:
-    if not isinstance(kwargs, dict):
-        return None
-    effort = kwargs.get("reasoning_effort") or kwargs.get("openai_reasoning_effort")
-    clean_effort = str(effort or "").strip().lower()
-    if not clean_effort:
-        return None
-    return {"effort": clean_effort}
 
 
 def _first_nonempty_str(*values: object) -> str:
@@ -334,24 +302,6 @@ def _normalize_recorded_model_name(model: str) -> str:
         if plain == configured_plain or plain.startswith(f"{configured_plain}-"):
             return configured_plain
     return plain
-
-
-def _extract_litellm_usage(kwargs: dict, response_obj: object) -> tuple[int, int, str]:
-    in_tok = 0
-    out_tok = 0
-    model = ""
-    try:
-        usage = getattr(response_obj, "usage", None) or {}
-        if isinstance(usage, dict):
-            in_tok = int(usage.get("prompt_tokens") or 0)
-            out_tok = int(usage.get("completion_tokens") or 0)
-        else:
-            in_tok = int(getattr(usage, "prompt_tokens", 0) or 0)
-            out_tok = int(getattr(usage, "completion_tokens", 0) or 0)
-        model = (kwargs or {}).get("model", "") or getattr(response_obj, "model", "") or ""
-    except Exception:
-        pass
-    return in_tok, out_tok, _normalize_recorded_model_name(model)
 
 
 def _json_log_value(value: object, *, depth: int = 0) -> object:
@@ -626,205 +576,6 @@ def _install_agent_run_patch() -> None:
     _agent_run_patched = True
 
 
-async def _forward_litellm_success(
-    kwargs: dict,
-    response_obj: object,
-    *,
-    credit_reservation_id: str = "",
-) -> None:
-    user_id = _USER_CTX.get()
-    if not user_id:
-        return
-    in_tok, out_tok, model = _extract_litellm_usage(kwargs, response_obj)
-    project_id = _PROJECT_CTX.get()
-    resource_kind = _RESOURCE_KIND_CTX.get()
-    request_id, task_id, response_id = _extract_provider_ids(response_obj)
-    meta = {
-        "response_id": response_id,
-        "response_payload": _json_log_value(response_obj),
-    }
-    from novelvideo.ports import get_usage_meter
-
-    meter = get_usage_meter()
-    if in_tok > 0 or out_tok > 0:
-        try:
-            await meter.record_llm_tokens(
-                user_id=user_id,
-                input_tokens=in_tok,
-                output_tokens=out_tok,
-                model=model,
-                project_id=project_id,
-                resource_kind=resource_kind,
-            )
-        except Exception as e:
-            logger.debug("litellm usage emit failed: %s", e)
-    await meter.bump_model_call(
-        user_id=user_id,
-        model=model,
-        project_id=project_id,
-        resource_kind=resource_kind,
-        provider_request_id=request_id,
-        provider_task_id=task_id,
-        credit_reservation_id=credit_reservation_id,
-        metadata=meta,
-    )
-
-
-def _patch_litellm_acompletion(litellm_module: object) -> None:
-    global _litellm_acompletion_patched
-    if _litellm_acompletion_patched:
-        return
-    original_acompletion = getattr(litellm_module, "acompletion", None)
-    if not callable(original_acompletion):
-        return
-
-    async def _tracked_acompletion(*args, **kwargs):
-        if _MODEL_CALL_INSTRUMENTATION_ACTIVE.get() or not _USER_CTX.get():
-            return await original_acompletion(*args, **kwargs)
-        model = str(kwargs.get("model") or (args[0] if args else "") or "").strip()
-        if not model:
-            return await original_acompletion(*args, **kwargs)
-        reservation_id = await _meter_reserve(
-            model=model,
-            billing_kind="text",
-            billing_params=_text_billing_params_from_openai_kwargs(kwargs),
-            metadata={
-                "source": "litellm_acompletion",
-                "call_type": "acompletion",
-                "request_payload": _json_log_value(kwargs),
-            },
-        )
-        token = _MODEL_CALL_INSTRUMENTATION_ACTIVE.set(True)
-        try:
-            response = await original_acompletion(*args, **kwargs)
-        except BaseException as exc:
-            await _meter_refund(
-                reservation_id,
-                metadata=_failure_log_metadata(exc),
-            )
-            raise
-        finally:
-            _MODEL_CALL_INSTRUMENTATION_ACTIVE.reset(token)
-        call_kwargs = dict(kwargs)
-        call_kwargs.setdefault("model", model)
-        try:
-            await _forward_litellm_success(
-                call_kwargs, response, credit_reservation_id=reservation_id
-            )
-        except Exception as exc:
-            logger.debug("litellm acompletion success emit failed: %s", exc)
-        return response
-
-    setattr(litellm_module, "acompletion", _tracked_acompletion)
-    _litellm_acompletion_patched = True
-
-
-def _install_litellm_hook() -> None:
-    global _litellm_hook_installed
-    if _litellm_hook_installed:
-        return
-    try:
-        import litellm  # type: ignore[import-not-found]
-        from litellm.integrations.custom_logger import CustomLogger  # type: ignore[import-not-found]
-    except Exception:
-        return
-
-    class _SupertaleUsageLogger(CustomLogger):
-        def _extract(self, kwargs: dict, response_obj: object) -> tuple[int, int, str]:
-            return _extract_litellm_usage(kwargs, response_obj)
-
-        async def _forward_success(self, kwargs, response_obj) -> None:
-            if _MODEL_CALL_INSTRUMENTATION_ACTIVE.get():
-                return
-            reservation_id = _pop_credit_reservation()
-            await _forward_litellm_success(
-                kwargs, response_obj, credit_reservation_id=reservation_id
-            )
-
-        async def async_pre_call_hook(self, user_api_key_dict, cache, data, call_type):
-            if _MODEL_CALL_INSTRUMENTATION_ACTIVE.get():
-                return None
-            if not _USER_CTX.get():
-                return None
-            model = str(data.get("model") or "").strip() if isinstance(data, dict) else ""
-            if not model:
-                return None
-            reservation_id = await _meter_reserve(
-                model=model,
-                billing_kind="text",
-                billing_params=_text_billing_params_from_openai_kwargs(data),
-                metadata={
-                    "source": "litellm_pre_call",
-                    "call_type": str(call_type or ""),
-                    "request_payload": _json_log_value(data),
-                },
-            )
-            _push_credit_reservation(reservation_id)
-            return None
-
-        async def async_log_failure_event(self, kwargs, response_obj, start_time, end_time):
-            if _MODEL_CALL_INSTRUMENTATION_ACTIVE.get():
-                return
-            reservation_id = _pop_credit_reservation()
-            error = kwargs.get("exception") if isinstance(kwargs, dict) else None
-            if not isinstance(error, BaseException):
-                error = RuntimeError(str(error or "model call failed"))
-            await _meter_refund(
-                reservation_id,
-                metadata=_failure_log_metadata(error, response_obj),
-            )
-
-        def log_failure_event(self, kwargs, response_obj, start_time, end_time):
-            import asyncio
-
-            if _MODEL_CALL_INSTRUMENTATION_ACTIVE.get():
-                return
-            reservation_id = _pop_credit_reservation()
-            error = kwargs.get("exception") if isinstance(kwargs, dict) else None
-            if not isinstance(error, BaseException):
-                error = RuntimeError(str(error or "model call failed"))
-            coro = _meter_refund(
-                reservation_id,
-                metadata=_failure_log_metadata(error, response_obj),
-            )
-            try:
-                loop = asyncio.get_running_loop()
-            except RuntimeError:
-                loop = None
-            if loop is not None:
-                loop.create_task(coro)
-            else:
-                asyncio.run(coro)
-
-        async def async_log_success_event(self, kwargs, response_obj, start_time, end_time):
-            await self._forward_success(kwargs, response_obj)
-
-        def log_success_event(self, kwargs, response_obj, start_time, end_time):
-            import asyncio
-
-            coro = self._forward_success(kwargs, response_obj)
-            try:
-                loop = asyncio.get_running_loop()
-            except RuntimeError:
-                loop = None
-            if loop is not None:
-                loop.create_task(coro)
-            else:
-                asyncio.run(coro)
-
-    hook = _SupertaleUsageLogger()
-    try:
-        existing = list(getattr(litellm, "callbacks", None) or [])
-        if not any(isinstance(item, _SupertaleUsageLogger) for item in existing):
-            existing.append(hook)
-            litellm.callbacks = existing
-        _patch_litellm_acompletion(litellm)
-        _litellm_hook_installed = True
-    except Exception as e:
-        logger.debug("litellm hook install failed: %s", e)
-
-
 def install_provider_instrumentation() -> None:
     _install_pydantic_ai_openai_trace_patch()
     _install_agent_run_patch()
-    _install_litellm_hook()

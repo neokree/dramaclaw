@@ -7,7 +7,7 @@
     ]
   },
   "dataLicense": "CC0-1.0",
-  "documentNamespace": "https://supertale.local/spdx/supertale-ce/24a083172889cd8c",
+  "documentNamespace": "https://supertale.local/spdx/supertale-ce/3906db0c4e544976",
   "name": "supertale-ce-p0b-sbom",
   "packages": [
     {
@@ -431,16 +431,6 @@
       "versionInfo": "0.138.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-fastuuid",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "BSD-3-Clause",
-      "licenseDeclared": "BSD-3-Clause",
-      "name": "fastuuid",
-      "versionInfo": "0.14.0"
-    },
-    {
       "SPDXID": "SPDXRef-Package-filelock",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -641,16 +631,6 @@
       "versionInfo": "2.37.3"
     },
     {
-      "SPDXID": "SPDXRef-Package-importlib-metadata",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "Apache-2.0",
-      "licenseDeclared": "Apache-2.0",
-      "name": "importlib-metadata",
-      "versionInfo": "8.9.0"
-    },
-    {
       "SPDXID": "SPDXRef-Package-iniconfig",
       "copyrightText": "NOASSERTION",
       "downloadLocation": "NOASSERTION",
@@ -759,16 +739,6 @@
       "licenseDeclared": "BSD-3-Clause",
       "name": "langid",
       "versionInfo": "1.1.6"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-litellm",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "litellm",
-      "versionInfo": "1.90.0rc1"
     },
     {
       "SPDXID": "SPDXRef-Package-logfire-api",
@@ -1869,16 +1839,6 @@
       "licenseDeclared": "Apache-2.0",
       "name": "yarl",
       "versionInfo": "1.24.2"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-zipp",
-      "copyrightText": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "name": "zipp",
-      "versionInfo": "4.1.0"
     }
   ],
   "relationships": [
@@ -2088,11 +2048,6 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-fastuuid",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-filelock",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
@@ -2193,11 +2148,6 @@
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-importlib-metadata",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
       "relatedSpdxElement": "SPDXRef-Package-iniconfig",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
@@ -2249,11 +2199,6 @@
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-langid",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-litellm",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     },
@@ -2804,11 +2749,6 @@
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-yarl",
-      "relationshipType": "DEPENDS_ON",
-      "spdxElementId": "SPDXRef-Package-supertale-ce"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-zipp",
       "relationshipType": "DEPENDS_ON",
       "spdxElementId": "SPDXRef-Package-supertale-ce"
     }

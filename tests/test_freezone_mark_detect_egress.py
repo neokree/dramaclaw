@@ -276,7 +276,7 @@ def test_c1_02_organization_egress_uses_the_org_key_not_the_platform_key(
     # 平台侧的 Key：若组织分支被跳过，transport 就会拿到它。
     monkeypatch.setattr(
         config,
-        "get_newapi_runtime_credentials",
+        "get_text_engine_credentials",
         lambda **_kwargs: (PLATFORM_KEY_CANARY, _PLATFORM_BASE_URL),
     )
 

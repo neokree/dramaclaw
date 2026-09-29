@@ -171,16 +171,12 @@ async def test_whole_row_update_is_still_available_for_replacement(project):
 # ── default switch ──────────────────────────────────────────────────────────
 
 
-async def test_new_projects_are_structured_and_carry_no_embedding_binding(
+async def test_new_projects_carry_no_track_or_embedding_binding(
     tmp_path, monkeypatch
 ):
     from types import SimpleNamespace
 
     from novelvideo.api.routes import projects
-    from novelvideo.embedding_models import (
-        PROJECT_EMBEDDING_DIMENSION_KEY,
-        PROJECT_EMBEDDING_MODEL_KEY,
-    )
 
     state_dir = tmp_path / "user" / "fresh"
     record = SimpleNamespace(
@@ -193,18 +189,12 @@ async def test_new_projects_are_structured_and_carry_no_embedding_binding(
     async def create_project(**_kwargs):
         return record
 
-    def boom():
-        raise AssertionError("new projects must not bind an embedding model")
-
     monkeypatch.setattr(
         projects, "get_project_registry", lambda: SimpleNamespace(create_project=create_project)
     )
     monkeypatch.setattr(projects, "validate_project_name", lambda _name: None)
     monkeypatch.setattr(projects, "user_id_from_api_user", _async(1))
     monkeypatch.setattr(projects, "ensure_project_dirs_at_paths", lambda **_kw: None)
-    monkeypatch.setattr(
-        "novelvideo.embedding_models.embedding_model_binding_for_new_project", boom
-    )
 
     response = await projects.create_project(
         body=SimpleNamespace(name="fresh"),
@@ -214,8 +204,8 @@ async def test_new_projects_are_structured_and_carry_no_embedding_binding(
 
     config = json.loads((state_dir / "project_config.json").read_text(encoding="utf-8"))
     assert "knowledge_pipeline" not in config
-    assert PROJECT_EMBEDDING_MODEL_KEY not in config
-    assert PROJECT_EMBEDDING_DIMENSION_KEY not in config
+    assert "cognee_embedding_model" not in config
+    assert "cognee_embedding_dimension" not in config
 
 
 def _async(value):

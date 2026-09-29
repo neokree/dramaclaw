@@ -39,9 +39,12 @@ class LocalModelCredentials:
                 "ORG_CREDENTIAL_MISSING",
                 "organization credentials require the control plane resolver",
             )
-        from novelvideo.config import get_newapi_runtime_credentials
+        from novelvideo.config import get_text_engine_credentials
 
-        api_key, base_url = get_newapi_runtime_credentials()
+        # ponytail: CE only admits organization egress through EE ports; a
+        # local admission gets the text engine, the one OpenAI-compatible
+        # gateway CE still has.
+        api_key, base_url = get_text_engine_credentials(start=False)
         return RequestCredential(
             reference=admission.credential,
             api_key=api_key,

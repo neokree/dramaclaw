@@ -66,16 +66,7 @@ COMMON_REVERSE_ENV_ALLOWLIST: tuple[tuple[re.Pattern[str], str], ...] = (
     ),
     (
         re.compile(r"^(?:MODEL|LLM|EMBEDDING)_(?:PROVIDER|MODEL|NAME|API_KEY|BASE_URL|ENDPOINT|TIMEOUT|THINKING_LEVEL|DIMENSIONS|API_VERSION)$"),
-        "Legacy/generic model adapter env; current operator contract uses NEWAPI_/COGNEE_ keys.",
-    ),
-    (
-        re.compile(r"^COGNEE_(?:LLM|EMBEDDING)_(?:API_KEY|API_VERSION|ENDPOINT|TIMEOUT)$"),
-        "Low-level Cognee adapter override; current template documents provider/model/dim controls.",
-    ),
-    (
-        re.compile(r"^COGNEE_LOG_FILE$"),
-        "Internal dependency guard: DramaClaw disables Cognee's private file handler and "
-        "routes dependency logs through host-process logging; this is not operator configuration.",
+        "Legacy/generic model adapter env; current operator contract uses TEXT_ENGINE/OPENROUTER_ keys.",
     ),
     (
         re.compile(r"^DA2_.*$"),
@@ -87,7 +78,7 @@ COMMON_REVERSE_ENV_ALLOWLIST: tuple[tuple[re.Pattern[str], str], ...] = (
             r"COSYVOICE|FISH|EDGE_TTS|NANOBANANA|"
             r"SKETCH_GATE|SKETCH_EDIT|VOXEL|PANO|SOG|STAGE_COLLISION|BACKUP_OSS)_.*$"
         ),
-        "Optional legacy/provider-specific integration env outside the curated NewAPI template.",
+        "Optional legacy/provider-specific integration env outside the curated operator template.",
     ),
     (
         re.compile(
@@ -109,7 +100,7 @@ COMMON_REVERSE_ENV_ALLOWLIST: tuple[tuple[re.Pattern[str], str], ...] = (
     ),
     (
         re.compile(r"^(?:BACKUP_ENV_NAME|BACKUP_STAGE_DIR|BACKUP_SYNC_OUTPUT|INDEXTTS2_FAL_ENDPOINT)$"),
-        "Optional backup/FAL integration env outside the current NewAPI-first template contract.",
+        "Optional backup/FAL integration env outside the current template contract.",
     ),
     (
         re.compile(
@@ -137,13 +128,6 @@ CE_REVERSE_ENV_ALLOWLIST: tuple[tuple[re.Pattern[str], str], ...] = (
         re.compile(r"^NEWAPI_(?:API_KEY|BASE_URL)$"),
         "EE deployment credentials read by shared CE/EE gateway code; CE dynamic "
         "credentials live in settings.db and intentionally omit these variables.",
-    ),
-    (
-        re.compile(
-            r"^NEWAPI_(?:SQL_DSN|SQLITE_PATH|ADMIN_USERNAME)$"
-        ),
-        "Advanced NewAPI provisioner overrides; CE launchers and the self-hosted compose "
-        "supply managed SQLite values, so these are intentionally absent from the public template.",
     ),
     (
         re.compile(

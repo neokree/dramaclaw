@@ -27,11 +27,11 @@ def test_foss_only_e2e_script_encodes_locked_cli_sequence_and_assertions() -> No
     assert "-s" in script
     assert "run_step" in script
     assert "timeout" in script
-    assert "get_effective_newapi_gateway_config" in script
-    assert "gateway_configured" in script
-    assert "gateway=$gateway_source" in script
+    assert "get_text_engine_credentials" in script
+    assert "text_engine_configured" in script
+    assert "text_engine=$text_engine" in script
     assert "provider=$PROVIDER" not in script
-    assert "Settings → Model Configuration" in script
+    assert "newapi" not in script.lower()
 
 
 def test_env_example_does_not_expose_legacy_direct_model_api_key() -> None:

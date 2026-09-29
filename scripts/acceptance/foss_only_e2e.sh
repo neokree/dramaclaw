@@ -18,20 +18,20 @@ if [ ! -f "$NOVEL_FIXTURE" ]; then
   exit 2
 fi
 
-gateway_check=$(uv run python - <<'PY'
-from novelvideo.config import get_effective_newapi_gateway_config
+text_engine_check=$(uv run python - <<'PY'
+from novelvideo.config import get_text_engine, get_text_engine_credentials
 
-gateway = get_effective_newapi_gateway_config()
-configured = bool(gateway.api_key and gateway.base_url)
-print(f"{gateway.source}:{int(configured)}")
+engine = get_text_engine()
+api_key, base_url = get_text_engine_credentials(start=False)
+print(f"{engine}:{int(bool(api_key and base_url))}")
 PY
 )
-gateway_source=${gateway_check%%:*}
-gateway_configured=${gateway_check##*:}
+text_engine=${text_engine_check%%:*}
+text_engine_configured=${text_engine_check##*:}
 
-if [ "$gateway_configured" != 1 ]; then
-  echo "FOSS_ONLY requires a configured CE NewAPI gateway (source=$gateway_source)." >&2
-  echo "Open Settings → Model Configuration and configure the official or local NewAPI channel." >&2
+if [ "$text_engine_configured" != 1 ]; then
+  echo "FOSS_ONLY requires a configured text engine (TEXT_ENGINE=$text_engine)." >&2
+  echo "Set TEXT_ENGINE and its key (OPENROUTER_API_KEY for openrouter) in .env." >&2
   exit 2
 fi
 
@@ -75,7 +75,7 @@ PY
 mkdir -p "$VIDEO_DIR" acceptance-logs
 MARKER=$(mktemp "acceptance-logs/foss-only-marker-XXXXXX")
 
-echo "FOSS_ONLY project=$PROJECT gateway=$gateway_source fixture=$NOVEL_FIXTURE"
+echo "FOSS_ONLY project=$PROJECT text_engine=$text_engine fixture=$NOVEL_FIXTURE"
 
 run_step "import-novel" \
   uv run novelvideo import-novel --project "$PROJECT" --novel "$NOVEL_FIXTURE"

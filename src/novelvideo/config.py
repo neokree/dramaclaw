@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
-from novelvideo.official_defaults import OFFICIAL_NEWAPI_BASE_URL
 
 # 加载环境变量（必须在任何其他导入之前）
 load_dotenv()
@@ -21,8 +20,6 @@ load_dotenv()
 # Text and vision-with-text calls go to one OpenAI-compatible engine:
 #   mtplx      (default) local `mtplx serve`, started on first request.
 #   openrouter https://openrouter.ai, key from OPENROUTER_API_KEY.
-# NewAPI is no longer a text transport (it serves cognee embeddings and the
-# local model-credentials port).
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_DEFAULT_TEXT_MODEL = "google/gemma-4-26b-a4b-it"
@@ -414,65 +411,6 @@ OSS_STATIC_PRESIGN_EXPIRES = int(os.environ.get("OSS_STATIC_PRESIGN_EXPIRES", "3
 # the INDEXTTS2 prefix for the voice-audio records and billing params that use them.
 INDEXTTS2_RECORD_PROVIDER = "higgsfield"
 INDEXTTS2_RECORD_MODEL = "seed_audio"
-
-NEWAPI_BASE_URL = os.environ.get("NEWAPI_BASE_URL", "")
-NEWAPI_API_KEY = os.environ.get("NEWAPI_API_KEY", "")
-
-
-def get_effective_newapi_gateway_config():
-    """Return the selected NewAPI runtime gateway credentials."""
-    from novelvideo.model_gateway_settings import get_effective_newapi_config
-
-    return get_effective_newapi_config(
-        official_base_url=OFFICIAL_NEWAPI_BASE_URL,
-        official_api_key=NEWAPI_API_KEY,
-    )
-
-
-def get_newapi_runtime_credentials(
-    *,
-    api_key_override: str | None = None,
-    base_url_override: str | None = None,
-    env_api_key: str = "NEWAPI_API_KEY",
-    env_base_url: str = "NEWAPI_BASE_URL",
-) -> tuple[str, str]:
-    """Resolve NewAPI credentials from the edition's effective gateway.
-
-    CE reads dynamic credentials from settings.db and never falls back to the
-    process environment. EE's deployment-time gateway remains environment
-    backed. Explicit per-call overrides remain available for isolated tools.
-    """
-
-    gateway = get_effective_newapi_gateway_config()
-    environment_backed = gateway.source == "environment"
-    api_key = (
-        str(api_key_override or "").strip()
-        or str(gateway.api_key or "").strip()
-        or (
-            os.environ.get(env_api_key, "").strip()
-            or NEWAPI_API_KEY
-            or os.environ.get("MODEL_API_KEY", "").strip()
-            or os.environ.get("OPENAI_API_KEY", "").strip()
-            if environment_backed
-            else ""
-        )
-    )
-    base_url = (
-        str(base_url_override or "").strip().rstrip("/")
-        or str(gateway.base_url or "").strip()
-        or (
-            os.environ.get(env_base_url, "").strip().rstrip("/")
-            or str(NEWAPI_BASE_URL or "").strip().rstrip("/")
-            or os.environ.get("MODEL_BASE_URL", "").strip().rstrip("/")
-            or OFFICIAL_NEWAPI_BASE_URL
-            if environment_backed
-            else ""
-        )
-    )
-    return api_key, base_url
-
-
-
 
 IMAGE_DEFAULT_STYLE = os.environ.get("IMAGE_DEFAULT_STYLE", "chinese_period_drama")
 

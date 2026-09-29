@@ -735,3 +735,68 @@ def test_engines_endpoint_returns_statuses(monkeypatch):
             "engines": {"mtplx": {"available": True, "running": False, "reason": ""}},
         },
     }
+
+
+def test_text_model_defaults_to_300_second_timeout(monkeypatch):
+    import novelvideo.config as config
+
+    monkeypatch.delenv("TEXT_TIMEOUT_SECONDS", raising=False)
+    monkeypatch.delenv("DC_TEST_MODEL_TIMEOUT_SECONDS", raising=False)
+    captured: dict[str, object] = {}
+
+    def fake_model(model_name, **kwargs):
+        captured.update(model_name=model_name, **kwargs)
+        return "text-model"
+
+    monkeypatch.setattr(config, "_newapi_text_openai_model", fake_model)
+
+    assert config.get_newapi_text_pydantic_model("DC_TEST_MODEL", "DC-test-LLM") == "text-model"
+    assert captured["timeout_seconds"] == 300.0
+
+
+def test_legacy_pydantic_factory_runs_on_mtplx_by_default(monkeypatch):
+    import novelvideo.config as config
+    from novelvideo.engines import mtplx
+
+    monkeypatch.delenv("TEXT_ENGINE", raising=False)
+    monkeypatch.setenv("MODEL_API_KEY", "sk-stale-env-secret")
+    monkeypatch.setenv("MODEL_BASE_URL", "https://stale-env.example/v1")
+    captured: dict[str, object] = {}
+
+    def fake_model(model_name, **kwargs):
+        captured.update(model_name=model_name, **kwargs)
+        return "text-model"
+
+    monkeypatch.setattr(config, "_newapi_text_openai_model", fake_model)
+
+    result = config.get_pydantic_model(
+        provider_override="openrouter",
+        model_name_override="openrouter/DC-legacy-agent-LLM",
+    )
+
+    assert result == "text-model"
+    assert captured["model_name"] == mtplx.model_id()
+    assert captured["api_key"] == "mtplx"
+    assert captured["base_url"] == mtplx.base_url()
+    assert captured["timeout_seconds"] == 300.0
+
+
+def test_legacy_pydantic_factory_uses_openrouter_text_engine(monkeypatch):
+    import novelvideo.config as config
+
+    monkeypatch.setenv("TEXT_ENGINE", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-secret")
+    captured: dict[str, object] = {}
+
+    def fake_model(model_name, **kwargs):
+        captured.update(model_name=model_name, **kwargs)
+        return "text-model"
+
+    monkeypatch.setattr(config, "_newapi_text_openai_model", fake_model)
+
+    model = config.get_pydantic_model(model_name_override="openrouter/qwen/qwen3-32b")
+
+    assert model == "text-model"
+    assert captured["model_name"] == "qwen/qwen3-32b"
+    assert captured["api_key"] == "sk-or-secret"
+    assert captured["base_url"] == "https://openrouter.ai/api/v1"

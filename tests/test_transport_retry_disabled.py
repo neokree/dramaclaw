@@ -105,12 +105,11 @@ def test_ce_platform_model_disables_transport_retry(monkeypatch):
 
     monkeypatch.setenv("ST_EDITION", "ce")
     monkeypatch.delenv("ST_CONTROL_PLANE_DSN", raising=False)
-    # CE resolves credentials from settings.db rather than the environment, so
-    # the resolver is stubbed. Under test is the max_retries decision on the
+    # The resolver is stubbed: under test is the max_retries decision on the
     # branch below it, not credential resolution.
     monkeypatch.setattr(
         config,
-        "get_newapi_runtime_credentials",
+        "get_text_engine_credentials",
         lambda **_kwargs: ("platform-key", "https://platform.test/v1"),
     )
 

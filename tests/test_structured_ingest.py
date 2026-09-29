@@ -201,10 +201,6 @@ async def test_structured_import_records_run_and_chunks(structured_project, tmp_
 async def test_structured_import_writes_no_embedding_fields(
     structured_project, tmp_path
 ):
-    from novelvideo.embedding_models import (
-        PROJECT_EMBEDDING_DIMENSION_KEY,
-        PROJECT_EMBEDDING_MODEL_KEY,
-    )
     from novelvideo.structured_ingest import ingest_source_text_structured
 
     store, state_dir = structured_project
@@ -214,8 +210,8 @@ async def test_structured_import_writes_no_embedding_fields(
     await ingest_source_text_structured(store, str(novel), spine_template="narrated")
 
     config = json.loads((state_dir / "project_config.json").read_text(encoding="utf-8"))
-    assert PROJECT_EMBEDDING_MODEL_KEY not in config
-    assert PROJECT_EMBEDDING_DIMENSION_KEY not in config
+    assert "cognee_embedding_model" not in config
+    assert "cognee_embedding_dimension" not in config
 
 
 async def test_reimporting_identical_text_reuses_the_run(structured_project, tmp_path):

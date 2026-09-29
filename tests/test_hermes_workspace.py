@@ -8,9 +8,6 @@ import yaml
 from novelvideo import config as app_config
 from novelvideo.chat import hermes_sdk
 from novelvideo.chat import hermes_workspace as hw
-from novelvideo.model_gateway_settings import (
-    save_official_newapi_key,
-)
 
 
 def _enabled_toolsets(config: str) -> list[str]:
@@ -241,7 +238,6 @@ def test_fresh_config_uses_mtplx_text_engine_not_newapi(
 ):
     from novelvideo.engines import mtplx
 
-    save_official_newapi_key(api_key="root-key", activate=True)
     (isolated_workspace / ".env").write_text(
         "\n".join(
             [
@@ -323,7 +319,6 @@ def test_fresh_workspace_does_not_persist_newapi_key(
         "NEWAPI_API_KEY=test-newapi-key\n",
         encoding="utf-8",
     )
-    save_official_newapi_key(api_key="test-newapi-key", activate=True)
 
     home = hw.ensure_user_hermes_workspace("admin")
     env_text = (home / ".env").read_text(encoding="utf-8")
@@ -338,7 +333,6 @@ def test_fresh_workspace_does_not_persist_newapi_key(
 def test_existing_inline_key_is_removed_automatically(
     isolated_workspace, repo_skills, repo_plugins
 ):
-    save_official_newapi_key(api_key="current-key", activate=True)
     home = isolated_workspace / "state" / "admin" / ".hermes"
     home.mkdir(parents=True)
     (home / "config.yaml").write_text(

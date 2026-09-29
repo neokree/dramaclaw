@@ -189,7 +189,7 @@ def test_operation_key_ignores_handle_kind() -> None:
 
 
 def test_every_claim_site_declares_a_handle_kind() -> None:
-    """6 个生产构造点逐个显式声明；新增一个不声明的即红。
+    """5 个生产构造点逐个显式声明；新增一个不声明的即红。
 
     只认字面量 `HandleKind.X`：间接取值等于把类别推迟到运行期，那就没法在这里看出
     它到底声明了什么。
@@ -215,48 +215,7 @@ def test_every_claim_site_declares_a_handle_kind() -> None:
             ), f"{site} 的 handle_kind 不是 HandleKind 字面量"
             declared[site] = value.attr
 
-    assert len(declared) == 6, declared
-
-
-@pytest.mark.asyncio
-async def test_service_paths_reach_completed_through_accepted() -> None:
-    """NewAPI 服务路径必须走完 dispatching→accepted→completed，且两列都不留假值。
-
-    现在它们从 `dispatching` 直接 `mark_completed`，真库上是 P0001。
-    """
-
-    from novelvideo.newapi_provisioner import (
-        NewApiAdminServiceIdentity,
-        run_newapi_admin_operation,
-    )
-
-    newapi_ops = StateMachineOperations()
-    await run_newapi_admin_operation(
-        identity=NewApiAdminServiceIdentity(
-            credential_id="svc-newapi-admin",
-            credential_version=2,
-            admin_base_url="http://new-api:3000",
-        ),
-        admin_base_url="http://new-api:3000",
-        capability="gateway.provisioning.setup",
-        business_task_id="setup-default",
-        request={"action": "setup", "channel": "default"},
-        operations=newapi_ops,
-        invoke=lambda: {"ok": True},
-    )
-
-    verbs = [verb for verb, _kwargs in newapi_ops.transitions]
-    assert verbs == ["accepted", "completed"]
-    assert newapi_ops.claims[0].handle_kind is HandleKind.NONE
-    accepted_kwargs = newapi_ops.transitions[0][1]
-    completed_kwargs = newapi_ops.transitions[1][1]
-    assert accepted_kwargs["provider_job_id"] is None
-    assert completed_kwargs["result_ref"] is None
-    # expected_version 必须跟着 accepted 的返回走：插入一步之后版本已经 +1，
-    # 继续拿 claim 时的版本会被乐观锁挡掉。
-    assert (
-        completed_kwargs["expected_version"] == accepted_kwargs["expected_version"] + 1
-    )
+    assert len(declared) == 5, declared
 
 
 @pytest.mark.asyncio

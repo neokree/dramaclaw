@@ -73,8 +73,8 @@ async def test_local_adapter_preserves_existing_gateway_resolution(monkeypatch):
 
     monkeypatch.setattr(
         config,
-        "get_newapi_runtime_credentials",
-        lambda: ("existing-key", "https://gateway.example/v1"),
+        "get_text_engine_credentials",
+        lambda **_kwargs: ("existing-key", "https://gateway.example/v1"),
     )
     admission = AdmissionContext(
         requester_user_id="local",
@@ -104,8 +104,8 @@ async def test_local_adapter_does_not_fallback_for_organization_admission(monkey
 
     monkeypatch.setattr(
         config,
-        "get_newapi_runtime_credentials",
-        lambda: pytest.fail("organization resolution must not read global gateway credentials"),
+        "get_text_engine_credentials",
+        lambda **_kwargs: pytest.fail("organization resolution must not read global gateway credentials"),
     )
 
     admission = AdmissionContext(

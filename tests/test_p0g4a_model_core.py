@@ -307,11 +307,6 @@ async def test_text_model_never_routes_through_organization_gateway(
         "get_model_credentials",
         lambda: pytest.fail("text must not resolve organization credentials"),
     )
-    monkeypatch.setattr(
-        config,
-        "get_newapi_runtime_credentials",
-        lambda **_kwargs: pytest.fail("text must not read NewAPI credentials"),
-    )
     seen: list[str] = []
 
     async def fake_request(self, *_args, **_kwargs):

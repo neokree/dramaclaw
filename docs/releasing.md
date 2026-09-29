@@ -19,13 +19,13 @@
    ```bash
    git tag vX.Y.Z && git push origin vX.Y.Z
    ```
-   ⚠️ **只打 tag 不产生任何效果**：没有 release 页、应用内不提示升级（(B) 拉的是 `releases/latest` API）、Docker 镜像也不构建（workflow 触发条件是 `release: published`）。必须走第 5 步。
+   ⚠️ **只打 tag 不产生任何效果**：没有 release 页、应用内不提示升级（(B) 拉的是 `releases/latest` API）。必须走第 5 步。
 5. **发 GitHub Release**：先按下方「GitHub Release 页面结构」写好人工部分（zh/en Highlights + New Features / Bug Fixes 等分类节）存为 `body.md`，然后一条命令发布：
    ```bash
    gh release create vX.Y.Z --title "vX.Y.Z" --notes-file body.md --generate-notes
    ```
    `--generate-notes` 会把自动生成的 What's Changed / New Contributors / Full Changelog **追加在 body.md 内容之后**，正好构成完整标准结构（网页操作等价：贴入人工部分后点 "Generate release notes" 按钮）。front-matter 中 `version:` 可省；想让已部署旧版用户的铃铛红点亮起，需写 `attention: medium` 或 `high`，见下。
-6. 发布后 `.github/workflows/release-images.yml` 会在 `release: published` 时自动构建并推送 Docker 镜像，无需手动操作。
+6. 本仓库不再自动构建或推送 Docker 镜像（上游的 `release-images` workflow 已移除），需要镜像时请在本地构建。
 
 ## Release body / 包内 notes 共用模板
 

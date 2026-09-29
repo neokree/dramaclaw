@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 from novelvideo.workflows.literal_script_writing import LiteralScriptWritingWorkflow
 
 if TYPE_CHECKING:
-    from novelvideo.cognee import CogneeStore
+    from novelvideo.sqlite_store import SQLiteStore
 
 
 class ScriptWritingWorkflow(LiteralScriptWritingWorkflow):
@@ -27,7 +27,7 @@ class ScriptWritingWorkflow(LiteralScriptWritingWorkflow):
 
 
 def create_script_writing_workflow(
-    cognee_store: "CogneeStore",
+    cognee_store: "SQLiteStore",
     visual_style: str = "",
     genre: str = "",
     story_setting: str = "",
@@ -41,7 +41,6 @@ def create_script_writing_workflow(
     audio_type_mode = "narrated" if spine_template == "narrated" else "literal"
     return ScriptWritingWorkflow(
         cognee_store=cognee_store,
-        # 逐行模式最终要调用 persist_narration_script()，该接口在 CogneeStore 上。
         sqlite_store=cognee_store,
         output_dir=getattr(cognee_store, "output_dir", ""),
         audio_type_mode=audio_type_mode,

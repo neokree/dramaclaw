@@ -21,20 +21,14 @@ import pytest
 @pytest.fixture
 def forbid_project_data(monkeypatch: pytest.MonkeyPatch):
     """Make every project-data entry point on this path explode when touched."""
-    from novelvideo.cognee import CogneeStore
     from novelvideo.sqlite_store import SQLiteStore
 
     calls: list[str] = []
-
-    def refuse_cognee(self, *args, **kwargs):
-        calls.append("CogneeStore.__init__")
-        raise AssertionError("worker read project data through CogneeStore")
 
     def refuse_sqlite(self, *args, **kwargs):
         calls.append("SQLiteStore.__init__")
         raise AssertionError("worker read project data through SQLiteStore")
 
-    monkeypatch.setattr(CogneeStore, "__init__", refuse_cognee)
     monkeypatch.setattr(SQLiteStore, "__init__", refuse_sqlite)
     return calls
 
@@ -145,7 +139,7 @@ async def test_projection_without_scenes_raises(tmp_path, forbid_project_data) -
 @pytest.mark.asyncio
 async def test_without_a_projection_the_store_is_still_used(tmp_path, monkeypatch) -> None:
     """The rollback: no projection in the payload, no change in behaviour."""
-    from novelvideo.cognee import CogneeStore
+    from novelvideo.sqlite_store import SQLiteStore
 
     opened: list[tuple[str, dict]] = []
     closed: list[bool] = []
@@ -162,16 +156,11 @@ async def test_without_a_projection_the_store_is_still_used(tmp_path, monkeypatc
     async def one_scene(name):
         return SimpleNamespace(name="皇宫·大殿")
 
-    monkeypatch.setattr(CogneeStore, "__init__", record)
-    monkeypatch.setattr(CogneeStore, "initialize", noop)
-    monkeypatch.setattr(CogneeStore, "load_graph_state", noop)
-    monkeypatch.setattr(CogneeStore, "close", close)
-    monkeypatch.setattr(
-        CogneeStore,
-        "sqlite_store",
-        property(lambda self: SimpleNamespace(get_scene=one_scene)),
-        raising=False,
-    )
+    monkeypatch.setattr(SQLiteStore, "__init__", record)
+    monkeypatch.setattr(SQLiteStore, "initialize", noop)
+    monkeypatch.setattr(SQLiteStore, "load_graph_state", noop)
+    monkeypatch.setattr(SQLiteStore, "close", close)
+    monkeypatch.setattr(SQLiteStore, "get_scene", lambda self, name: one_scene(name))
 
     stats = await _ensure(tmp_path, projection=None)
 
@@ -191,7 +180,7 @@ async def test_without_a_projection_the_store_is_still_used(tmp_path, monkeypatc
 @pytest.mark.asyncio
 async def test_store_is_closed_when_graph_state_loading_fails(tmp_path, monkeypatch) -> None:
     """Opening the fallback store transfers cleanup responsibility immediately."""
-    from novelvideo.cognee import CogneeStore
+    from novelvideo.sqlite_store import SQLiteStore
 
     closed: list[bool] = []
 
@@ -207,10 +196,10 @@ async def test_store_is_closed_when_graph_state_loading_fails(tmp_path, monkeypa
     async def close(self):
         closed.append(True)
 
-    monkeypatch.setattr(CogneeStore, "__init__", record)
-    monkeypatch.setattr(CogneeStore, "initialize", noop)
-    monkeypatch.setattr(CogneeStore, "load_graph_state", fail)
-    monkeypatch.setattr(CogneeStore, "close", close)
+    monkeypatch.setattr(SQLiteStore, "__init__", record)
+    monkeypatch.setattr(SQLiteStore, "initialize", noop)
+    monkeypatch.setattr(SQLiteStore, "load_graph_state", fail)
+    monkeypatch.setattr(SQLiteStore, "close", close)
 
     with pytest.raises(RuntimeError, match="graph state unavailable"):
         await _ensure(tmp_path, projection=None)

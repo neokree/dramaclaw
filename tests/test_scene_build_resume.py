@@ -513,10 +513,6 @@ async def test_build_scenes_structured_passes_the_projects_own_cache(
 
     from novelvideo import structured_builders
     from novelvideo.story import scenes as pipeline
-    from novelvideo.knowledge_pipeline import (
-        KNOWLEDGE_PIPELINE_KEY,
-        KNOWLEDGE_PIPELINE_STRUCTURED,
-    )
     from novelvideo.sqlite_store import SQLiteStore
 
     state_dir = tmp_path / "user" / "project"
@@ -524,7 +520,7 @@ async def test_build_scenes_structured_passes_the_projects_own_cache(
     (state_dir / "project_config.json").write_text(
         json.dumps(
             {
-                KNOWLEDGE_PIPELINE_KEY: KNOWLEDGE_PIPELINE_STRUCTURED,
+                "knowledge_pipeline": "structured_v1",
                 "spine_template": "drama",
             },
             ensure_ascii=False,

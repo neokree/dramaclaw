@@ -77,8 +77,8 @@ MARKER=$(mktemp "acceptance-logs/foss-only-marker-XXXXXX")
 
 echo "FOSS_ONLY project=$PROJECT gateway=$gateway_source fixture=$NOVEL_FIXTURE"
 
-run_step "cognee-ingest" \
-  uv run novelvideo cognee-ingest --project "$PROJECT" --novel "$NOVEL_FIXTURE" --episodes 1
+run_step "import-novel" \
+  uv run novelvideo import-novel --project "$PROJECT" --novel "$NOVEL_FIXTURE"
 run_step "generate-script" \
   uv run novelvideo generate-script --project "$PROJECT" --episode 1 --duration 10
 run_step "generate --mock" \

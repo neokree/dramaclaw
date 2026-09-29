@@ -455,7 +455,7 @@ describe("asset panel rename behavior", () => {
     renderWithProviders(<ScenesPanel project="demo" />);
 
     await screen.findByText("Hall_Snow");
-    const buildButton = screen.getByRole("button", { name: "Build from graph" });
+    const buildButton = screen.getByRole("button", { name: "Build from script" });
     expect(buildButton).not.toBeDisabled();
     expect(buildButton).not.toHaveAttribute("title");
   });

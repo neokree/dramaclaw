@@ -108,7 +108,7 @@ async def _run_script_writer(
 async def _run_script_writer_scoped(
     envelope: dict[str, Any], ctx: ProjectContext
 ) -> dict[str, Any] | None:
-    from novelvideo.cognee import CogneeStore
+    from novelvideo.sqlite_store import SQLiteStore
     from novelvideo.generators.episode_optimizer import EpisodeOptimizer
     from novelvideo.project_config import load_project_config_from_state_dir
     from novelvideo.utils.path_resolver import PathResolver
@@ -135,7 +135,7 @@ async def _run_script_writer_scoped(
         lmsg("tasks.progress.script.start", "开始生成脚本..."),
     )
 
-    store = CogneeStore(
+    store = SQLiteStore(
         ctx.owner_project_label,
         output_dir=output_dir,
         state_dir=str(ctx.state_dir),

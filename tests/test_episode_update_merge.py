@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from novelvideo.cognee import CogneeStore
+from novelvideo.sqlite_store import SQLiteStore
 from novelvideo.models import NovelEpisode
 
 
@@ -13,25 +13,25 @@ async def test_update_episode_preserves_asset_menus_written_by_parallel_task(tmp
     output_dir.mkdir(parents=True)
     state_dir.mkdir(parents=True)
 
-    identity_store = CogneeStore(
+    identity_store = SQLiteStore(
         "admin/parallel",
         output_dir=str(output_dir),
         state_dir=str(state_dir),
     )
-    asset_store = CogneeStore(
+    asset_store = SQLiteStore(
         "admin/parallel",
         output_dir=str(output_dir),
         state_dir=str(state_dir),
     )
-    fresh_store = CogneeStore(
+    fresh_store = SQLiteStore(
         "admin/parallel",
         output_dir=str(output_dir),
         state_dir=str(state_dir),
     )
     try:
-        await identity_store.sqlite_store.initialize()
-        await asset_store.sqlite_store.initialize()
-        await fresh_store.sqlite_store.initialize()
+        await identity_store.initialize()
+        await asset_store.initialize()
+        await fresh_store.initialize()
 
         await identity_store.add_episodes([NovelEpisode(number=1, title="第一集")])
         await identity_store.load_graph_state()

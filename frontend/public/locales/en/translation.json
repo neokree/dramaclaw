@@ -1995,7 +1995,7 @@
     },
     "empty": {
       "title": "No characters yet",
-      "description": "Import a novel, then click Auto-extract to pull the cast from the graph."
+      "description": "Import a novel, then click Auto-extract to pull the cast from the source text."
     },
     "drawer": {
       "close": "Close",
@@ -2084,10 +2084,10 @@
     "extracting": "Extracting characters...",
     "extractingEmpty": {
       "title": "Extracting characters",
-      "description": "The system is identifying characters from the graph. They will appear here when ready."
+      "description": "The system is identifying characters from the source text. They will appear here when ready."
     },
     "reExtractTitle": "Re-extract characters",
-    "reExtractDesc": "Re-extract characters? This will re-extract from the graph and overwrite existing character data.",
+    "reExtractDesc": "Re-extract characters? This will re-extract from the source text and overwrite existing character data.",
     "costumeAlt": "Costume"
   },
   "auth": {
@@ -2464,7 +2464,7 @@
     "scenes": {
       "title": "Scenes",
       "count": "{{count}} scenes",
-      "build": "Build from graph",
+      "build": "Build from script",
       "buildDisabledByDerivedScenes": "Derived scenes exist. Full rebuild is disabled.",
       "newScene": "New scene",
       "newPlate": "Add scene variant",
@@ -2479,12 +2479,12 @@
       "selectScene": "Select scene {{name}}",
       "derivedFrom": "Derived from {{base}}",
       "emptyTitle": "No scenes yet",
-      "emptyDescription": "Create a scene or extract scenes from the project graph.",
+      "emptyDescription": "Create a scene or extract scenes from the project script.",
       "emptyDescriptionPerEpisode": "Scenes for narrated projects are created automatically when you plan each episode, or you can add them by hand.",
       "building": "Building scenes...",
       "buildingEmpty": {
         "title": "Building scenes",
-        "description": "The system is extracting scenes from the graph. They will appear here when ready."
+        "description": "The system is extracting scenes from the script. They will appear here when ready."
       },
       "confirmDelete": "Delete scene \"{{name}}\"?",
       "deleteTitle": "Delete scene",
@@ -2742,20 +2742,6 @@
       "failed": "Import failed"
     },
     "previewHeading": "Novel Structure Preview",
-    "knowledgeGraph": {
-      "title": "Knowledge Graph",
-      "stats": "{{nodes}} nodes · {{edges}} relationships",
-      "connections": "{{count}} connections",
-      "relationships": "Relationships",
-      "interactionHint": "Drag to pan · Scroll to zoom · Select a node for details",
-      "truncated": "Showing core relationships",
-      "zoomIn": "Zoom in",
-      "zoomOut": "Zoom out",
-      "resetView": "Reset view",
-      "expand": "Expand graph",
-      "loadFailed": "Knowledge graph is temporarily unavailable",
-      "loadFailedHint": "Your graph data is intact. Try loading it again shortly."
-    },
     "scriptDetails": "Script details",
     "previewGenerating": "Generating structure preview...",
     "restoredFilename": "Imported novel",
@@ -2774,13 +2760,13 @@
     "moreChapters": "… and {{count}} more chapter(s)",
     "reuploadConfirm": {
       "title": "Confirm re-import",
-      "description": "Re-importing will rebuild the graph and may affect downstream pipeline results such as characters, episodes, scripts, and videos. Are you sure you want to re-import the novel/script?",
+      "description": "Re-importing will replace the imported source and may affect downstream pipeline results such as characters, episodes, scripts, and videos. Are you sure you want to re-import the novel/script?",
       "confirm": "Confirm re-import"
     },
     "logsPanel": "Import log",
     "logCompleted": "Import complete",
     "fileDeleted": "File removed",
-    "buildHint": "Build the semantic graph, then construct characters and episodes on their respective pages.",
+    "buildHint": "Import the source text, then construct characters and episodes on their respective pages.",
     "emptyPreview": "No content to preview yet. Upload a file to see the structure.",
     "chapterTitleFallback": "Chapter {{n}}",
     "novelFormat": {
@@ -3509,7 +3495,7 @@
       "noIdentities": "No identities planned",
       "planIdentities": "Plan identities",
       "replanIdentities": "Re-plan identities",
-      "identityCharactersRequired": "Build characters from the knowledge graph first",
+      "identityCharactersRequired": "Build characters on the Characters page first",
       "identityCharactersBuilding": "Characters are being built; identity planning will unlock when complete",
       "identityCharactersLoading": "Checking character data",
       "sceneCatalogBuilding": "Scenes are being built; scene planning will unlock when complete",
@@ -4313,7 +4299,7 @@
       "noProps": "Props not planned",
       "planIdentities": "Plan identities",
       "replanIdentities": "Re-plan identities",
-      "identityCharactersRequired": "Build characters from the knowledge graph first",
+      "identityCharactersRequired": "Build characters on the Characters page first",
       "identityCharactersBuilding": "Characters are being built; identity planning will unlock when complete",
       "identityCharactersLoading": "Checking character data",
       "sceneCatalogBuilding": "Scenes are being built; scene planning will unlock when complete",

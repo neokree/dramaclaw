@@ -1,6 +1,6 @@
-"""图谱构建任务的进度上报语义。
+"""构建任务的进度上报语义。
 
-图谱构建的 on_log 回调本身不带进度。早期实现用 0.0 占位调 _progress,于是
+构建任务的 on_log 回调本身不带进度。早期实现用 0.0 占位调 _progress,于是
 每来一行普通日志进度都被打回 0,前端进度条呈现 10% → 0% → 80% → 0% 的反复
 倒退。日志行必须传 progress=None,让任务状态保留原有进度。
 """
@@ -48,28 +48,23 @@ class _FakeStore:
     def __init__(self) -> None:
         self.closed = False
 
-    async def _emit(self, on_progress, on_log):
-        on_progress(0.1, "读取图谱")
-        on_log("命中缓存")
-        on_progress(0.8, "写入数据库")
-        on_log("跳过 3 条重复记录")
-        return [{"name": "a"}]
-
-    async def build_scenes_from_graph(self, on_progress, on_log):
-        return await self._emit(on_progress, on_log)
-
-    async def build_characters_from_graph(self, on_progress, on_log):
-        return await self._emit(on_progress, on_log)
-
     async def close(self) -> None:
         self.closed = True
 
 
+async def _fake_build(store, *, on_progress, on_log):
+    on_progress(0.1, "读取原文")
+    on_log("命中缓存")
+    on_progress(0.8, "写入数据库")
+    on_log("跳过 3 条重复记录")
+    return [{"name": "a"}]
+
+
 @pytest.mark.parametrize(
-    ("runner_name", "task_type"),
+    ("runner_name", "task_type", "builder"),
     [
-        ("_run_build_scenes", "build_scenes"),
-        ("_run_build_characters", "build_characters"),
+        ("_run_build_scenes", "build_scenes", "build_scenes_structured"),
+        ("_run_build_characters", "build_characters", "build_characters_structured"),
     ],
 )
 async def test_log_updates_do_not_reset_progress(
@@ -77,7 +72,9 @@ async def test_log_updates_do_not_reset_progress(
     monkeypatch: pytest.MonkeyPatch,
     runner_name: str,
     task_type: str,
+    builder: str,
 ) -> None:
+    from novelvideo import structured_builders
     from novelvideo.task_backend.runners import graph_build
 
     manager = _RecordingTaskManager()
@@ -89,6 +86,7 @@ async def test_log_updates_do_not_reset_progress(
     monkeypatch.setattr(graph_build, "get_task_manager", lambda: manager)
     monkeypatch.setattr(graph_build, "_load_store", fake_load_store)
     monkeypatch.setattr(graph_build, "require_imported_novel", lambda _dir: None)
+    monkeypatch.setattr(structured_builders, builder, _fake_build)
 
     await getattr(graph_build, runner_name)(_ctx(tmp_path))
 
@@ -98,7 +96,7 @@ async def test_log_updates_do_not_reset_progress(
     assert [u["progress"] for u in manager.updates] == [0.1, None, 0.8, None]
     # 步骤文案和日志仍照常更新。
     assert [u["current_task"] for u in manager.updates] == [
-        "读取图谱",
+        "读取原文",
         "命中缓存",
         "写入数据库",
         "跳过 3 条重复记录",

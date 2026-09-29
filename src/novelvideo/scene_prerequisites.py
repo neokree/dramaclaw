@@ -85,15 +85,10 @@ class SceneBuildNotApplicableError(ScenePlanningPrerequisiteError):
 def scene_build_applies(state_dir: str, spine_template: str) -> bool:
     """Whether a project-level scene build can produce anything.
 
-    Only structured narrated projects are excluded. Legacy projects keep the
-    Cognee path whatever their template, because their build does reach a model
-    and does produce scenes — changing that would change what existing projects
-    do.
+    Narrated projects discover scenes per episode, so only they are excluded.
+    ``state_dir`` is accepted for call-site compatibility and unused.
     """
-    from novelvideo.knowledge_pipeline import is_structured_pipeline
-
-    if not is_structured_pipeline(state_dir):
-        return True
+    del state_dir
     return str(spine_template or "").strip() != "narrated"
 
 

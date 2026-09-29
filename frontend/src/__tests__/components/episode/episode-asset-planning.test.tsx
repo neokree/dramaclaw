@@ -151,10 +151,10 @@ describe("EpisodeAssetPlanning", () => {
   it("blocks identity planning until characters are ready", () => {
     renderPlanning({
       selectedCategory: "identities",
-      identityDisabledReason: "请先从知识图谱构建角色",
+      identityDisabledReason: "请先到角色页构建角色",
     });
 
-    expect(screen.getByText("请先从知识图谱构建角色")).toBeInTheDocument();
+    expect(screen.getByText("请先到角色页构建角色")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "规划身份" })).toBeDisabled();
   });
 

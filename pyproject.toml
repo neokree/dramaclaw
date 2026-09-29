@@ -38,7 +38,6 @@ dependencies = [
     "fastapi>=0.128.0",
     "httpx>=0.28.0",
     "python-docx>=1.1.0",
-    "cognee==1.0.5",
     "litellm>=1.85.0.dev1",
     "nest-asyncio>=1.5.0",
     "claude-agent-sdk>=0.1.72",
@@ -104,9 +103,6 @@ select = ["E4", "E7", "E9", "F"]
 # ―――― 以下为存量豁免基线（2026-07-07 快照：196 处 / 61 文件）――――
 # 门禁只管新增代码：新文件、以及下列文件中新增的其他规则违例会被拦截。
 # 治理旧账时：修完某文件的某规则后删除对应条目，防止回潮。
-"src/novelvideo/agents/episode_fixer.py" = ["E402"]
-"src/novelvideo/agents/episode_planner.py" = ["F401"]
-"src/novelvideo/agents/episode_reviewer.py" = ["E402", "F401", "F541"]
 "src/novelvideo/agents/global_video_optimizer.py" = ["F541"]
 "src/novelvideo/agents/keyframe_prompt_builder.py" = ["F541"]
 "src/novelvideo/agents/video_prompt_builder.py" = ["F541"]
@@ -116,7 +112,6 @@ select = ["E4", "E7", "E9", "F"]
 "src/novelvideo/api/routes/scripts.py" = ["E402"]
 "src/novelvideo/api/routes/styles.py" = ["E402"]
 "src/novelvideo/chat/hermes_sdk.py" = ["F401", "F841"]
-"src/novelvideo/cognee/pipeline.py" = ["F401", "F541", "F811"]
 "src/novelvideo/config.py" = ["F401"]
 "src/novelvideo/director_world/scene_overlap_analyzer.py" = ["F401"]
 "src/novelvideo/director_world/sync_global_props.py" = ["F401"]

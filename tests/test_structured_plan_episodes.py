@@ -1,11 +1,4 @@
-"""Chapter mapping has to work on the store each track actually opens.
-
-structured_v1 builds and planning open a SQLiteStore directly — they have no
-graph to reach through the Cognee facade for. Chapter mapping is deterministic
-and touches no graph, but it lived on CogneeStore, so the plan-episodes runner
-raised AttributeError for every structured project. Nothing caught it because
-the tests drove the store classes rather than the runner's own store loading.
-"""
+"""Chapter mapping on the project SQLiteStore, driven through the runner too."""
 
 from __future__ import annotations
 
@@ -14,10 +7,6 @@ from pathlib import Path
 
 import pytest
 
-from novelvideo.knowledge_pipeline import (
-    KNOWLEDGE_PIPELINE_KEY,
-    KNOWLEDGE_PIPELINE_STRUCTURED,
-)
 
 CHAPTERED = (
     "第一章 归来\n\n林默回到阔别十年的故乡。\n\n"
@@ -31,7 +20,7 @@ def _project(tmp_path: Path, *, structured: bool) -> Path:
     state_dir.mkdir(parents=True)
     config = {"user": "eric", "spine_template": "narrated"}
     if structured:
-        config[KNOWLEDGE_PIPELINE_KEY] = KNOWLEDGE_PIPELINE_STRUCTURED
+        config["knowledge_pipeline"] = "structured_v1"
     (state_dir / "project_config.json").write_text(
         json.dumps(config, ensure_ascii=False), encoding="utf-8"
     )
@@ -139,37 +128,18 @@ async def test_the_plan_episodes_runner_works_for_a_structured_project(tmp_path)
 # ── legacy ──────────────────────────────────────────────────────────────────
 
 
-async def test_legacy_keeps_the_method_and_its_cache(tmp_path):
-    """CogneeStore delegates now; callers and its episode cache must not care."""
-    from novelvideo.cognee.store import CogneeStore
-
+async def test_a_legacy_project_maps_chapters_on_the_same_store(tmp_path):
+    """Projects created before structured_v1 carry no track field and still map."""
     state_dir = _project(tmp_path, structured=False)
-    sqlite = await _sqlite_store(state_dir)
-    # Built the way the legacy suite builds one, so Cognee initialization — which
-    # needs a gateway key — is not what this test is about.
-    store = CogneeStore.__new__(CogneeStore)
-    store.project_name = "user/legacy"
-    store.dataset_name = "novelvideo_user/legacy"
-    store._db = None
-    store._characters = {}
-    store._episodes = {}
-    store._alias_index = {}
-    store.project_dir = str(state_dir)
-    store.state_dir = str(state_dir)
-    store.db_path = str(state_dir / "data.db")
-    store.sqlite_store = sqlite
-
+    store = await _sqlite_store(state_dir)
     try:
         store.save_novel_content(CHAPTERED)
         episodes = await store.build_episodes_from_chapters()
 
         assert [episode.number for episode in episodes] == [1, 2, 3]
-        # The in-memory cache the facade keeps must reflect the write, or the
-        # next reader on this instance sees the pre-mapping world.
-        assert store.get_episode(3) is not None
         assert store.get_episode(3).title == "第3集"
     finally:
-        await sqlite.close()
+        await store.close()
 
 
 # ── the mapping is one write, not seven ─────────────────────────────────────
@@ -252,55 +222,3 @@ def test_the_template_lock_follows_the_imported_text(tmp_path, monkeypatch):
     source = inspect.getsource(projects.update_project)
     assert "has_imported_novel(ctx.output_dir)" in source
     assert "get_all_episodes()" not in source
-
-
-async def test_legacy_gets_the_same_atomic_publish(tmp_path, monkeypatch):
-    """The seven-write mapping was legacy's bug first.
-
-    CogneeStore delegates now, so the fix reaches existing projects too — but
-    only if the delegate really is the same code path, which is what this pins.
-    """
-    from novelvideo.cognee.store import CogneeStore
-
-    state_dir = _project(tmp_path, structured=False)
-    sqlite = await _sqlite_store(state_dir)
-    store = CogneeStore.__new__(CogneeStore)
-    store.project_name = "user/legacy"
-    store.dataset_name = "novelvideo_user/legacy"
-    store._db = None
-    store._characters = {}
-    store._episodes = {}
-    store._alias_index = {}
-    store.project_dir = str(state_dir)
-    store.state_dir = str(state_dir)
-    store.db_path = str(state_dir / "data.db")
-    store.sqlite_store = sqlite
-
-    try:
-        store.save_novel_content(CHAPTERED)
-        await store.build_episodes_from_chapters()
-        await sqlite.patch_episode(2, identity_ids=["林默:default"])
-
-        real_upsert = sqlite._upsert_episodes
-
-        async def fail_midway(db, episodes):
-            await real_upsert(db, episodes[:1])
-            raise RuntimeError("worker killed")
-
-        monkeypatch.setattr(sqlite, "_upsert_episodes", fail_midway)
-        with pytest.raises(RuntimeError):
-            await store.build_episodes_from_chapters(
-                novel_text="第一章 别的\n\n完全不同的正文。\n"
-            )
-
-        # Same three episodes, same bodies, planning intact — a legacy project
-        # is no longer left blank or half-mapped by a cancelled task.
-        assert [
-            (await sqlite.get_episode_from_graph(n)).number for n in (1, 2, 3)
-        ] == [1, 2, 3]
-        assert (await sqlite.get_episode_from_graph(2)).identity_ids == [
-            "林默:default"
-        ]
-        assert "陈舟" in await sqlite.load_episode_content(2)
-    finally:
-        await sqlite.close()

@@ -1899,7 +1899,7 @@
     },
     "empty": {
       "title": "Chưa có nhân vật nào",
-      "description": "Hãy nhập truyện, rồi bấm Tự động trích xuất để lấy dàn nhân vật từ sơ đồ."
+      "description": "Hãy nhập truyện, rồi bấm Tự động trích xuất để lấy dàn nhân vật từ văn bản gốc."
     },
     "drawer": {
       "close": "Đóng",
@@ -1988,10 +1988,10 @@
     "extracting": "Đang trích xuất nhân vật...",
     "extractingEmpty": {
       "title": "Đang trích xuất nhân vật",
-      "description": "Hệ thống đang nhận diện nhân vật từ sơ đồ. Chúng sẽ hiện ở đây khi xong."
+      "description": "Hệ thống đang nhận diện nhân vật từ văn bản gốc. Chúng sẽ hiện ở đây khi xong."
     },
     "reExtractTitle": "Trích xuất lại nhân vật",
-    "reExtractDesc": "Trích xuất lại nhân vật? Thao tác này sẽ lấy lại từ sơ đồ và ghi đè dữ liệu nhân vật hiện có.",
+    "reExtractDesc": "Trích xuất lại nhân vật? Thao tác này sẽ lấy lại từ văn bản gốc và ghi đè dữ liệu nhân vật hiện có.",
     "costumeAlt": "Trang phục"
   },
   "auth": {
@@ -2368,7 +2368,7 @@
     "scenes": {
       "title": "Bối cảnh",
       "count": "{{count}} bối cảnh",
-      "build": "Dựng từ sơ đồ",
+      "build": "Dựng từ kịch bản",
       "buildDisabledByDerivedScenes": "Đã có bối cảnh phái sinh. Không thể dựng lại toàn bộ.",
       "newScene": "Bối cảnh mới",
       "newPlate": "Thêm biến thể bối cảnh",
@@ -2383,12 +2383,12 @@
       "selectScene": "Chọn bối cảnh {{name}}",
       "derivedFrom": "Phái sinh từ {{base}}",
       "emptyTitle": "Chưa có bối cảnh nào",
-      "emptyDescription": "Tạo bối cảnh mới hoặc trích xuất bối cảnh từ sơ đồ của dự án.",
+      "emptyDescription": "Tạo bối cảnh mới hoặc trích xuất bối cảnh từ kịch bản của dự án.",
       "emptyDescriptionPerEpisode": "Với dự án có lời dẫn, bối cảnh được tạo tự động khi bạn lên kế hoạch từng tập, hoặc bạn tự thêm tay cũng được.",
       "building": "Đang dựng bối cảnh...",
       "buildingEmpty": {
         "title": "Đang dựng bối cảnh",
-        "description": "Hệ thống đang trích xuất bối cảnh từ sơ đồ. Chúng sẽ hiện ở đây khi xong."
+        "description": "Hệ thống đang trích xuất bối cảnh từ kịch bản. Chúng sẽ hiện ở đây khi xong."
       },
       "confirmDelete": "Xoá bối cảnh \"{{name}}\"?",
       "deleteTitle": "Xoá bối cảnh",
@@ -2646,20 +2646,6 @@
       "failed": "Nhập thất bại"
     },
     "previewHeading": "Xem trước cấu trúc truyện",
-    "knowledgeGraph": {
-      "title": "Sơ đồ tri thức",
-      "stats": "{{nodes}} node · {{edges}} mối quan hệ",
-      "connections": "{{count}} liên kết",
-      "relationships": "Mối quan hệ",
-      "interactionHint": "Kéo để di chuyển · Cuộn để phóng to · Chọn một node để xem chi tiết",
-      "truncated": "Đang hiện các mối quan hệ cốt lõi",
-      "zoomIn": "Phóng to",
-      "zoomOut": "Thu nhỏ",
-      "resetView": "Đặt lại khung nhìn",
-      "expand": "Mở rộng sơ đồ",
-      "loadFailed": "Sơ đồ tri thức tạm thời không khả dụng",
-      "loadFailedHint": "Dữ liệu sơ đồ của bạn vẫn nguyên vẹn. Hãy thử tải lại sau ít phút."
-    },
     "scriptDetails": "Chi tiết kịch bản",
     "previewGenerating": "Đang tạo bản xem trước cấu trúc...",
     "restoredFilename": "Truyện đã nhập",
@@ -2678,13 +2664,13 @@
     "moreChapters": "… và {{count}} chương nữa",
     "reuploadConfirm": {
       "title": "Xác nhận nhập lại",
-      "description": "Nhập lại sẽ dựng lại sơ đồ tri thức và có thể ảnh hưởng tới kết quả ở các bước sau như nhân vật, tập phim, kịch bản và video. Bạn có chắc muốn nhập lại truyện/kịch bản không?",
+      "description": "Nhập lại sẽ thay thế văn bản đã nhập và có thể ảnh hưởng tới kết quả ở các bước sau như nhân vật, tập phim, kịch bản và video. Bạn có chắc muốn nhập lại truyện/kịch bản không?",
       "confirm": "Xác nhận nhập lại"
     },
     "logsPanel": "Log nhập truyện",
     "logCompleted": "Nhập xong",
     "fileDeleted": "Đã xoá file",
-    "buildHint": "Dựng sơ đồ ngữ nghĩa trước, sau đó tạo nhân vật và tập phim ở các trang tương ứng.",
+    "buildHint": "Nhập văn bản gốc trước, sau đó tạo nhân vật và tập phim ở các trang tương ứng.",
     "emptyPreview": "Chưa có nội dung để xem trước. Hãy tải file lên để xem cấu trúc.",
     "chapterTitleFallback": "Chương {{n}}",
     "novelFormat": {
@@ -3413,7 +3399,7 @@
       "noIdentities": "Chưa lên kế hoạch tạo hình",
       "planIdentities": "Lên kế hoạch tạo hình",
       "replanIdentities": "Lên lại kế hoạch tạo hình",
-      "identityCharactersRequired": "Hãy dựng nhân vật từ sơ đồ tri thức trước",
+      "identityCharactersRequired": "Hãy dựng nhân vật ở trang Nhân vật trước",
       "identityCharactersBuilding": "Đang dựng nhân vật; lên kế hoạch tạo hình sẽ mở khi xong",
       "identityCharactersLoading": "Đang kiểm tra dữ liệu nhân vật",
       "sceneCatalogBuilding": "Đang dựng bối cảnh; lên kế hoạch bối cảnh sẽ mở khi xong",
@@ -4217,7 +4203,7 @@
       "noProps": "Chưa lên kế hoạch đạo cụ",
       "planIdentities": "Lên kế hoạch tạo hình",
       "replanIdentities": "Lên lại kế hoạch tạo hình",
-      "identityCharactersRequired": "Hãy dựng nhân vật từ sơ đồ tri thức trước",
+      "identityCharactersRequired": "Hãy dựng nhân vật ở trang Nhân vật trước",
       "identityCharactersBuilding": "Đang dựng nhân vật; lên kế hoạch tạo hình sẽ mở khi xong",
       "identityCharactersLoading": "Đang kiểm tra dữ liệu nhân vật",
       "sceneCatalogBuilding": "Đang dựng bối cảnh; lên kế hoạch bối cảnh sẽ mở khi xong",

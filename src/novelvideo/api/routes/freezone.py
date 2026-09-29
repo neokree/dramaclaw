@@ -30,7 +30,6 @@ from starlette.concurrency import run_in_threadpool
 
 from novelvideo.api.auth import get_api_user
 from novelvideo.api.deps import (
-    make_cognee_store_for_context,
     make_sqlite_store,
     make_sqlite_store_for_context,
     make_static_url_for_context,
@@ -14034,10 +14033,10 @@ async def freezone_push(project: str, body: PushRequest, user: dict = Depends(ge
         )
 
     if body.target.kind in {"identity", "identity_costume", "identity_portrait"}:
-        # F5 收尾逻辑：尽量提示 cognee_store 刷新 identity 记录。
+        # F5 收尾逻辑：尽量同步 SQLite 中的 identity 记录。
         # 磁盘文件才是真正的数据源，这里只是 best-effort 同步。
         try:
-            store = await make_cognee_store_for_context(ctx)
+            store = await make_sqlite_store_for_context(ctx, load_graph_state=False)
             character = body.target.character
             identity_id = body.target.identity_id
             if body.target.kind == "identity_costume":
@@ -14049,7 +14048,7 @@ async def freezone_push(project: str, body: PushRequest, user: dict = Depends(ge
                     )
                 except AttributeError:
                     logger.info(
-                        "cognee_store.update_character_identity not available; "
+                        "store.update_character_identity not available; "
                         "skipping costume metadata sync (file is updated)"
                     )
             if body.target.kind == "identity_portrait":
@@ -14061,18 +14060,18 @@ async def freezone_push(project: str, body: PushRequest, user: dict = Depends(ge
                     )
                 except AttributeError:
                     logger.info(
-                        "cognee_store.update_character_identity not available; "
+                        "store.update_character_identity not available; "
                         "skipping identity portrait metadata sync (file is updated)"
                     )
             try:
                 await store.touch_identity(character, identity_id)  # type: ignore[attr-defined]
             except AttributeError:
                 logger.info(
-                    "cognee_store.touch_identity not available; "
+                    "store.touch_identity not available; "
                     "skipping metadata sync (file is updated)"
                 )
         except Exception as exc:
-            logger.warning("identity cognee sync best-effort failed: %s", exc)
+            logger.warning("identity metadata sync best-effort failed: %s", exc)
 
     _append_canvas_event(
         project_dir=project_dir,

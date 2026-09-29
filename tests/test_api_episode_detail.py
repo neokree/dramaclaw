@@ -186,7 +186,7 @@ def _patch_project_and_store(
     monkeypatch.setattr(deps, "make_sqlite_store", make_store)
 
 
-def _patch_project_and_cognee_store(
+def _patch_project_and_asset_store(
     monkeypatch: pytest.MonkeyPatch,
     module,
     project_dir: Path,
@@ -203,11 +203,11 @@ def _patch_project_and_cognee_store(
             runtime_dir=str(project_dir),
         )
 
-    async def make_store(username: str, project: str):
+    async def make_store(username: str, project: str, **_kwargs):
         return store
 
     monkeypatch.setattr(module, "resolve_project_scope", resolve_project_scope)
-    monkeypatch.setattr(module, "make_cognee_store", make_store)
+    monkeypatch.setattr(module, "make_sqlite_store", make_store)
     monkeypatch.setattr(module, "AssetCompiler", _FakeAssetCompiler, raising=False)
 
 
@@ -246,7 +246,7 @@ def _patch_celery_episode_asset_planner(
         "get_task_manager",
         lambda: SimpleNamespace(get_task_for_project=lambda *_args, **_kwargs: None),
     )
-    monkeypatch.setattr(module, "make_cognee_store_for_context", fail_if_sync_store_is_used)
+    monkeypatch.setattr(module, "make_sqlite_store_for_context", fail_if_sync_store_is_used)
     monkeypatch.setattr(
         module,
         "_episode_asset_task_scope",
@@ -556,7 +556,7 @@ async def test_plan_episode_identities_enqueues_celery_task(monkeypatch):
 
     monkeypatch.setattr(episodes, "resolve_project_scope", resolve_project_scope)
     monkeypatch.setattr(episodes, "get_task_backend", lambda: SimpleNamespace(enqueue_project_task=enqueue_project_task))
-    monkeypatch.setattr(episodes, "make_cognee_store", fail_if_sync_store_is_used)
+    monkeypatch.setattr(episodes, "make_sqlite_store", fail_if_sync_store_is_used)
     monkeypatch.setattr(
         episodes,
         "make_sqlite_store_for_context",
@@ -709,7 +709,7 @@ async def test_plan_episode_scenes_returns_updated_episode_detail(tmp_path, monk
 
     episode = NovelEpisode(number=1, title="第一集", beat_source_text="第一行")
     store = _CogneeEpisodeStore(episode)
-    _patch_project_and_cognee_store(monkeypatch, episodes, tmp_path, store)
+    _patch_project_and_asset_store(monkeypatch, episodes, tmp_path, store)
 
     response = await episodes.plan_episode_scenes(
         project="demo",
@@ -809,7 +809,7 @@ async def test_plan_episode_props_returns_updated_episode_detail(tmp_path, monke
     from novelvideo.api.routes import episodes
     episode = NovelEpisode(number=1, title="第一集", beat_source_text="第一行")
     store = _CogneeEpisodeStore(episode)
-    _patch_project_and_cognee_store(monkeypatch, episodes, tmp_path, store)
+    _patch_project_and_asset_store(monkeypatch, episodes, tmp_path, store)
 
     response = await episodes.plan_episode_props(
         project="demo",

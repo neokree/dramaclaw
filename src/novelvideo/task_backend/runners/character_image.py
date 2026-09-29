@@ -101,7 +101,7 @@ async def _run_character_image(
     envelope: dict[str, Any],
     ctx: ProjectContext,
 ) -> dict[str, Any] | None:
-    from novelvideo.cognee import CogneeStore
+    from novelvideo.sqlite_store import SQLiteStore
     from novelvideo.project_config import load_project_config_file_from_state_dir
 
     payload = envelope.get("payload") or {}
@@ -129,7 +129,7 @@ async def _run_character_image(
         )
 
     update(0.10, "加载角色数据...")
-    store = CogneeStore(
+    store = SQLiteStore(
         ctx.owner_project_label,
         output_dir=str(output_dir),
         state_dir=str(ctx.state_dir),
@@ -191,7 +191,7 @@ async def _run_character_image(
         else:
             raise RuntimeError(f"未知角色图像生成模式: {mode}")
         if mode == "portrait":
-            await store.sqlite_store.touch_character_asset(character.name)
+            await store.touch_character_asset(character.name)
         return {
             "mode": mode,
             "character_name": character.name,

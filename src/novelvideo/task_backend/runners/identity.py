@@ -10,7 +10,6 @@ from novelvideo.identity_prerequisites import (
     IdentityCharactersBuildingError,
     require_identity_characters,
 )
-from novelvideo.knowledge_pipeline import is_structured_pipeline
 from novelvideo.project_context import ProjectContext
 from novelvideo.task_backend.cancel import await_envelope_with_cancel_watch
 from novelvideo.task_backend.registry import register_project_task_runner
@@ -51,7 +50,6 @@ async def _run_identity_planner(
     envelope: dict[str, Any], ctx: ProjectContext
 ) -> dict[str, Any]:
     from novelvideo.agents.identity_planner import IdentityPlanner
-    from novelvideo.cognee import CogneeStore
     from novelvideo.sqlite_store import SQLiteStore
 
     episode = int(
@@ -80,35 +78,20 @@ async def _run_identity_planner(
     await sqlite_store.initialize()
     await sqlite_store.load_graph_state()
 
-    # structured_v1 planning needs no graph, so it uses the SQLite store
-    # directly rather than wrapping it in the Cognee facade. Both planners
-    # accept either, so the rest of this runner is unchanged.
-    if is_structured_pipeline(ctx.state_dir):
-        cognee_store = sqlite_store
-    else:
-        cognee_store = CogneeStore(
-            ctx.owner_project_label,
-            output_dir=str(ctx.output_dir),
-            state_dir=str(ctx.state_dir),
-            sqlite_store=sqlite_store,
-        )
-        await cognee_store.initialize()
-        await cognee_store.load_graph_state()
-
     # API admission performs the same check before enqueue/credit reservation.
     # Keep this runner-side gate as the final defence against state races and
     # non-HTTP producers.
     build_task = manager.get_task_for_project(ctx, "build_characters", 0)
     if build_task is not None and build_task.status in ACTIVE_PROJECT_TASK_STATUSES:
         raise IdentityCharactersBuildingError()
-    require_identity_characters(cognee_store.get_all_characters())
+    require_identity_characters(sqlite_store.get_all_characters())
 
-    episode_obj = cognee_store.get_episode(episode)
+    episode_obj = sqlite_store.get_episode(episode)
     if episode_obj is None:
         raise ValueError(f"Episode {episode} not found")
 
     update(0.10, "分析身份需求...")
-    planner = IdentityPlanner(cognee_store)
+    planner = IdentityPlanner(sqlite_store)
 
     def on_log(message: str) -> None:
         update(log=message)
@@ -116,11 +99,11 @@ async def _run_identity_planner(
     new_count, resolved_count = await planner.plan_single_episode(
         episode_obj, on_log=on_log
     )
-    refreshed = cognee_store.get_episode(episode) or episode_obj
+    refreshed = sqlite_store.get_episode(episode) or episode_obj
 
     identities: list[dict[str, str]] = []
     episode_identity_ids = set(getattr(refreshed, "identity_ids", []) or [])
-    for character in cognee_store.get_all_characters():
+    for character in sqlite_store.get_all_characters():
         for identity in getattr(character, "identities", []) or []:
             identity_id = getattr(identity, "identity_id", "") or ""
             if not identity_id or identity_id not in episode_identity_ids:

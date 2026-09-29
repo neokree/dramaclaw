@@ -96,6 +96,7 @@ LOCKED_LICENSE_OVERRIDES = {
     "kiwisolver": ("BSD-3-Clause", "package metadata recorded for locked optional dependency"),
     "matplotlib": ("PSF-2.0", "package metadata recorded for locked optional dependency"),
     "mpmath": ("BSD-3-Clause", "package metadata recorded for locked optional dependency"),
+    "networkx": ("BSD-3-Clause", "package metadata recorded for locked optional dependency"),
     "nvidia-cublas": ("LicenseRef-NVIDIA-CUDA-Toolkit", "NVIDIA CUDA Toolkit package license"),
     "nvidia-cuda-cupti": ("LicenseRef-NVIDIA-CUDA-Toolkit", "NVIDIA CUDA Toolkit package license"),
     "nvidia-cuda-nvrtc": ("LicenseRef-NVIDIA-CUDA-Toolkit", "NVIDIA CUDA Toolkit package license"),
@@ -117,6 +118,7 @@ LOCKED_LICENSE_OVERRIDES = {
     "psycopg": ("LGPL-3.0-only", "package metadata published for locked dependency"),
     "psycopg-binary": ("LGPL-3.0-only", "package metadata published for locked dependency"),
     "pymysql": ("MIT", "package metadata published for locked dependency"),
+    "pyparsing": ("MIT", "package metadata recorded for locked optional dependency"),
     "python-magic-bin": ("MIT", "package metadata published for locked dependency"),
     "pywin32": ("PSF-2.0", "package metadata published for locked dependency"),
     "safetensors": ("Apache-2.0", "package metadata recorded for locked optional dependency"),
@@ -513,7 +515,6 @@ def write_dependency_reports(packages: list[PackageLicense]) -> None:
 def write_notice(packages: list[PackageLicense]) -> None:
     attribution_names = [
         "certifi",
-        "cognee",
         "da2",
         "edge-tts",
         "fastapi",

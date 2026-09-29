@@ -677,7 +677,7 @@ def _build_color_appearance_map(
     """从 build_character_map_for_grid 提取角色颜色→外貌映射。"""
     from novelvideo.services.character_ref_service import build_character_map_for_grid
 
-    # sketch_colors 只从 SQLite/Cognee store 读取。
+    # sketch_colors 只从 SQLite store 读取。
     _sc = None
     if cognee_store and episode:
         _sc = cognee_store.get_sketch_colors(episode) or None

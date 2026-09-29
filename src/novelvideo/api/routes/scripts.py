@@ -1,6 +1,6 @@
 """剧本生成与 Beat 编辑端点。
 
-2.0 主线以 SQLite/Cognee 为唯一脚本状态源；不再读写 scripts/epXXX_script.json。
+2.0 主线以 SQLite 为唯一脚本状态源；不再读写 scripts/epXXX_script.json。
 """
 
 import logging
@@ -14,8 +14,6 @@ logger = logging.getLogger("novelvideo.api.scripts")
 
 from novelvideo.api.auth import get_api_user
 from novelvideo.api.deps import (
-    make_cognee_store,
-    make_cognee_store_for_context,
     make_sqlite_store_for_context,
     make_sqlite_store,
     resolve_project_scope,
@@ -771,9 +769,11 @@ async def save_script(
     logger.info("[%s] EP%d save_script: %d beats", project, episode_num, len(body.beats))
 
     store = (
-        await make_cognee_store_for_context(resolved.ctx)
+        await make_sqlite_store_for_context(resolved.ctx, load_graph_state=False)
         if resolved.ctx
-        else await make_cognee_store(resolved.username, resolved.project_name)
+        else await make_sqlite_store(
+            resolved.username, resolved.project_name, load_graph_state=False
+        )
     )
     await store.load_graph_state()
 
@@ -786,7 +786,7 @@ async def save_script(
     try:
         await store.persist_beats_from_script(episode_num, normalized_beats)
     except Exception as e:
-        logger.exception("完整脚本保存后回写图谱失败: episode=%s", episode_num)
+        logger.exception("完整脚本保存后回写 SQLite 失败: episode=%s", episode_num)
         raise HTTPException(
             status_code=500,
             detail=f"Script store sync failed: {e}",

@@ -14,7 +14,6 @@ from types import SimpleNamespace
 
 import pytest
 
-from novelvideo.knowledge_pipeline import KNOWLEDGE_PIPELINE_KEY, KNOWLEDGE_PIPELINE_STRUCTURED
 from novelvideo.story_analysis import SourceChunk, chunk_source_text
 from novelvideo.structured_extraction import (
     CharacterCandidate,
@@ -510,7 +509,7 @@ async def structured_store(tmp_path, monkeypatch):
     state_dir = tmp_path / "user" / "structured"
     state_dir.mkdir(parents=True)
     (state_dir / "project_config.json").write_text(
-        json.dumps({KNOWLEDGE_PIPELINE_KEY: KNOWLEDGE_PIPELINE_STRUCTURED, "spine_template": "narrated"}),
+        json.dumps({"knowledge_pipeline": "structured_v1", "spine_template": "narrated"}),
         encoding="utf-8",
     )
     (state_dir / "novel.txt").write_text(NARRATED_MULTI, encoding="utf-8")
@@ -668,37 +667,6 @@ async def test_character_build_publishes_and_records_evidence(
         evidence[0]["source_start"] : evidence[0]["source_end"]
     ]
     assert quoted == "林默回到阔别十年的故乡。"
-
-
-async def test_character_build_never_touches_cognee(structured_store, monkeypatch):
-    import cognee
-
-    from novelvideo import structured_builders
-
-    def _boom(*args, **kwargs):
-        raise AssertionError("structured character build must not touch Cognee")
-
-    for name in ("add", "cognify", "memify", "search"):
-        monkeypatch.setattr(cognee, name, _boom, raising=False)
-
-    store, _ = structured_store
-    agent = FakeAgent({})
-
-    real_extract = extract_characters_from_chunks
-
-    async def fake_extract(chunks, **kwargs):
-        kwargs.pop("agent", None)
-        kwargs.setdefault("adjudicate", False)
-        return await real_extract(chunks, agent=agent, **kwargs)
-
-    monkeypatch.setattr(
-        "novelvideo.structured_extraction.extract_characters_from_chunks",
-        fake_extract,
-    )
-    await structured_builders.build_characters_structured(store)
-
-
-# ── resume, chunk bounds and concurrency defaults ───────────────────────────
 
 
 async def test_completed_chunks_are_replayed_instead_of_re_billed(
@@ -1779,16 +1747,13 @@ DRAMA_SCRIPT = (
 
 
 async def _drama_project(tmp_path, script):
-    from novelvideo.knowledge_pipeline import (
-        KNOWLEDGE_PIPELINE_KEY, KNOWLEDGE_PIPELINE_STRUCTURED,
-    )
     from novelvideo.sqlite_store import SQLiteStore
 
     state = tmp_path / "user" / "drama"
     state.mkdir(parents=True)
     (state / "project_config.json").write_text(
         json.dumps(
-            {KNOWLEDGE_PIPELINE_KEY: KNOWLEDGE_PIPELINE_STRUCTURED,
+            {"knowledge_pipeline": "structured_v1",
              "spine_template": "drama"}
         ),
         encoding="utf-8",

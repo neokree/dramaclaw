@@ -146,7 +146,7 @@ async def _ensure_scene_refs_for_beats(
     missing the field it promised raises rather than reaching for the store,
     because a silent fallback would make such an omission permanently invisible.
     """
-    from novelvideo.cognee import CogneeStore
+    from novelvideo.sqlite_store import SQLiteStore
     from novelvideo.models import beat_scene_id
     from novelvideo.utils.path_resolver import PathResolver, compute_scene_master_path
 
@@ -167,7 +167,7 @@ async def _ensure_scene_refs_for_beats(
     store = None
     try:
         if projection is None:
-            store = CogneeStore(
+            store = SQLiteStore(
                 ctx.owner_project_label,
                 output_dir=output_dir,
                 state_dir=str(ctx.state_dir),
@@ -181,7 +181,7 @@ async def _ensure_scene_refs_for_beats(
         missing = 0
         for requested_scene_id in requested_scene_ids:
             if projected_scenes is None:
-                scene = await store.sqlite_store.get_scene(requested_scene_id)
+                scene = await store.get_scene(requested_scene_id)
                 scene_name = scene.name if scene else None
             else:
                 scene_name = _projected_scene_name(projected_scenes, requested_scene_id)

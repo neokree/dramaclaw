@@ -74,14 +74,14 @@ def discover_projects() -> List[Tuple[str, Path]]:
 
 
 # ---------------------------------------------------------------------------
-# 2. Async data loading via CogneeStore
+# 2. Async data loading via SQLiteStore
 # ---------------------------------------------------------------------------
 
 async def _load_project_data_async(project_name: str, project_dir: Path):
-    """Load characters, beats, sketch_colors from Neo4j via CogneeStore."""
-    from novelvideo.cognee.store import CogneeStore
+    """Load characters, beats, sketch_colors via SQLiteStore."""
+    from novelvideo.sqlite_store import SQLiteStore
 
-    store = CogneeStore(project_name, output_dir=str(project_dir))
+    store = SQLiteStore(project_name, output_dir=str(project_dir))
     try:
         await store.initialize()
 

@@ -6,7 +6,6 @@ import asyncio
 from typing import Any
 
 from novelvideo.model_gateway_runtime import model_gateway_scope_for_runner
-from novelvideo.knowledge_pipeline import is_structured_pipeline
 from novelvideo.project_context import ProjectContext
 from novelvideo.scene_prerequisites import SceneCatalogBuildingError
 from novelvideo.ports import get_usage_meter
@@ -49,7 +48,6 @@ async def _run_episode_asset_planner(
     ctx: ProjectContext,
 ) -> dict[str, Any]:
     from novelvideo.agents.asset_compiler import AssetCompiler
-    from novelvideo.cognee import CogneeStore
     from novelvideo.project_config import load_project_config_file_from_state_dir
     from novelvideo.services.prop_promotion_service import (
         promote_episode_props_to_global,
@@ -111,27 +109,12 @@ async def _run_episode_asset_planner(
     await sqlite_store.initialize()
     await sqlite_store.load_graph_state()
 
-    # structured_v1 planning needs no graph, so it uses the SQLite store
-    # directly rather than wrapping it in the Cognee facade. Both planners
-    # accept either, so the rest of this runner is unchanged.
-    if is_structured_pipeline(ctx.state_dir):
-        cognee_store = sqlite_store
-    else:
-        cognee_store = CogneeStore(
-            ctx.owner_project_label,
-            output_dir=str(ctx.output_dir),
-            state_dir=str(ctx.state_dir),
-            sqlite_store=sqlite_store,
-        )
-        await cognee_store.initialize()
-        await cognee_store.load_graph_state()
-
-    episode_obj = cognee_store.get_episode(episode)
+    episode_obj = sqlite_store.get_episode(episode)
     if episode_obj is None:
         raise ValueError(f"Episode {episode} not found")
 
     update(0.15, f"规划{label}资产...")
-    compiler = AssetCompiler(cognee_store)
+    compiler = AssetCompiler(sqlite_store)
     project_config = load_project_config_file_from_state_dir(ctx.state_dir)
     compiler.spine_template = str(project_config.get("spine_template") or "drama")
 
@@ -163,7 +146,7 @@ async def _run_episode_asset_planner(
         on_log=on_log,
         on_progress=lambda progress, task: update(0.15 + progress * 0.75, task),
     )
-    promoted_props = await promote_episode_props_to_global(cognee_store, prop_menu)
+    promoted_props = await promote_episode_props_to_global(sqlite_store, prop_menu)
     prop_menu_data = _dump_items(prop_menu)
     update(0.95, "道具规划完成", f"道具 {len(prop_menu_data)} 总计")
     return {

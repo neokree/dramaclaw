@@ -619,7 +619,7 @@ def test_c1_eg03_script_runner_binds_gateway_scope_before_workflow() -> None:
         ("src/novelvideo/task_backend/runners/graph_build.py", "_run_async"),
     ],
 )
-def test_agent_and_cognee_runners_bind_trusted_gateway_scope(
+def test_agent_and_build_runners_bind_trusted_gateway_scope(
     relative_path: str,
     function_name: str,
 ) -> None:
@@ -638,171 +638,6 @@ def test_agent_and_cognee_runners_bind_trusted_gateway_scope(
         and node.func.id == "model_gateway_scope_for_runner"
     ]
     assert len(calls) == 1, relative_path
-
-
-@pytest.mark.asyncio
-async def test_c1_eg05_pos_embedding_claims_before_single_transport(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from novelvideo import model_gateway_runtime as runtime
-    from novelvideo.cognee import config as cognee_config
-    from novelvideo.embedding_models import (
-        COGNEE_EMBEDDING_MODEL_V2,
-        embedding_model_scope,
-    )
-
-    operation_port = _OperationPort()
-    credential = RequestCredential(
-        reference=_organization_context().credential,
-        api_key="sk-embedding-request",
-        base_url="https://gateway.example/v1",
-    )
-    credential_port = _CredentialPort(credential, [])
-    transport_calls: list[dict[str, object]] = []
-
-    async def transport(*_args, **kwargs):
-        transport_calls.append(kwargs)
-        return "embedding-response"
-
-    monkeypatch.setattr(runtime, "get_egress_operation_port", lambda: operation_port)
-    monkeypatch.setattr(runtime, "get_model_credentials", lambda: credential_port)
-    monkeypatch.setattr(
-        cognee_config,
-        "embedding_gateway_credentials",
-        lambda *_args, **_kwargs: pytest.fail(
-            "organization embedding must not read settings/env"
-        ),
-    )
-
-    with runtime.model_gateway_request_scope(_organization_context()):
-        with embedding_model_scope(COGNEE_EMBEDDING_MODEL_V2):
-            result = await cognee_config._route_project_embedding_transport(
-                transport,
-                (),
-                {"input": ["hello"], "model": "stale-model"},
-            )
-
-    assert result == "embedding-response"
-    assert len(transport_calls) == 1
-    assert transport_calls[0]["api_key"] == "sk-embedding-request"
-    assert transport_calls[0]["api_base"] == "https://gateway.example/v1"
-    assert operation_port.calls[0][1].capability == "embedding.generate"
-
-
-@pytest.mark.asyncio
-async def test_c1_eg05_nofb_embedding_resolve_error_has_zero_transport(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from novelvideo import model_gateway_runtime as runtime
-    from novelvideo.cognee import config as cognee_config
-    from novelvideo.embedding_models import (
-        COGNEE_EMBEDDING_MODEL_V2,
-        embedding_model_scope,
-    )
-
-    operation_port = _OperationPort()
-    credential_port = _CredentialPort(
-        ModelCredentialError("ORG_CREDENTIAL_MISSING"), []
-    )
-    transport_calls = 0
-
-    async def transport(*_args, **_kwargs):
-        nonlocal transport_calls
-        transport_calls += 1
-
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-stale-platform")
-    monkeypatch.setenv("EMBEDDING_API_KEY", "sk-stale-embedding")
-    monkeypatch.setattr(runtime, "get_egress_operation_port", lambda: operation_port)
-    monkeypatch.setattr(runtime, "get_model_credentials", lambda: credential_port)
-    monkeypatch.setattr(
-        cognee_config,
-        "embedding_gateway_credentials",
-        lambda *_args, **_kwargs: pytest.fail(
-            "organization embedding must not read settings/env"
-        ),
-    )
-
-    with runtime.model_gateway_request_scope(_organization_context()):
-        with embedding_model_scope(COGNEE_EMBEDDING_MODEL_V2):
-            with pytest.raises(ModelCredentialError) as excinfo:
-                await cognee_config._route_project_embedding_transport(
-                    transport,
-                    (),
-                    {"input": ["hello"]},
-                )
-
-    assert excinfo.value.code == "ORG_CREDENTIAL_MISSING"
-    assert transport_calls == 0
-    assert [name for name, _payload in operation_port.calls] == ["claim", "rejected"]
-
-
-@pytest.mark.asyncio
-async def test_c1_eg06_cognee_llm_runs_on_text_engine_even_in_org_scope(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    import os
-
-    from novelvideo import model_gateway_runtime as runtime
-    from novelvideo.cognee import config as cognee_config
-
-    monkeypatch.setattr(
-        runtime,
-        "get_model_credentials",
-        lambda: pytest.fail("cognee LLM must not resolve organization credentials"),
-    )
-    calls: list[dict] = []
-
-    async def transport(*_args, **kwargs):
-        calls.append(kwargs)
-        return {"ok": True}
-
-    kwargs = {
-        "model": "openai/mtplx-model",
-        "messages": [{"role": "user", "content": "hi"}],
-        "api_key": "mtplx",
-        "api_base": "http://127.0.0.1:8000/v1",
-    }
-    environment_before = dict(os.environ)
-    with runtime.model_gateway_request_scope(_organization_context()):
-        result = await cognee_config._route_cognee_llm_transport(
-            transport, (), dict(kwargs)
-        )
-
-    assert result == {"ok": True}
-    assert calls == [kwargs]
-    assert dict(os.environ) == environment_before
-
-
-def test_c1_eg06_env_isolation_init_skips_all_credential_env_bridges(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    import os
-
-    from novelvideo import model_gateway_runtime as runtime
-    from novelvideo.cognee import config as cognee_config
-
-    monkeypatch.setattr(cognee_config, "COGNEE_AVAILABLE", True)
-    monkeypatch.setattr(cognee_config, "cognee_gateway_restart_required", lambda: False)
-    monkeypatch.setattr(
-        cognee_config,
-        "_apply_llm_env",
-        lambda *_args, **_kwargs: pytest.fail(
-            "organization task must not mutate LLM env"
-        ),
-    )
-    monkeypatch.setattr(
-        cognee_config,
-        "_apply_embedding_env",
-        lambda *_args, **_kwargs: pytest.fail(
-            "organization task must not mutate embedding env"
-        ),
-    )
-    environment_before = dict(os.environ)
-
-    with runtime.model_gateway_request_scope(_organization_context()):
-        cognee_config.init_cognee()
-
-    assert dict(os.environ) == environment_before
 
 
 def test_organization_disables_pydantic_output_retries() -> None:
@@ -840,10 +675,10 @@ def test_freezone_org_agent_is_never_saved_in_module_singleton(
     assert created == [first, second]
 
 
-def test_all_agent_and_cognee_newapi_leaves_declare_capability() -> None:
+def test_all_agent_and_story_text_leaves_declare_capability() -> None:
     roots = {
         Path("src/novelvideo/agents"): "text.generate.agent",
-        Path("src/novelvideo/cognee"): "cognee.llm",
+        Path("src/novelvideo/story"): "text.generate",
     }
     exceptions = {
         Path("src/novelvideo/agents/content_rewriter.py"): "text.generate",

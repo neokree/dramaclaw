@@ -1,9 +1,7 @@
-"""Character extraction straight from source text, without a knowledge graph.
+"""Character extraction straight from source text.
 
-The legacy path asks Cognee for graph context and lets a model name whoever it
-finds there.  Structured extraction inverts that: the model only reports what a
-specific span of text supports, and every candidate it returns must quote the
-span it came from.  A quote that is not in the chunk is dropped, and a name the
+The model only reports what a specific span of text supports, and every
+candidate it returns must quote the span it came from.  A quote that is not in the chunk is dropped, and a name the
 imported source never writes is dropped, so a name invented outright has no
 route into the character table.
 

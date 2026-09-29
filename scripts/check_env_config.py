@@ -32,11 +32,6 @@ DYNAMIC_ENV_ALLOWLIST: tuple[tuple[re.Pattern[str], str], ...] = (
         ),
         "src/novelvideo/task_backend/limits.py builds per-lane task limit names dynamically.",
     ),
-    (
-        re.compile(r"^EMBEDDING_BATCH_SIZE$"),
-        "Written to os.environ in src/novelvideo/cognee/config.py for Cognee to consume; "
-        "no direct runtime read.",
-    ),
 )
 THIRD_PARTY_ENV_ALLOWLIST: tuple[tuple[re.Pattern[str], str], ...] = ()
 COMMON_REVERSE_ENV_ALLOWLIST: tuple[tuple[re.Pattern[str], str], ...] = (

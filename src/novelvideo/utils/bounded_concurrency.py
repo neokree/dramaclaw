@@ -21,9 +21,7 @@ R = TypeVar("R")
 
 STRUCTURED_LLM_CONCURRENCY_ENV = "STRUCTURED_LLM_CONCURRENCY"
 
-# Matches COGNEE_LLM_CONCURRENCY's default. The gateway is the shared
-# bottleneck, so a second pool running deeper would trip the same rate limits
-# the Cognee pool is tuned to avoid.
+# The text engine is the shared bottleneck; deeper pools trip its rate limits.
 DEFAULT_LIMIT = 2
 
 

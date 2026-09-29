@@ -17,7 +17,7 @@ def _rows() -> list[dict[str, str]]:
 
 def test_ee_split_migrated_nodes_remain_present_in_ce() -> None:
     rows = _rows()
-    assert len(rows) == 35
+    assert len(rows) == 31
     assert len({row["id"] for row in rows}) == len(rows)
     assert len({row["source_node"] for row in rows}) == len(rows)
     assert len({row["target_node"] for row in rows}) == len(rows)

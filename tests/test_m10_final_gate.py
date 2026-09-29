@@ -9,10 +9,9 @@ def test_foss_only_e2e_script_encodes_locked_cli_sequence_and_assertions() -> No
     assert script_path.is_file()
     script = script_path.read_text(encoding="utf-8")
 
-    assert "novelvideo cognee-ingest" in script
+    assert "novelvideo import-novel" in script
     assert "--project \"$PROJECT\"" in script
     assert "--novel \"$NOVEL_FIXTURE\"" in script
-    assert "--episodes 1" in script
     assert "novelvideo generate-script" in script
     assert "--episode 1" in script
     assert "--duration 10" in script
@@ -48,3 +47,5 @@ def test_foss_only_fixture_is_short_txt_for_low_cost_llm_gate() -> None:
     text = fixture_path.read_text(encoding="utf-8").strip()
     assert fixture_path.suffix == ".txt"
     assert 500 <= len(text) <= 2000
+    # import-novel maps chapters to episodes, so the gate needs one chapter.
+    assert text.startswith("第一章")

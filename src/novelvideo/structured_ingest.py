@@ -1,13 +1,10 @@
-"""Import for structured_v1 projects: no graph, no embedding, no vector index.
+"""Project import: validate, persist and chunk the source text.
 
-The legacy import spends most of its wall clock inside ``cognee.add`` /
-``cognify`` / ``memify``, and every one of those calls goes through the shared
-embedding model.  Structured projects need none of it: extraction reads the
-source text directly, so import reduces to validating the upload, persisting it,
-and recording a deterministic chunk plan for later analysis.
+Extraction reads the source text directly, so import reduces to validating the
+upload, persisting it, and recording a deterministic chunk plan for later
+analysis.
 
-The validation order matches the legacy path deliberately, including the rule
-that ``novel.txt`` is written last.  That file is the public "import succeeded"
+``novel.txt`` is written last.  That file is the public "import succeeded"
 marker: several routes treat its presence as proof the project is importable,
 so it must not appear while the import can still fail.
 """

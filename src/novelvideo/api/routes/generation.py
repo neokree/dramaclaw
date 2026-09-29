@@ -5216,7 +5216,7 @@ async def export_srt(project: str, episode_num: int, user: dict = Depends(get_ap
     resolved = await _resolve_generation_project(project, user, required_role="viewer")
     project_dir = resolved.project_dir
 
-    # 从图谱读取 beats
+    # 从 SQLite 读取 beats
     store = (
         await make_sqlite_store_for_context(resolved.ctx)
         if resolved.ctx

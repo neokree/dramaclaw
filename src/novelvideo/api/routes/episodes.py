@@ -12,8 +12,6 @@ from starlette.concurrency import run_in_threadpool
 from novelvideo.api.auth import get_api_user
 from novelvideo.api.chapter_preview import build_chapter_preview
 from novelvideo.api.deps import (
-    make_cognee_store,
-    make_cognee_store_for_context,
     make_sqlite_store,
     make_sqlite_store_for_context,
     make_static_url_for_context,
@@ -32,10 +30,6 @@ from novelvideo.identity_prerequisites import (
     IdentityPlanningPrerequisiteError,
     identity_prerequisite_response,
     require_identity_characters,
-)
-from novelvideo.knowledge_pipeline import (
-    KnowledgePipelineUnsupported,
-    is_structured_pipeline,
 )
 from novelvideo.ports import get_task_backend, get_usage_meter
 from novelvideo.project_config import load_project_config_file_from_state_dir
@@ -128,12 +122,14 @@ async def _plan_episode_assets(
     )
 
     store = (
-        await make_cognee_store_for_context(resolved.ctx)
+        await make_sqlite_store_for_context(resolved.ctx, load_graph_state=False)
         if resolved.ctx
-        else await make_cognee_store(resolved.username, resolved.project_name)
+        else await make_sqlite_store(
+            resolved.username, resolved.project_name, load_graph_state=False
+        )
     )
     if store is None:
-        return {"ok": False, "error": "CogneeStore initialization failed"}
+        return {"ok": False, "error": "project store initialization failed"}
 
     await store.load_graph_state()
     episode = _find_episode(store.get_all_episodes(), episode_num)
@@ -314,13 +310,12 @@ async def plan_episodes(project: str, body: EpisodePlanRequest, user: dict = Dep
     if ctx is not None:
         if not has_imported_novel(resolved.project_dir):
             return novel_import_required_response()
-        # The AI planners read the Cognee graph, which structured_v1 projects do
-        # not have. Reject before enqueue so the user gets an answer instead of
-        # a task that is guaranteed to fail after reserving credit.
-        if is_structured_pipeline(state_dir) and body.planning_mode != "chapters":
+        # Only deterministic chapter mapping is offered. Reject other modes
+        # before enqueue so the user gets an answer instead of a failing task.
+        if body.planning_mode != "chapters":
             return {
                 "ok": False,
-                "code": KnowledgePipelineUnsupported.error_code,
+                "code": "KNOWLEDGE_PIPELINE_UNSUPPORTED",
                 "error": "该项目只支持按章节/集号的确定性分集",
             }
         queued = await get_task_backend().enqueue_project_task(
@@ -367,7 +362,7 @@ async def get_beats(project: str, episode_num: int, user: dict = Depends(get_api
     resolved = await resolve_project_scope(project, user, required_role="viewer")
     project_dir = resolved.project_dir
 
-    # 从图谱读取 beats（统一数据源）。
+    # 从 SQLite 读取 beats（统一数据源）。
     # get_beats_as_dicts 只读 beats 表，不碰 store 的角色/集/道具内存缓存，
     # 所以跳过 load_graph_state()——那是三次全表读，比这里的查询本身还贵。
     store_scope = (
@@ -610,9 +605,11 @@ async def plan_episode_identities(
     )
 
     store = (
-        await make_cognee_store_for_context(resolved.ctx)
+        await make_sqlite_store_for_context(resolved.ctx, load_graph_state=False)
         if resolved.ctx
-        else await make_cognee_store(resolved.username, resolved.project_name)
+        else await make_sqlite_store(
+            resolved.username, resolved.project_name, load_graph_state=False
+        )
     )
     await store.load_graph_state()
     try:

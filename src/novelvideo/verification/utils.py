@@ -38,7 +38,7 @@ async def load_all_beats(
     cognee_store=None,
     sqlite_store=None,
 ) -> list[dict]:
-    """读取整集所有 beat 数据，只允许从 SQLite/Cognee store 读取。"""
+    """读取整集所有 beat 数据，只允许从 SQLite store 读取。"""
     store = sqlite_store or cognee_store
     if store:
         try:

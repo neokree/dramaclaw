@@ -898,7 +898,7 @@ async def add_character(
 
 @router.post("/projects/{project}/characters/build")
 async def build_characters(project: str, user: dict = Depends(get_api_user)):
-    """从知识图谱补充缺失角色。"""
+    """从原文补充缺失角色。"""
     logger.info("[%s] build_characters", project)
     resolved = await resolve_project_scope(project, user, required_role="editor")
     ctx = resolved.ctx

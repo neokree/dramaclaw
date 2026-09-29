@@ -199,39 +199,11 @@ def test_any_episodes_planner_blocks_the_build():
 
 
 def test_scene_build_applies_only_where_it_can_produce_something():
-    """Narrated structured projects have nothing to build a catalogue from.
-
-    Legacy keeps the Cognee path whatever the template: its build does reach a
-    model and does produce scenes, so excluding it would change what existing
-    projects do.
-    """
-    import json
-    import tempfile
-    from pathlib import Path
-
-    from novelvideo.knowledge_pipeline import (
-        KNOWLEDGE_PIPELINE_KEY,
-        KNOWLEDGE_PIPELINE_STRUCTURED,
-    )
+    """Narrated projects have nothing to build a catalogue from."""
     from novelvideo.scene_prerequisites import scene_build_applies
 
-    with tempfile.TemporaryDirectory() as tmp:
-        structured = Path(tmp) / "structured"
-        structured.mkdir()
-        (structured / "project_config.json").write_text(
-            json.dumps({KNOWLEDGE_PIPELINE_KEY: KNOWLEDGE_PIPELINE_STRUCTURED}),
-            encoding="utf-8",
-        )
-        legacy = Path(tmp) / "legacy"
-        legacy.mkdir()
-        (legacy / "project_config.json").write_text(
-            json.dumps({"user": "eric"}), encoding="utf-8"
-        )
-
-        assert scene_build_applies(str(structured), "drama")
-        assert not scene_build_applies(str(structured), "narrated")
-        assert scene_build_applies(str(legacy), "drama")
-        assert scene_build_applies(str(legacy), "narrated")
+    assert scene_build_applies("", "drama")
+    assert not scene_build_applies("", "narrated")
 
 
 @pytest.mark.asyncio
@@ -247,10 +219,6 @@ async def test_a_narrated_build_never_reaches_the_queue(tmp_path, monkeypatch):
     import json
 
     from novelvideo.api.routes import scenes as scenes_routes
-    from novelvideo.knowledge_pipeline import (
-        KNOWLEDGE_PIPELINE_KEY,
-        KNOWLEDGE_PIPELINE_STRUCTURED,
-    )
     from novelvideo.scene_prerequisites import SCENE_BUILD_NOT_APPLICABLE_CODE
 
     state_dir = tmp_path / "alice" / "demo"
@@ -258,7 +226,7 @@ async def test_a_narrated_build_never_reaches_the_queue(tmp_path, monkeypatch):
     (state_dir / "project_config.json").write_text(
         json.dumps(
             {
-                KNOWLEDGE_PIPELINE_KEY: KNOWLEDGE_PIPELINE_STRUCTURED,
+                "knowledge_pipeline": "structured_v1",
                 "spine_template": "narrated",
             },
             ensure_ascii=False,
@@ -306,17 +274,13 @@ async def test_a_drama_build_still_reaches_the_queue(tmp_path, monkeypatch):
     import json
 
     from novelvideo.api.routes import scenes as scenes_routes
-    from novelvideo.knowledge_pipeline import (
-        KNOWLEDGE_PIPELINE_KEY,
-        KNOWLEDGE_PIPELINE_STRUCTURED,
-    )
 
     state_dir = tmp_path / "alice" / "demo"
     state_dir.mkdir(parents=True)
     (state_dir / "project_config.json").write_text(
         json.dumps(
             {
-                KNOWLEDGE_PIPELINE_KEY: KNOWLEDGE_PIPELINE_STRUCTURED,
+                "knowledge_pipeline": "structured_v1",
                 "spine_template": "drama",
             },
             ensure_ascii=False,

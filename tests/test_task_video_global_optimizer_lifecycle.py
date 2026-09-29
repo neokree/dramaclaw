@@ -27,8 +27,8 @@ def _project_ctx(tmp_path: Path) -> ProjectContext:
 
 
 @pytest.mark.asyncio
-async def test_global_optimize_video_closes_cognee_store_on_success(monkeypatch, tmp_path):
-    from novelvideo import cognee
+async def test_global_optimize_video_closes_store_on_success(monkeypatch, tmp_path):
+    import novelvideo.sqlite_store as sqlite_store_module
     from novelvideo.agents import global_video_optimizer
     from novelvideo.task_backend.runners import video
     from novelvideo.utils.path_resolver import PathResolver
@@ -43,7 +43,7 @@ async def test_global_optimize_video_closes_cognee_store_on_success(monkeypatch,
         def update_progress_for_project(self, *args, **kwargs):
             return None
 
-    class FakeCogneeStore:
+    class FakeStore:
         def __init__(self, *args, **kwargs):
             calls.append("init")
 
@@ -65,7 +65,7 @@ async def test_global_optimize_video_closes_cognee_store_on_success(monkeypatch,
             return {"prompt": "optimized prompt"}
 
     monkeypatch.setattr(video, "get_task_manager", lambda: FakeTaskManager())
-    monkeypatch.setattr(cognee, "CogneeStore", FakeCogneeStore)
+    monkeypatch.setattr(sqlite_store_module, "SQLiteStore", FakeStore)
     monkeypatch.setattr(
         global_video_optimizer,
         "prepare_global_optimizer_input",
@@ -101,8 +101,8 @@ async def test_global_optimize_video_closes_cognee_store_on_success(monkeypatch,
 
 
 @pytest.mark.asyncio
-async def test_global_optimize_video_closes_cognee_store_on_failure(monkeypatch, tmp_path):
-    from novelvideo import cognee
+async def test_global_optimize_video_closes_store_on_failure(monkeypatch, tmp_path):
+    import novelvideo.sqlite_store as sqlite_store_module
     from novelvideo.agents import global_video_optimizer
     from novelvideo.task_backend.runners import video
     from novelvideo.utils.path_resolver import PathResolver
@@ -117,7 +117,7 @@ async def test_global_optimize_video_closes_cognee_store_on_failure(monkeypatch,
         def update_progress_for_project(self, *args, **kwargs):
             return None
 
-    class FakeCogneeStore:
+    class FakeStore:
         def __init__(self, *args, **kwargs):
             calls.append("init")
 
@@ -136,7 +136,7 @@ async def test_global_optimize_video_closes_cognee_store_on_failure(monkeypatch,
             raise RuntimeError("model unavailable")
 
     monkeypatch.setattr(video, "get_task_manager", lambda: FakeTaskManager())
-    monkeypatch.setattr(cognee, "CogneeStore", FakeCogneeStore)
+    monkeypatch.setattr(sqlite_store_module, "SQLiteStore", FakeStore)
     monkeypatch.setattr(
         global_video_optimizer,
         "prepare_global_optimizer_input",

@@ -358,7 +358,7 @@ OUTPUT_DIR = os.path.abspath(
     os.environ.get("NOVELVIDEO_OUTPUT_DIR", os.path.join(DATA_ROOT, "output"))
 )
 
-# 状态文件目录 (data.db, cognee_system/, project_config.json)
+# 状态文件目录 (data.db, project_config.json)
 STATE_DIR = os.path.abspath(
     os.environ.get("NOVELVIDEO_STATE_DIR", os.path.join(DATA_ROOT, "state"))
 )

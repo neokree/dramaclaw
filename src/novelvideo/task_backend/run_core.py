@@ -474,7 +474,7 @@ async def _emit_project_task_metrics(
         clean_outcome = "failed" if outcome == "failed" else "success"
 
         if task_type == "ingest_fast":
-            model = os.environ.get("COGNEE_LLM_MODEL", "").strip()
+            model = ""  # import makes no model call
             if clean_outcome == "success":
                 await usage_meter.bump_content_counter(
                     user_id=user_id,

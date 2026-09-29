@@ -29,7 +29,7 @@ async def _run_scene_reference_asset(
     envelope: dict[str, Any],
     ctx: ProjectContext,
 ) -> dict[str, Any] | None:
-    from novelvideo.cognee import CogneeStore
+    from novelvideo.sqlite_store import SQLiteStore
     from novelvideo.config import (
         IMAGE_DEFAULT_STYLE,
         get_style_preset,
@@ -62,20 +62,20 @@ async def _run_scene_reference_asset(
         )
 
     update(0.10, "加载场景数据...")
-    store = CogneeStore(
+    store = SQLiteStore(
         ctx.owner_project_label,
         output_dir=str(output_dir),
         state_dir=str(ctx.state_dir),
     )
     await store.initialize()
     try:
-        scene = await store.sqlite_store.get_scene(scene_name)
+        scene = await store.get_scene(scene_name)
         if scene is None:
             raise RuntimeError(f"找不到场景: {scene_name}")
         base_scene = None
         base_scene_id = str(getattr(scene, "base_scene_id", "") or "").strip()
         if base_scene_id and base_scene_id != scene.name:
-            base_scene = await store.sqlite_store.get_scene(base_scene_id)
+            base_scene = await store.get_scene(base_scene_id)
 
         style_id = (style or IMAGE_DEFAULT_STYLE).strip() or IMAGE_DEFAULT_STYLE
         preset = get_style_preset(
@@ -107,9 +107,9 @@ async def _run_scene_reference_asset(
             )
         if kind == "spatial_layout":
             rel_path = str(Path(output_path).relative_to(output_dir))
-            await store.sqlite_store.update_scene(scene_name, spatial_layout_image=rel_path)
+            await store.update_scene(scene_name, spatial_layout_image=rel_path)
         else:
-            await store.sqlite_store.touch_scene_asset(scene_name)
+            await store.touch_scene_asset(scene_name)
         return {
             "scene_name": scene_name,
             "kind": kind,

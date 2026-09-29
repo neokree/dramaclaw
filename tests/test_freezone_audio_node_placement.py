@@ -476,7 +476,6 @@ async def test_audio_speech_runner_runs_with_every_project_data_entrypoint_disab
     does not find it, so the only way to hold that line is to make every project
     data entrypoint fail and run the first-person branch through it for real.
     """
-    from novelvideo.cognee.store import CogneeStore
     from novelvideo.sqlite_store import SQLiteStore
     from novelvideo.task_backend.runners import freezone as freezone_runner
 
@@ -495,7 +494,6 @@ async def test_audio_speech_runner_runs_with_every_project_data_entrypoint_disab
     _install_runner_stubs(monkeypatch)
     _stub_tts(monkeypatch)
     monkeypatch.setattr(SQLiteStore, "__init__", _explode("SQLiteStore.__init__"))
-    monkeypatch.setattr(CogneeStore, "__init__", _explode("CogneeStore.__init__"))
     monkeypatch.setattr(
         "novelvideo.project_config.load_project_config_file",
         _explode("load_project_config_file"),

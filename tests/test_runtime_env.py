@@ -1,25 +1,7 @@
 from __future__ import annotations
 
-import os
 
 import pytest
-
-
-def test_preserve_st_env_restores_changed_and_added_st_keys(monkeypatch) -> None:
-    from novelvideo.shared.env_guard import preserve_st_env
-
-    monkeypatch.setenv("ST_EXISTING", "before")
-    monkeypatch.delenv("ST_ADDED", raising=False)
-    monkeypatch.setenv("LLM_API_KEY", "before")
-
-    with preserve_st_env():
-        monkeypatch.setenv("ST_EXISTING", "after")
-        monkeypatch.setenv("ST_ADDED", "new")
-        monkeypatch.setenv("LLM_API_KEY", "after")
-
-    assert "ST_ADDED" not in os.environ
-    assert os.environ["ST_EXISTING"] == "before"
-    assert os.environ["LLM_API_KEY"] == "after"
 
 
 def test_cookie_secure_defaults_true_and_parses_boolean_values(monkeypatch) -> None:

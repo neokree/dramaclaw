@@ -19,13 +19,6 @@ import pytest
 
 # ── 1. 导入不报错 ──────────────────────────────────────────
 def test_import():
-    from novelvideo.cognee.store import CogneeStore  # noqa: F401
-    from novelvideo.cognee.pipeline import (
-        NovelCharacter,
-        NovelEvent,  # noqa: F401
-    )
-
-    # 确认不再依赖 DataPoint
     from novelvideo.models import NovelCharacter
     from pydantic import BaseModel
 
@@ -38,348 +31,22 @@ def test_import():
 # ── Fixture: 临时项目目录 + store ─────────────────────────
 @pytest.fixture
 async def tmp_project(tmp_path):
-    """创建临时项目目录和 CogneeStore（跳过 Cognee 初始化）。"""
-    from novelvideo.cognee.store import CogneeStore
+    """创建临时项目目录和 SQLiteStore。"""
+    from novelvideo.sqlite_store import SQLiteStore
 
     project_dir = tmp_path / "testuser" / "testproject"
     project_dir.mkdir(parents=True)
 
-    store = CogneeStore.__new__(CogneeStore)
-    store.project_name = "testuser/testproject"
-    store.dataset_name = "novelvideo_testuser/testproject"
-    store._db = None
-    store._characters = {}
-    store._episodes = {}
-    store._alias_index = {}
-    store.project_dir = str(project_dir)
-    store.state_dir = str(project_dir)
-    store.db_path = str(project_dir / "data.db")
+    store = SQLiteStore(
+        "testuser/testproject",
+        output_dir=str(project_dir),
+        state_dir=str(project_dir),
+    )
 
     try:
         yield store
     finally:
         await store.close()
-
-
-@pytest.mark.asyncio
-async def test_build_characters_from_graph_only_adds_missing_characters(tmp_project, monkeypatch):
-    from novelvideo.cognee import pipeline
-    from novelvideo.models import CharacterIdentity, NovelCharacter
-
-    existing = NovelCharacter(
-        name="林晚",
-        aliases=["小晚"],
-        role="主角",
-        description="用户修过的角色描述",
-        face_prompt="用户修过的面部提示词",
-        reference_audio_path="voices/linwan.wav",
-    )
-    existing.identities = [
-        CharacterIdentity(
-            identity_id="林晚_校服",
-            character_name="林晚",
-            identity_name="校服",
-            appearance_details="蓝白校服",
-        )
-    ]
-    await tmp_project.add_character(existing)
-    await tmp_project.add_character(NovelCharacter(name="手动角色", description="手工补充"))
-
-    async def fake_extract_characters_from_graph(**_kwargs):
-        return [
-            NovelCharacter(
-                name="林晚",
-                description="图谱新描述不应覆盖",
-                face_prompt="图谱新面部不应覆盖",
-            ),
-            NovelCharacter(name="新角色", description="图谱新增角色"),
-        ]
-
-    monkeypatch.setattr(
-        pipeline,
-        "extract_characters_from_graph",
-        fake_extract_characters_from_graph,
-    )
-    tmp_project.save_novel_content("剧本文本")
-
-    added = await tmp_project.build_characters_from_graph()
-
-    assert [char.name for char in added] == ["新角色"]
-    preserved = tmp_project.get_character("林晚")
-    assert preserved is not None
-    assert preserved.description == "用户修过的角色描述"
-    assert preserved.face_prompt == "用户修过的面部提示词"
-    assert preserved.reference_audio_path == "voices/linwan.wav"
-    assert [identity.identity_id for identity in preserved.identities] == ["林晚_校服"]
-    assert tmp_project.get_character("手动角色") is not None
-    assert tmp_project.get_character("新角色") is not None
-
-
-@pytest.mark.asyncio
-async def test_ingest_novel_reuses_graph_based_build_steps(tmp_project, tmp_path, monkeypatch):
-    from novelvideo.models import NovelCharacter, NovelEpisode
-
-    novel_path = tmp_path / "novel.txt"
-    novel_path.write_text("林昭走进钟楼。", encoding="utf-8")
-    calls: list[str] = []
-
-    async def fake_ingest_novel_fast(novel_path_arg, rebuild=False, on_progress=None, on_log=None):
-        calls.append(f"fast:{Path(novel_path_arg).name}:{rebuild}")
-        tmp_project.save_novel_content("林昭走进钟楼。")
-        return {"char_count": 7, "dataset": tmp_project.dataset_name, "status": "graph_ready"}
-
-    async def fake_build_characters_from_graph(on_progress=None, on_log=None):
-        calls.append("characters")
-        character = NovelCharacter(name="林昭", description="修表师")
-        await tmp_project.add_character(character)
-        return [character]
-
-    async def fake_build_episodes(target_episodes=10, on_progress=None, on_log=None):
-        calls.append(f"episodes:{target_episodes}")
-        episode = NovelEpisode(
-            number=1,
-            title="钟楼来信",
-            content_summary="林昭发现父亲线索。",
-        )
-        await tmp_project.add_episodes([episode])
-        return [episode]
-
-    monkeypatch.setattr(tmp_project, "ingest_novel_fast", fake_ingest_novel_fast)
-    monkeypatch.setattr(tmp_project, "build_characters_from_graph", fake_build_characters_from_graph)
-    monkeypatch.setattr(tmp_project, "build_episodes", fake_build_episodes)
-
-    result = await tmp_project.ingest_novel(
-        str(novel_path),
-        rebuild=True,
-        target_episodes=1,
-    )
-
-    assert calls == ["fast:novel.txt:True", "characters", "episodes:1"]
-    assert result == {
-        "char_count": 7,
-        "dataset": tmp_project.dataset_name,
-        "characters": 1,
-        "episodes": 1,
-    }
-
-
-@pytest.mark.asyncio
-async def test_build_scenes_from_graph_only_adds_missing_base_scenes(tmp_project, monkeypatch):
-    from novelvideo.cognee import pipeline
-    from novelvideo.models import NovelScene
-
-    await tmp_project.sqlite_store.add_scene(
-        NovelScene(
-            name="城市街道",
-            scene_type="exterior",
-            environment_prompt="用户修过的基础场景",
-        )
-    )
-    await tmp_project.sqlite_store.add_scene(
-        NovelScene(
-            name="城市街道_雨夜版",
-            scene_type="exterior",
-            base_scene_id="城市街道",
-            variant_id="雨夜版",
-            variant_prompt="用户修过的雨夜增量",
-        )
-    )
-
-    graph_calls = []
-
-    async def fake_extract_scenes_from_graph(**kwargs):
-        graph_calls.append(kwargs)
-        return [
-            NovelScene(
-                name="城市街道",
-                scene_type="exterior",
-                environment_prompt="图谱新描述不应覆盖",
-            ),
-            NovelScene(name="新场景", scene_type="interior", environment_prompt="新增场景"),
-        ]
-
-    monkeypatch.setattr(pipeline, "extract_scenes_from_graph", fake_extract_scenes_from_graph)
-    tmp_project.save_novel_content("剧本文本")
-
-    added = await tmp_project.build_scenes_from_graph()
-
-    assert len(graph_calls) == 1
-    assert graph_calls[0]["dataset_name"] == tmp_project.dataset_name
-    assert graph_calls[0]["project_name"] == tmp_project.project_name
-    assert graph_calls[0]["state_dir"] == tmp_project.state_dir
-    assert [scene.name for scene in added] == ["新场景"]
-    base = await tmp_project.sqlite_store.get_scene("城市街道")
-    assert base is not None
-    assert base.environment_prompt == "用户修过的基础场景"
-    derived = await tmp_project.sqlite_store.get_scene("城市街道_雨夜版")
-    assert derived is not None
-    assert derived.base_scene_id == "城市街道"
-    assert derived.variant_prompt == "用户修过的雨夜增量"
-    assert await tmp_project.sqlite_store.get_scene("新场景") is not None
-
-
-@pytest.mark.asyncio
-async def test_build_scenes_from_graph_repairs_its_own_boilerplate(
-    tmp_project, monkeypatch
-):
-    """Legacy projects get the same repair as structured ones.
-
-    While the contract validator rejected valid single-line model output, every
-    scene built on this track stored generated boilerplate. Skipping existing
-    scenes on rebuild would leave those projects on it permanently, so a stored
-    prompt carrying the fallback fingerprint is replaced — and nothing else is.
-    """
-    from novelvideo.cognee import pipeline
-    from novelvideo.models import NovelScene
-
-    boilerplate = pipeline._ensure_directional_environment_prompt(
-        prompt="",
-        scene_name="主任办公室",
-        scene_type="interior",
-        time_of_day="",
-        context_lines=["▲张秉权坐在办公桌后翻看文件。"],
-    )
-    assert pipeline.SCENE_FALLBACK_FINGERPRINT in boilerplate
-
-    await tmp_project.sqlite_store.add_scene(
-        NovelScene(
-            name="主任办公室",
-            scene_type="interior",
-            environment_prompt=boilerplate,
-            spatial_layout_image="/generated/plate.png",
-            notes="人工备注",
-        )
-    )
-
-    real = (
-        "正面：主墙平整素雅，中央悬挂单位标识，下方为办公桌。"
-        "左侧：浅色实体墙连接前后，靠前设磨砂玻璃木门。"
-        "右侧：墙面延伸至后方，设大面积窗户与百叶帘。"
-        "背面：与主墙相对的墙面完整平直，设嵌入式资料柜。"
-    )
-
-    async def fake_extract_scenes_from_graph(**_kwargs):
-        return [
-            NovelScene(
-                name="主任办公室", scene_type="interior", environment_prompt=real
-            )
-        ]
-
-    monkeypatch.setattr(
-        pipeline, "extract_scenes_from_graph", fake_extract_scenes_from_graph
-    )
-    tmp_project.save_novel_content("剧本文本")
-
-    added = await tmp_project.build_scenes_from_graph()
-
-    assert added == []  # a repair is not an addition
-    scene = await tmp_project.sqlite_store.get_scene("主任办公室")
-    assert pipeline.SCENE_FALLBACK_FINGERPRINT not in scene.environment_prompt
-    assert "单位标识" in scene.environment_prompt
-    # Only the prompt moved; generated assets and human notes stay put.
-    assert scene.spatial_layout_image == "/generated/plate.png"
-    assert scene.notes == "人工备注"
-
-
-@pytest.mark.asyncio
-async def test_build_scenes_from_graph_keeps_boilerplate_over_invalid_output(
-    tmp_project, monkeypatch
-):
-    """A malformed rebuild must not overwrite storage with something worse."""
-    from novelvideo.cognee import pipeline
-    from novelvideo.models import NovelScene
-
-    boilerplate = pipeline._ensure_directional_environment_prompt(
-        prompt="",
-        scene_name="主任办公室",
-        scene_type="interior",
-        time_of_day="",
-        context_lines=["▲张秉权坐在办公桌后翻看文件。"],
-    )
-    await tmp_project.sqlite_store.add_scene(
-        NovelScene(
-            name="主任办公室",
-            scene_type="interior",
-            environment_prompt=boilerplate,
-        )
-    )
-
-    async def fake_extract_scenes_from_graph(**_kwargs):
-        return [
-            NovelScene(
-                name="主任办公室", scene_type="interior", environment_prompt="正面：a"
-            )
-        ]
-
-    monkeypatch.setattr(
-        pipeline, "extract_scenes_from_graph", fake_extract_scenes_from_graph
-    )
-    tmp_project.save_novel_content("剧本文本")
-
-    await tmp_project.build_scenes_from_graph()
-
-    scene = await tmp_project.sqlite_store.get_scene("主任办公室")
-    assert scene.environment_prompt == boilerplate
-
-
-@pytest.mark.asyncio
-async def test_graph_rebuild_waits_only_for_scene_graph_query(
-    tmp_project,
-    monkeypatch,
-):
-    from novelvideo.cognee import pipeline
-    from novelvideo.cognee.ladybug_access import ladybug_graph_access
-    from novelvideo.graph_preview import (
-        acquire_graph_preview_lock_async,
-        release_graph_preview_lock,
-    )
-
-    graph_read_started = asyncio.Event()
-    finish_graph_read = asyncio.Event()
-    enrichment_started = asyncio.Event()
-    finish_enrichment = asyncio.Event()
-
-    async def staged_extract_scenes_from_graph(**kwargs):
-        async with ladybug_graph_access(kwargs["state_dir"], read_only=True):
-            graph_read_started.set()
-            await finish_graph_read.wait()
-        enrichment_started.set()
-        await finish_enrichment.wait()
-        return []
-
-    monkeypatch.setattr(
-        pipeline,
-        "extract_scenes_from_graph",
-        staged_extract_scenes_from_graph,
-    )
-    tmp_project.save_novel_content("剧本文本")
-
-    read_task = asyncio.create_task(tmp_project.build_scenes_from_graph())
-    await asyncio.wait_for(graph_read_started.wait(), timeout=1)
-
-    rebuild_lock_task = asyncio.create_task(
-        acquire_graph_preview_lock_async(tmp_project.state_dir)
-    )
-    await asyncio.sleep(0.1)
-    assert not rebuild_lock_task.done()
-
-    finish_graph_read.set()
-    await asyncio.wait_for(enrichment_started.wait(), timeout=1)
-    rebuild_lock = await asyncio.wait_for(rebuild_lock_task, timeout=1)
-    assert not read_task.done()
-    release_graph_preview_lock(rebuild_lock)
-
-    finish_enrichment.set()
-    assert await asyncio.wait_for(read_task, timeout=1) == []
-
-
-@pytest.mark.asyncio
-async def test_graph_build_steps_reject_missing_novel(tmp_project):
-    with pytest.raises(ValueError, match="^请先导入小说$"):
-        await tmp_project.build_characters_from_graph()
-
-    with pytest.raises(ValueError, match="^请先导入小说$"):
-        await tmp_project.build_scenes_from_graph()
 
 
 @pytest.mark.asyncio
@@ -1059,23 +726,6 @@ async def test_beat_update(tmp_project):
     assert dicts[0]["detected_identities"] == ["苏清晏_嫡女日常"]
 
 
-def test_stringify_search_fragment_handles_nested_lists():
-    from novelvideo.cognee.store import CogneeStore
-
-    payload = [
-        "第一行",
-        ["第二行", "第三行"],
-        {"role": "旁白"},
-    ]
-
-    text = CogneeStore._stringify_search_fragment(payload)
-
-    assert "第一行" in text
-    assert "第二行" in text
-    assert "第三行" in text
-    assert '"role": "旁白"' in text
-
-
 # ── 7. load_graph_state 恢复缓存 ──────────────────────────
 @pytest.mark.asyncio
 async def test_load_graph_state(tmp_project):
@@ -1333,7 +983,7 @@ async def test_persist_narration_script_completes_detected_refs_from_markers(tmp
             ],
         )
     )
-    await store.sqlite_store.add_prop(NovelProp(name="羊皮笔记本", marker_color="#a78bfa"))
+    await store.add_prop(NovelProp(name="羊皮笔记本", marker_color="#a78bfa"))
 
     from types import SimpleNamespace
 

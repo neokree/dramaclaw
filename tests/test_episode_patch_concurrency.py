@@ -1,4 +1,4 @@
-"""Column-level episode updates, and the default switch to structured_v1.
+"""Column-level episode updates.
 
 Scene, prop and identity planning for one episode run concurrently in separate
 Celery workers. Any whole-row read-modify-write loses one planner's result, and
@@ -14,13 +14,6 @@ import json
 from pathlib import Path
 
 import pytest
-
-from novelvideo.knowledge_pipeline import (
-    COGNEE_LEGACY,
-    KNOWLEDGE_PIPELINE_KEY,
-    KNOWLEDGE_PIPELINE_STRUCTURED,
-    knowledge_pipeline_from_state_dir,
-)
 
 
 def _write_config(state_dir: Path, config: dict) -> None:
@@ -46,7 +39,7 @@ async def project(tmp_path):
     from novelvideo.models import NovelEpisode
 
     state_dir = tmp_path / "user" / "project"
-    _write_config(state_dir, {KNOWLEDGE_PIPELINE_KEY: KNOWLEDGE_PIPELINE_STRUCTURED})
+    _write_config(state_dir, {"knowledge_pipeline": "structured_v1"})
     store = await _open_store(state_dir)
     await store.add_episodes([NovelEpisode(number=1, title="第一集")])
     try:
@@ -220,20 +213,9 @@ async def test_new_projects_are_structured_and_carry_no_embedding_binding(
     assert response["ok"] is True
 
     config = json.loads((state_dir / "project_config.json").read_text(encoding="utf-8"))
-    assert config[KNOWLEDGE_PIPELINE_KEY] == KNOWLEDGE_PIPELINE_STRUCTURED
+    assert "knowledge_pipeline" not in config
     assert PROJECT_EMBEDDING_MODEL_KEY not in config
     assert PROJECT_EMBEDDING_DIMENSION_KEY not in config
-
-
-def test_existing_projects_keep_their_track(tmp_path):
-    """The switch must not reclassify anything already on disk."""
-    legacy = tmp_path / "legacy"
-    _write_config(legacy, {"user": "x", "cognee_embedding_model": "DC-cognee-embedding-v2"})
-    assert knowledge_pipeline_from_state_dir(legacy) == COGNEE_LEGACY
-
-    ancient = tmp_path / "ancient"
-    _write_config(ancient, {"user": "x"})
-    assert knowledge_pipeline_from_state_dir(ancient) == COGNEE_LEGACY
 
 
 def _async(value):
@@ -250,7 +232,7 @@ def _planner_store(state_dir: Path, *, structured: bool):
     """A stand-in exposing what the planners actually touch."""
     from types import SimpleNamespace
 
-    config = {KNOWLEDGE_PIPELINE_KEY: KNOWLEDGE_PIPELINE_STRUCTURED} if structured else {"user": "x"}
+    config = {"knowledge_pipeline": "structured_v1"} if structured else {"user": "x"}
     _write_config(state_dir, config)
 
     sqlite = SimpleNamespace(patched=[], updated=[])

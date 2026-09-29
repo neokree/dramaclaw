@@ -88,7 +88,7 @@ async def test_beat_video_prompt_runner_closes_sqlite_store(monkeypatch, tmp_pat
 
 @pytest.mark.asyncio
 async def test_script_writer_reads_effective_scoped_config_and_closes_store(monkeypatch, tmp_path):
-    import novelvideo.cognee as cognee
+    import novelvideo.sqlite_store as sqlite_store_module
     from novelvideo import project_config
     from novelvideo.task_backend.runners import script as runner
     from novelvideo.workflows import script_writing
@@ -103,7 +103,7 @@ async def test_script_writer_reads_effective_scoped_config_and_closes_store(monk
     monkeypatch.setattr(project_config, "OUTPUT_DIR", tmp_path / "fallback-state")
     workflow_config: dict = {}
 
-    class FakeCogneeStore:
+    class FakeStore:
         def __new__(cls, *args, **kwargs):
             return store
 
@@ -119,7 +119,7 @@ async def test_script_writer_reads_effective_scoped_config_and_closes_store(monk
         return FakeWorkflow()
 
     monkeypatch.setattr(runner, "get_task_manager", lambda: _Manager())
-    monkeypatch.setattr(cognee, "CogneeStore", FakeCogneeStore)
+    monkeypatch.setattr(sqlite_store_module, "SQLiteStore", FakeStore)
     monkeypatch.setattr(
         script_writing,
         "create_script_writing_workflow",

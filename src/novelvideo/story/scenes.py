@@ -262,9 +262,7 @@ def _ensure_directional_environment_prompt(
 def _create_scene_build_agent(system_prompt: str, output_type: Any, name: str):
     """Create the scene-build business LLM agent.
 
-    This intentionally does not use Cognee's LLMGateway: scene construction uses
-    Cognee project context, but its two structured LLM calls are business logic,
-    not Cognee graph ingest/cognify/memify work.
+    Runs on the configured text engine.
     """
     from pydantic_ai import Agent
     from novelvideo.config import (

@@ -25,7 +25,6 @@ from novelvideo.utils.project_paths import ProjectPaths
 from novelvideo.utils.static_urls import project_static_url
 
 if TYPE_CHECKING:
-    from novelvideo.cognee import CogneeStore
     from novelvideo.sqlite_store import SQLiteStore
 
 PROJECT_TRASH_DIRNAME = "_trash"
@@ -201,21 +200,6 @@ async def _close_on_init_failure(store: "Any", *steps: "Any") -> "Any":
     return store
 
 
-async def make_cognee_store(username: str, project: str) -> "CogneeStore":
-    """按请求创建 CogneeStore 实例。
-
-    旧 API/任务路径仍直接 await 这个函数；FastAPI dependency 使用下面的
-    ``*_store_scope`` 包装，避免一次性改动所有调用点。
-    """
-    from novelvideo.cognee import CogneeStore
-
-    project_name = f"{username}/{project}"
-    output_dir = get_output_dir(username, project)
-    state_dir = get_state_dir(username, project)
-    store = CogneeStore(project_name, output_dir=output_dir, state_dir=state_dir)
-    return await _close_on_init_failure(store, store.initialize)
-
-
 async def make_sqlite_store(
     username: str,
     project: str,
@@ -265,29 +249,6 @@ async def make_sqlite_store_for_context(
     return await _close_on_init_failure(store, *steps)
 
 
-async def make_cognee_store_for_context(ctx: ProjectContext) -> "CogneeStore":
-    """Create a CogneeStore from the resolved project owner/home paths."""
-    from novelvideo.cognee import CogneeStore
-
-    require_project_home_node(ctx, operation="open project graph store")
-    store = CogneeStore(
-        ctx.owner_project_label,
-        output_dir=str(ctx.output_dir),
-        state_dir=str(ctx.state_dir),
-    )
-    return await _close_on_init_failure(store, store.initialize)
-
-
-async def _make_cognee_store_scope(username: str, project: str) -> AsyncIterator["CogneeStore"]:
-    store = await make_cognee_store(username, project)
-    try:
-        yield store
-    finally:
-        close = getattr(store, "close", None)
-        if close:
-            await close()
-
-
 async def _make_sqlite_store_scope(
     username: str,
     project: str,
@@ -326,7 +287,6 @@ async def _make_sqlite_store_for_context_scope(
 
 
 sqlite_store_scope = asynccontextmanager(_make_sqlite_store_scope)
-cognee_store_scope = asynccontextmanager(_make_cognee_store_scope)
 
 #: ``async with`` 作用域版的 :func:`make_sqlite_store_for_context`。
 #:
@@ -349,25 +309,6 @@ async def get_sqlite_store(
         required_role="viewer",
     )
     store = await make_sqlite_store_for_context(ctx)
-    try:
-        yield store
-    finally:
-        close = getattr(store, "close", None)
-        if close:
-            await close()
-
-
-async def get_cognee_store(
-    project: str,
-    user: dict = Depends(get_api_user),
-) -> AsyncIterator["CogneeStore"]:
-    """FastAPI dependency: 当前 project_id 作用域的 CogneeStore。"""
-    ctx = await resolve_project_context(
-        user=user,
-        project_id=project,
-        required_role="viewer",
-    )
-    store = await make_cognee_store_for_context(ctx)
     try:
         yield store
     finally:

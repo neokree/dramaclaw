@@ -1,7 +1,6 @@
-"""Project-level asset builds for structured_v1 projects.
+"""Project-level asset builds.
 
-Each build reads the imported source text and publishes to SQLite.  None of them
-touch Cognee, an embedding model or the graph.
+Each build reads the imported source text and publishes to SQLite.
 
 The three builds differ in how much they can usefully do up front:
 

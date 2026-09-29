@@ -1,4 +1,4 @@
-"""Celery runners for graph-to-SQLite build steps."""
+"""Task runners for the project-level character/scene/prop/episode builds."""
 
 from __future__ import annotations
 
@@ -7,10 +7,6 @@ from typing import Any
 
 from novelvideo.model_gateway_runtime import model_gateway_scope_for_runner
 from novelvideo.novel_source import require_imported_novel
-from novelvideo.knowledge_pipeline import (
-    KnowledgePipelineUnsupported,
-    is_structured_pipeline,
-)
 from novelvideo.project_context import ProjectContext
 from novelvideo.task_backend.cancel import await_envelope_with_cancel_watch
 from novelvideo.task_backend.registry import register_project_task_runner
@@ -30,7 +26,7 @@ def _progress(
     """进度/日志上报。
 
     `progress=None` 表示「只更新步骤文案和日志，保留原有进度」。普通日志行必须
-    走这条路径：图谱构建的 on_log 回调本身不带进度，早期用 0.0 占位会让前端进
+    走这条路径：构建任务的 on_log 回调本身不带进度，早期用 0.0 占位会让前端进
     度条在 10% → 0% → 80% → 0% 之间反复倒退。
     """
     get_task_manager().update_progress_for_project(
@@ -44,27 +40,13 @@ def _progress(
 
 
 async def _load_store(ctx: ProjectContext):
-    """Open the project store its knowledge pipeline calls for.
+    from novelvideo.sqlite_store import SQLiteStore
 
-    structured_v1 builds never touch the graph, so they use SQLiteStore directly
-    rather than reaching through the Cognee facade.
-    """
-    if is_structured_pipeline(ctx.state_dir):
-        from novelvideo.sqlite_store import SQLiteStore
-
-        store = SQLiteStore(
-            ctx.owner_project_label,
-            output_dir=str(ctx.output_dir),
-            state_dir=str(ctx.state_dir),
-        )
-    else:
-        from novelvideo.cognee import CogneeStore
-
-        store = CogneeStore(
-            ctx.owner_project_label,
-            output_dir=str(ctx.output_dir),
-            state_dir=str(ctx.state_dir),
-        )
+    store = SQLiteStore(
+        ctx.owner_project_label,
+        output_dir=str(ctx.output_dir),
+        state_dir=str(ctx.state_dir),
+    )
     await store.initialize()
     await store.load_graph_state()
     return store
@@ -85,19 +67,13 @@ async def _run_build_characters(ctx: ProjectContext) -> dict[str, Any]:
 
         def on_log(message: str) -> None:
             _progress(ctx, "build_characters", None, message)
-        if is_structured_pipeline(ctx.state_dir):
-            from novelvideo.structured_builders import build_characters_structured
 
-            added = await build_characters_structured(
-                store, on_progress=on_progress, on_log=on_log
-            )
-            return {"characters": len(added), "added_characters": len(added)}
+        from novelvideo.structured_builders import build_characters_structured
 
-        characters = await store.build_characters_from_graph(
-            on_progress=on_progress,
-            on_log=on_log,
+        added = await build_characters_structured(
+            store, on_progress=on_progress, on_log=on_log
         )
-        return {"characters": len(characters), "added_characters": len(characters)}
+        return {"characters": len(added), "added_characters": len(added)}
     finally:
         await store.close()
 
@@ -130,18 +106,12 @@ async def _run_build_scenes(ctx: ProjectContext) -> dict[str, Any]:
 
         def on_log(message: str) -> None:
             _progress(ctx, "build_scenes", None, message)
-        if is_structured_pipeline(ctx.state_dir):
-            from novelvideo.structured_builders import build_scenes_structured
 
-            return await build_scenes_structured(
-                store, on_progress=on_progress, on_log=on_log
-            )
+        from novelvideo.structured_builders import build_scenes_structured
 
-        scenes = await store.build_scenes_from_graph(
-            on_progress=on_progress,
-            on_log=on_log,
+        return await build_scenes_structured(
+            store, on_progress=on_progress, on_log=on_log
         )
-        return {"scenes": len(scenes), "added_scenes": len(scenes)}
     finally:
         await store.close()
 
@@ -160,18 +130,12 @@ async def _run_build_props(ctx: ProjectContext) -> dict[str, Any]:
 
         def on_log(message: str) -> None:
             _progress(ctx, "build_props", None, message)
-        if is_structured_pipeline(ctx.state_dir):
-            from novelvideo.structured_builders import build_props_structured
 
-            return await build_props_structured(
-                store, on_progress=on_progress, on_log=on_log
-            )
+        from novelvideo.structured_builders import build_props_structured
 
-        props = await store.build_props_from_graph(
-            on_progress=on_progress,
-            on_log=on_log,
+        return await build_props_structured(
+            store, on_progress=on_progress, on_log=on_log
         )
-        return {"props": len(props)}
     finally:
         await store.close()
 
@@ -185,62 +149,28 @@ def run_build_episodes(
 async def _run_build_episodes(
     envelope: dict[str, Any], ctx: ProjectContext
 ) -> dict[str, Any]:
-    from novelvideo.agents.episode_planner import EpisodePlannerAgent
-
     payload = envelope.get("payload") or {}
     config = dict(payload.get("config") or {})
-    target = int(config.get("target_episodes", 10))
-    use_agent = bool(config.get("use_agent_planner", True))
-    planning_mode = str(config.get("planning_mode", "ai"))
+    planning_mode = str(config.get("planning_mode", "chapters"))
     generate_metadata = bool(config.get("generate_metadata", False))
     require_imported_novel(ctx.output_dir)
-    # Defence in depth: the route rejects AI modes for structured projects
-    # before enqueue, but a task queued before the project's track was known
-    # must not reach a planner that needs the graph.
-    if is_structured_pipeline(ctx.state_dir) and planning_mode != "chapters":
-        raise KnowledgePipelineUnsupported(
-            "structured_v1 only supports deterministic chapter/episode mapping"
-        )
+    # Defence in depth: the route rejects other modes before enqueue, but a
+    # task queued by an older build could still carry one.
+    # ponytail: SQLiteStore.build_episodes_from_events exists; admit
+    # "ai_events" here and in the route if event planning is re-enabled.
+    if planning_mode != "chapters":
+        raise ValueError(f"Unsupported episode planning mode: {planning_mode}")
     store = await _load_store(ctx)
     try:
 
         def update(progress: float | None, task: str) -> None:
             _progress(ctx, "build_episodes", progress, task)
 
-        if planning_mode == "chapters":
-            episodes = await store.build_episodes_from_chapters(
-                generate_metadata=generate_metadata,
-                on_progress=update,
-                on_log=lambda message: update(None, message),
-            )
-        elif planning_mode == "ai_events":
-            episodes = await store.build_episodes_from_events(
-                target_episodes=target,
-                on_progress=update,
-                on_log=lambda message: update(None, message),
-            )
-        elif use_agent:
-            try:
-                planner = EpisodePlannerAgent(store)
-                episodes = await planner.plan_episodes(
-                    target_episodes=target,
-                    on_progress=update,
-                    on_log=lambda message: update(None, message),
-                )
-            except Exception:
-                episodes = await store.build_episodes(
-                    target_episodes=target,
-                    on_progress=update,
-                    on_log=lambda message: update(None, message),
-                )
-            else:
-                await store.replace_episodes(episodes)
-        else:
-            episodes = await store.build_episodes(
-                target_episodes=target,
-                on_progress=update,
-                on_log=lambda message: update(None, message),
-            )
+        episodes = await store.build_episodes_from_chapters(
+            generate_metadata=generate_metadata,
+            on_progress=update,
+            on_log=lambda message: update(None, message),
+        )
         return {"episodes": len(episodes)}
     finally:
         await store.close()

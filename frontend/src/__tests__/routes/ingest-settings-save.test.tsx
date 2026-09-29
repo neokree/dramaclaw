@@ -62,20 +62,6 @@ beforeAll(async () => {
               confirm: "Confirm re-import",
             },
             previewHeading: "Novel Structure Preview",
-            knowledgeGraph: {
-              title: "Knowledge Graph",
-              stats: "{{nodes}} nodes · {{edges}} relationships",
-              connections: "{{count}} connections",
-              relationships: "Relationships",
-              interactionHint: "Drag to pan",
-              truncated: "Showing core relationships",
-              zoomIn: "Zoom in",
-              zoomOut: "Zoom out",
-              resetView: "Reset view",
-              expand: "Expand graph",
-              loadFailed: "Knowledge graph is unavailable",
-              loadFailedHint: "Try again later.",
-            },
             inputMode: { upload: "Upload Novel", paste: "Paste Text" },
             sourceHint: {
               uploadActive: "Uploaded file active",
@@ -225,7 +211,6 @@ const mocks = vi.hoisted(() => ({
   // 模拟 React Query 的 isFetchedAfterMount：默认 true（已挂载后刷到新数据）；
   // stale-cache 竞态用例把它设为 false，表示当前 data 还是挂载前的旧缓存。
   ingestTasksFetchedAfterMount: true,
-  refetchKnowledgeGraph: vi.fn(),
   taskStreamOnError: null as ((error: string) => void) | null,
 }));
 
@@ -303,46 +288,6 @@ vi.mock("@/lib/queries/projects", () => ({
 
 vi.mock("@/lib/queries/ingest", () => ({
   useChapters: () => ({ data: mocks.chaptersData, isFetching: false }),
-  useKnowledgeGraph: (_project: string, enabled: boolean) => ({
-    data: enabled
-      ? {
-          ok: true,
-          data: {
-            nodes: [
-              {
-                id: "node-1",
-                label: "林昭",
-                type: "Entity",
-                degree: 1,
-                properties: { description: "雨巷少年" },
-              },
-              {
-                id: "node-2",
-                label: "雨巷",
-                type: "Entity",
-                degree: 1,
-                properties: {},
-              },
-            ],
-            edges: [
-              {
-                id: "edge-1",
-                source: "node-1",
-                target: "node-2",
-                relation: "appears_in",
-                properties: {},
-              },
-            ],
-            total_nodes: 2,
-            total_edges: 1,
-            truncated: false,
-          }
-        }
-      : undefined,
-    isLoading: false,
-    isError: false,
-    refetch: mocks.refetchKnowledgeGraph,
-  }),
   useUploadNovel: () => ({ mutateAsync: mocks.uploadNovel, isPending: false }),
   useStartIngest: () => ({
     mutateAsync: mocks.startIngest,
@@ -655,52 +600,6 @@ describe("IngestPage settings save", () => {
       spine_template: "drama",
     });
     expect(mocks.uploadNovel).not.toHaveBeenCalled();
-  });
-
-  it("shows the knowledge graph result after content is imported", () => {
-    mocks.chaptersData = {
-      ok: true,
-      data: {
-        total_chars: 10,
-        count: 1,
-        chapters: [{ number: 1, title: "第一章", char_count: 10 }],
-      },
-    };
-
-    render(
-      <Wrapper>
-        <IngestPageContent project="demo" />
-      </Wrapper>,
-    );
-
-    expect(
-      screen.getByRole("heading", { name: "Knowledge Graph" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("2 nodes · 1 relationships")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "林昭, Entity" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "雨巷, Entity" })).toBeInTheDocument();
-  });
-
-  it("does not request or show the graph for an upload-only chapter preview", () => {
-    mocks.chaptersData = {
-      ok: true,
-      data: {
-        total_chars: 10,
-        count: 1,
-        preview_only: true,
-        chapters: [{ number: 1, title: "第一章", char_count: 10 }],
-      },
-    };
-
-    render(
-      <Wrapper>
-        <IngestPageContent project="demo" />
-      </Wrapper>,
-    );
-
-    expect(
-      screen.queryByRole("heading", { name: "Knowledge Graph" }),
-    ).not.toBeInTheDocument();
   });
 
   it("falls back to chapter content title and legacy char count in preview", () => {

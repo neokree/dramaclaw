@@ -315,8 +315,6 @@ def _normalize_recorded_model_name(model: str) -> str:
         return ""
     plain = _strip_model_provider_prefix(raw)
     for env_key in (
-        "COGNEE_LLM_MODEL",
-        "COGNEE_EMBEDDING_MODEL",
         "IDENTITY_PLANNER_CAST_MODEL",
         "IDENTITY_PLANNER_ANALYSIS_MODEL",
         "IDENTITY_PLANNER_APPEARANCE_MODEL",

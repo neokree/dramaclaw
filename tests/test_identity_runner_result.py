@@ -105,8 +105,7 @@ async def test_identity_runner_preserves_task_billing_context(monkeypatch):
 
     monkeypatch.setattr(identity, "get_task_manager", lambda: FakeTaskManager())
     monkeypatch.setattr(identity, "get_usage_meter", lambda: ForbiddenUsageMeter(), raising=False)
-    monkeypatch.setattr("novelvideo.sqlite_store.SQLiteStore", FakeSQLiteStore)
-    monkeypatch.setattr("novelvideo.cognee.CogneeStore", FakeCogneeStore)
+    monkeypatch.setattr("novelvideo.sqlite_store.SQLiteStore", FakeCogneeStore)
     monkeypatch.setattr(
         "novelvideo.agents.identity_planner.IdentityPlanner",
         FakeIdentityPlanner,
@@ -166,8 +165,7 @@ async def test_identity_runner_rechecks_character_prerequisite(monkeypatch):
             return SimpleNamespace(number=episode)
 
     monkeypatch.setattr(identity, "get_task_manager", FakeTaskManager)
-    monkeypatch.setattr("novelvideo.sqlite_store.SQLiteStore", FakeSQLiteStore)
-    monkeypatch.setattr("novelvideo.cognee.CogneeStore", EmptyCogneeStore)
+    monkeypatch.setattr("novelvideo.sqlite_store.SQLiteStore", EmptyCogneeStore)
 
     ctx = SimpleNamespace(
         owner_project_label="alice/demo",

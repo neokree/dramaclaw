@@ -29,7 +29,7 @@ async def _run_prop_reference_asset(
     envelope: dict[str, Any],
     ctx: ProjectContext,
 ) -> dict[str, Any] | None:
-    from novelvideo.cognee import CogneeStore
+    from novelvideo.sqlite_store import SQLiteStore
     from novelvideo.generators.nanobanana_prop import generate_prop_reference
     from novelvideo.generators.nanobanana_grid import scene_reference_feature_billing
 
@@ -41,14 +41,14 @@ async def _run_prop_reference_asset(
     scope = envelope.get("scope")
     manager = get_task_manager()
 
-    store = CogneeStore(
+    store = SQLiteStore(
         ctx.owner_project_label,
         output_dir=str(output_dir),
         state_dir=str(ctx.state_dir),
     )
     await store.initialize()
     try:
-        prop = await store.sqlite_store.get_prop(prop_name)
+        prop = await store.get_prop(prop_name)
         if prop is None:
             raise RuntimeError(f"找不到道具: {prop_name}")
         visual_prompt = prop.visual_prompt or prop.description or prop.name
@@ -74,7 +74,7 @@ async def _run_prop_reference_asset(
             )
         if not result_path:
             raise RuntimeError("图像 API 未返回有效图像")
-        await store.sqlite_store.touch_prop_asset(prop.name)
+        await store.touch_prop_asset(prop.name)
         return {"prop_name": prop.name, "path": str(result_path), "style": style}
     finally:
         await store.close()

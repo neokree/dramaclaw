@@ -189,7 +189,7 @@ def test_ce_auth_me_logout_and_project_crud_contract(
         # New projects use structured extraction and are deliberately not bound
         # to an embedding model. The binding is permanent once written, so this
         # is decided at creation time; existing projects keep theirs.
-        assert detail.json()["data"]["knowledge_pipeline"] == "structured_v1"
+        assert "knowledge_pipeline" not in detail.json()["data"]
         assert "cognee_embedding_model" not in detail.json()["data"]
         assert "cognee_embedding_dimension" not in detail.json()["data"]
 

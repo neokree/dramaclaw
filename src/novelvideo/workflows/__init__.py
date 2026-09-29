@@ -1,4 +1,4 @@
-"""NovelVideo Workflows 模块（Cognee 版）。"""
+"""NovelVideo Workflows 模块。"""
 
 from novelvideo.workflows.script_writing import (
     ScriptWritingWorkflow,

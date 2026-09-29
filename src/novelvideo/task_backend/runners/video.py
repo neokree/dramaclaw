@@ -677,7 +677,7 @@ async def _run_global_optimize_video_async(
         get_global_video_optimizer,
         prepare_global_optimizer_input,
     )
-    from novelvideo.cognee import CogneeStore
+    from novelvideo.sqlite_store import SQLiteStore
     from novelvideo.utils.path_resolver import PathResolver
 
     payload = envelope.get("payload") or {}
@@ -699,7 +699,7 @@ async def _run_global_optimize_video_async(
         )
 
     log("开始全局视频提示词优化（仅 first_frame）...", progress=0.02)
-    store = CogneeStore(
+    store = SQLiteStore(
         ctx.owner_project_label,
         output_dir=output_dir,
         state_dir=str(ctx.state_dir),

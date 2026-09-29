@@ -475,7 +475,7 @@ def parse_location_header(line: str) -> tuple[str, str, str] | None:
 
     # A slash in a production scene heading commonly means that one written
     # scene spans adjacent sub-locations (for example "教室/楼梯间"). Preserve
-    # that composite boundary here; Cognee may split it into physical places
+    # that composite boundary here; it may be split into physical places
     # later through parse_location_line().
     times = {time_of_day for _, time_of_day, _ in locs}
     interiors = {interior for _, _, interior in locs}

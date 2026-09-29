@@ -8,11 +8,6 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from novelvideo.graph_preview import (
-    delete_graph_preview,
-    load_graph_preview,
-    write_graph_preview,
-)
 from novelvideo.models import CharacterIdentity, NovelCharacter, NovelEpisode, NovelProp, NovelScene
 from novelvideo.project_context import ProjectContext
 
@@ -50,39 +45,6 @@ def _write_media(path: Path, content: bytes = b"media") -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(content)
     return path
-
-
-def _graph_snapshot_payload() -> dict:
-    return {
-        "nodes": [
-            {
-                "id": "character-1",
-                "label": _CHARACTER,
-                "type": "Entity",
-                "degree": 1,
-                "properties": {"description": "雨巷少年"},
-            },
-            {
-                "id": "scene-1",
-                "label": _SCENE,
-                "type": "Entity",
-                "degree": 1,
-                "properties": {},
-            },
-        ],
-        "edges": [
-            {
-                "id": "edge-1",
-                "source": "character-1",
-                "target": "scene-1",
-                "relation": "appears_in",
-                "properties": {},
-            }
-        ],
-        "total_nodes": 2,
-        "total_edges": 1,
-        "truncated": False,
-    }
 
 
 class _M06Store:
@@ -157,9 +119,6 @@ class _M06Store:
 
     async def get_episode_from_graph(self, episode: int):
         return self._episodes[episode]
-
-    async def get_graph_snapshot(self):
-        return _graph_snapshot_payload()
 
     async def list_visual_beats(self):
         return []
@@ -248,7 +207,6 @@ def m06_client_factory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     runtime_dir = tmp_path / "runtime" / _USER / _PROJECT
     for path in (project_dir, state_dir, runtime_dir):
         path.mkdir(parents=True, exist_ok=True)
-    write_graph_preview(state_dir, _graph_snapshot_payload())
     (project_dir / "novel.txt").write_text("已导入小说", encoding="utf-8")
 
     source_image = _write_png(uploads_dir(project_dir) / "source.png")
@@ -329,7 +287,6 @@ def m06_client_factory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(ingest, "resolve_project_scope", resolve_project_scope)
     monkeypatch.setattr(freezone, "resolve_project_context", resolve_project_context)
     monkeypatch.setattr(freezone, "make_sqlite_store_for_context", make_store_for_context)
-    monkeypatch.setattr(freezone, "make_cognee_store_for_context", make_store_for_context)
     monkeypatch.setattr(freezone, "make_static_url_for_context", static_url)
     monkeypatch.setattr(freezone, "_beat_for_capture", beat_for_capture)
     monkeypatch.setattr(freezone, "compute_slot_impact", compute_impact)
@@ -469,82 +426,6 @@ def test_m06_ingest_upload_preview_and_unsupported_format(m06_client_factory):
     payload = response.json()
     assert payload["ok"] is False
     assert payload["error_type"] == "unsupported"
-
-
-def test_m06_ingest_exposes_real_knowledge_graph_snapshot(m06_client_factory):
-    client, _backend, _task_manager, _project_dir, _assets, _store = m06_client_factory("inline")
-
-    response = client.get(f"/api/v1/projects/{_PROJECT}/ingest/graph")
-    payload = _assert_ok(response)
-
-    assert payload["data"]["total_nodes"] == 2
-    assert payload["data"]["total_edges"] == 1
-    assert payload["data"]["nodes"][0]["label"] == _CHARACTER
-    assert payload["data"]["edges"][0]["relation"] == "appears_in"
-
-
-def test_m06_ingest_ignores_stale_graph_preview_without_success_marker(
-    m06_client_factory,
-    monkeypatch,
-):
-
-    client, _backend, _task_manager, project_dir, _assets, _store = m06_client_factory(
-        "inline"
-    )
-    (project_dir / "novel.txt").unlink()
-
-    response = client.get(f"/api/v1/projects/{_PROJECT}/ingest/graph")
-    payload = _assert_ok(response)
-
-    assert payload["data"]["total_nodes"] == 0
-    assert payload["data"]["total_edges"] == 0
-
-
-def test_m06_a_missing_graph_preview_reads_as_empty(
-    m06_client_factory,
-    monkeypatch,
-):
-    """A project without the sidecar gets no preview, and nothing is built.
-
-    Backfilling on read meant a viewer-role GET opening Ladybug from an API
-    worker and waiting on the project graph lock with no timeout — during a
-    rebuild, for the length of the rebuild, and then returning the empty
-    preview anyway because the rebuild had removed novel.txt. Nothing
-    downstream reads this file; it is one picture on the import page.
-    """
-    from novelvideo.api.routes import ingest
-
-    client, _backend, _task_manager, project_dir, assets, _store = m06_client_factory(
-        "inline"
-    )
-    delete_graph_preview(assets.ctx.state_dir)
-    (project_dir / "novel.txt").write_text("已导入小说", encoding="utf-8")
-
-    assert not hasattr(ingest, "make_cognee_store_for_context"), (
-        "the graph route must not be able to construct a Cognee store"
-    )
-
-    payload = _assert_ok(client.get(f"/api/v1/projects/{_PROJECT}/ingest/graph"))
-
-    assert payload["data"]["total_nodes"] == 0
-    assert payload["data"]["total_edges"] == 0
-    # Still absent afterwards: the read is a read.
-    assert load_graph_preview(assets.ctx.state_dir) is None
-
-
-def test_m06_a_written_graph_preview_is_served_from_the_sidecar(
-    m06_client_factory,
-):
-    """The normal path: import writes it, reads never open the graph."""
-    client, _backend, _task_manager, project_dir, assets, _store = m06_client_factory(
-        "inline"
-    )
-    (project_dir / "novel.txt").write_text("已导入小说", encoding="utf-8")
-    write_graph_preview(assets.ctx.state_dir, _graph_snapshot_payload())
-
-    payload = _assert_ok(client.get(f"/api/v1/projects/{_PROJECT}/ingest/graph"))
-
-    assert payload["data"]["total_nodes"] == 2
 
 
 @pytest.mark.parametrize("backend", ["inline", "celery"])

@@ -61,7 +61,7 @@ def test_explicit_state_dir_does_not_create_derived_fallback(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    from novelvideo.cognee import CogneeStore
+    from novelvideo.sqlite_store import SQLiteStore
     from novelvideo.utils import project_paths
 
     state_root = tmp_path / "state"
@@ -69,7 +69,7 @@ def test_explicit_state_dir_does_not_create_derived_fallback(
     monkeypatch.setattr(project_paths, "STATE_DIR", state_root)
     monkeypatch.setattr(project_paths, "OUTPUT_DIR", tmp_path / "legacy-output")
 
-    store = CogneeStore(
+    store = SQLiteStore(
         "alice/demo",
         output_dir=str(tmp_path / "output" / "alice" / "demo"),
         state_dir=str(scoped_state_dir),
@@ -220,7 +220,7 @@ async def test_scene_reference_passes_context_state_dir_to_style_lookup(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    import novelvideo.cognee as cognee
+    import novelvideo.sqlite_store as sqlite_store_module
     from novelvideo import config
     from novelvideo.task_backend.runners import scene_reference
 
@@ -234,9 +234,9 @@ async def test_scene_reference_passes_context_state_dir_to_style_lookup(
         async def get_scene(self, name: str):
             return SimpleNamespace(name=name, base_scene_id="")
 
-    class FakeStore:
+    class FakeStore(FakeSQLiteStore):
         def __init__(self, *args, **kwargs) -> None:
-            self.sqlite_store = FakeSQLiteStore()
+            pass
 
         async def initialize(self) -> None:
             pass
@@ -248,7 +248,7 @@ async def test_scene_reference_passes_context_state_dir_to_style_lookup(
         captured.update(kwargs)
         raise StyleRead
 
-    monkeypatch.setattr(cognee, "CogneeStore", FakeStore)
+    monkeypatch.setattr(sqlite_store_module, "SQLiteStore", FakeStore)
     monkeypatch.setattr(config, "get_style_preset", capture_style)
     monkeypatch.setattr(scene_reference, "get_task_manager", lambda: _Manager())
 
@@ -272,7 +272,7 @@ async def test_prop_reference_passes_context_state_dir_to_generator(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    import novelvideo.cognee as cognee
+    import novelvideo.sqlite_store as sqlite_store_module
     from novelvideo.generators import nanobanana_prop
     from novelvideo.task_backend.runners import prop_reference
 
@@ -286,9 +286,9 @@ async def test_prop_reference_passes_context_state_dir_to_generator(
         async def touch_prop_asset(self, name: str):
             return True
 
-    class FakeStore:
+    class FakeStore(FakeSQLiteStore):
         def __init__(self, *args, **kwargs) -> None:
-            self.sqlite_store = FakeSQLiteStore()
+            pass
 
         async def initialize(self) -> None:
             pass
@@ -300,7 +300,7 @@ async def test_prop_reference_passes_context_state_dir_to_generator(
         captured.update(kwargs)
         return str(tmp_path / "reference.png")
 
-    monkeypatch.setattr(cognee, "CogneeStore", FakeStore)
+    monkeypatch.setattr(sqlite_store_module, "SQLiteStore", FakeStore)
     monkeypatch.setattr(nanobanana_prop, "generate_prop_reference", capture_generator)
     monkeypatch.setattr(prop_reference, "get_task_manager", lambda: _Manager())
 
@@ -395,7 +395,7 @@ async def test_store_backed_runner_uses_context_state_dir(
     tmp_path: Path,
     runner_name: str,
 ) -> None:
-    import novelvideo.cognee as cognee
+    import novelvideo.sqlite_store as sqlite_store_module
     from novelvideo.task_backend.runners import (
         character_image,
         prop_reference,
@@ -413,7 +413,7 @@ async def test_store_backed_runner_uses_context_state_dir(
     manager = _Manager()
     for module in (character_image, prop_reference, scene_reference, script):
         monkeypatch.setattr(module, "get_task_manager", lambda: manager)
-    monkeypatch.setattr(cognee, "CogneeStore", capture_store)
+    monkeypatch.setattr(sqlite_store_module, "SQLiteStore", capture_store)
 
     with pytest.raises(_StoreOpened):
         await _invoke_runner(runner_name, ctx)
@@ -439,7 +439,7 @@ async def test_character_image_passes_context_state_to_generation(
     mode: str,
     generator_name: str,
 ) -> None:
-    import novelvideo.cognee as cognee
+    import novelvideo.sqlite_store as sqlite_store_module
     from novelvideo import project_config
     from novelvideo.task_backend.runners import character_image
 
@@ -454,9 +454,7 @@ async def test_character_image_passes_context_state_to_generation(
 
     class FakeStore:
         def __init__(self, *args, **kwargs) -> None:
-            self.sqlite_store = SimpleNamespace(
-                touch_character_asset=self.touch_character_asset
-            )
+            pass
 
         async def touch_character_asset(self, name: str):
             return True
@@ -480,7 +478,7 @@ async def test_character_image_passes_context_state_to_generation(
         captured["state_dir"] = kwargs["state_dir"]
         return tmp_path / "portrait.png"
 
-    monkeypatch.setattr(cognee, "CogneeStore", FakeStore)
+    monkeypatch.setattr(sqlite_store_module, "SQLiteStore", FakeStore)
     monkeypatch.setattr(character_image, generator_name, capture_image)
 
     await character_image._run_character_image(

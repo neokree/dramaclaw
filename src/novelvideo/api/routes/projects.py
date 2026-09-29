@@ -31,7 +31,6 @@ from novelvideo.api.schemas import (
     ProjectUpdate,
 )
 from novelvideo.config import ensure_project_dirs_at_paths
-from novelvideo.knowledge_pipeline import KNOWLEDGE_PIPELINE_KEY, KNOWLEDGE_PIPELINE_STRUCTURED
 from novelvideo.novel_source import has_imported_novel
 from novelvideo.ports import get_project_access, get_project_registry
 from novelvideo.scene_prerequisites import scene_build_applies
@@ -627,17 +626,9 @@ async def create_project(
             state_dir=record.state_dir,
             runtime_dir=record.runtime_dir,
         )
-        # New projects use structured extraction: they read the source text
-        # directly and never build a graph, so they must not be bound to an
-        # embedding model. The binding is permanent once written, which is why
-        # this is a creation-time decision rather than something a later run can
-        # undo. Existing projects keep their binding and their track untouched.
         save_project_config_in_state_dir(
             record.state_dir,
-            config={
-                "user": user["username"],
-                KNOWLEDGE_PIPELINE_KEY: KNOWLEDGE_PIPELINE_STRUCTURED,
-            },
+            config={"user": user["username"]},
         )
     except Exception:
         try:

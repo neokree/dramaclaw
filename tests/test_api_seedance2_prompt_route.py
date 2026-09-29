@@ -46,10 +46,6 @@ class DummySqliteStore:
         return False
 
 
-class DummyCogneeStore:
-    pass
-
-
 class DummyUsageMeter:
     def __init__(self):
         self.reserve_calls: list[dict] = []
@@ -112,11 +108,8 @@ def _client(
 
     sqlite_store = DummySqliteStore(beats, source_text=source_text)
 
-    async def _make_sqlite_store(username: str, project: str):
+    async def _make_sqlite_store(username: str, project: str, **_kwargs):
         return sqlite_store
-
-    async def _make_cognee_store(username: str, project: str):
-        return DummyCogneeStore()
 
     async def fake_resolve_project_scope(project, user, *, required_role="viewer"):
         return ProjectResolution(
@@ -134,9 +127,8 @@ def _client(
     monkeypatch.setattr(
         scripts,
         "make_sqlite_store_for_context",
-        lambda _ctx: _make_sqlite_store("admin", "demo"),
+        lambda _ctx, **_kwargs: _make_sqlite_store("admin", "demo"),
     )
-    monkeypatch.setattr(scripts, "make_cognee_store", _make_cognee_store)
     if usage_meter is not None:
         monkeypatch.setattr(scripts, "get_usage_meter", lambda: usage_meter)
 

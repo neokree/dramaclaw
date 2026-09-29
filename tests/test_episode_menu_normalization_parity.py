@@ -1,10 +1,7 @@
-"""The legacy write and the column patch must normalize menus identically.
+"""The whole-row write and the column patch must normalize menus identically.
 
-Legacy normalization lives on CogneeStore.update_episode, not on SQLiteStore's
-— the plain store assigns menus straight through. So the pair that has to agree
-is the Cognee facade's whole-row write and the patch, because those are the two
-routes a real project takes. Anything less means routing an existing project
-through the patch would silently rewrite its menus.
+Both routes write episode menus; if they disagreed, moving a caller from one to
+the other would silently rewrite its menus.
 """
 
 from __future__ import annotations
@@ -44,14 +41,8 @@ async def stores(tmp_path):
     await s.load_graph_state()
     await s.add_episodes([NovelEpisode(number=1, title="第一集")])
 
-    from novelvideo.cognee.store import CogneeStore
-
-    legacy = CogneeStore(
-        "user/project", output_dir=str(state), state_dir=str(state), sqlite_store=s
-    )
-    await legacy.load_graph_state()
     try:
-        yield legacy, s
+        yield s, s
     finally:
         await s.close()
 
@@ -207,18 +198,3 @@ async def test_the_legacy_facade_can_cascade_an_identity_rename(stores):
     assert await _row(sqlite, "scene_menu_json"), "the cascade wiped the scene menu"
     # The facade's cached copy must reflect its own write.
     assert legacy.get_episode(1).identity_ids == ["林默_雨夜"]
-
-
-async def test_both_stores_expose_the_same_episode_write_methods():
-    """Whatever one store offers for episode writes, the facade must too.
-
-    A caller holding either object writes episodes the same way; a method
-    present on one and missing on the other is a crash waiting for whichever
-    path is less exercised.
-    """
-    from novelvideo.cognee.store import CogneeStore
-    from novelvideo.sqlite_store import SQLiteStore
-
-    for name in ("patch_episode", "update_episode"):
-        assert hasattr(SQLiteStore, name), f"SQLiteStore lost {name}"
-        assert hasattr(CogneeStore, name), f"CogneeStore lost {name}"

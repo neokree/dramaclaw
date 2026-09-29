@@ -17,7 +17,7 @@ class _FakeSQLiteStore:
     def __init__(
         self, scenes: list[NovelScene] | None = None, *, raw_content: str = ""
     ):
-        # The real SQLiteStore owns episode content; CogneeStore only delegates
+        # The real SQLiteStore owns episode content
         # to it. Keeping the fake the same way round means planners that talk to
         # the SQLite store directly resolve content exactly as they do in
         # production.
@@ -765,20 +765,11 @@ def test_derived_scene_normalization_filters_plain_time_but_keeps_stable_light_p
 
 @pytest.mark.asyncio
 async def test_menu_writes_go_through_the_column_patch(tmp_path):
-    """Every project gets the race-free write, whichever track it is on."""
-    import json
-
+    """Menu writes use the race-free column patch."""
     from novelvideo.agents.asset_compiler import AssetCompiler
-    from novelvideo.knowledge_pipeline import (
-        KNOWLEDGE_PIPELINE_KEY, KNOWLEDGE_PIPELINE_STRUCTURED,
-    )
 
-    state_dir = tmp_path / "structured"
+    state_dir = tmp_path / "project"
     state_dir.mkdir()
-    (state_dir / "project_config.json").write_text(
-        json.dumps({KNOWLEDGE_PIPELINE_KEY: KNOWLEDGE_PIPELINE_STRUCTURED}),
-        encoding="utf-8",
-    )
 
     store = _FakeCogneeStore(project_dir=str(state_dir))
     store.state_dir = str(state_dir)

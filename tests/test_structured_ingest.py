@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-from novelvideo.knowledge_pipeline import KNOWLEDGE_PIPELINE_KEY, KNOWLEDGE_PIPELINE_STRUCTURED
 from novelvideo.story_analysis import chunk_source_text, source_sha256
 
 DRAMA_TEXT = """第一集
@@ -152,7 +151,7 @@ async def structured_project(tmp_path):
     from novelvideo.sqlite_store import SQLiteStore
 
     state_dir = tmp_path / "user" / "structured"
-    _write_config(state_dir, {KNOWLEDGE_PIPELINE_KEY: KNOWLEDGE_PIPELINE_STRUCTURED})
+    _write_config(state_dir, {"knowledge_pipeline": "structured_v1"})
     store = SQLiteStore(
         "user/structured",
         output_dir=str(state_dir),
@@ -197,27 +196,6 @@ async def test_structured_import_records_run_and_chunks(structured_project, tmp_
     assert len(chunks) == 3
     assert [chunk["status"] for chunk in chunks] == ["pending"] * 3
     assert [chunk["chunk_index"] for chunk in chunks] == [0, 1, 2]
-
-
-async def test_structured_import_never_touches_cognee(
-    structured_project, tmp_path, monkeypatch
-):
-    """The sentinel: import is where the legacy path spends its embedding time."""
-    import cognee
-
-    from novelvideo.structured_ingest import ingest_source_text_structured
-
-    def _boom(*args, **kwargs):
-        raise AssertionError("structured_v1 import must not touch Cognee")
-
-    for name in ("add", "cognify", "memify", "search"):
-        monkeypatch.setattr(cognee, name, _boom, raising=False)
-
-    store, _ = structured_project
-    novel = tmp_path / "novel.txt"
-    novel.write_text(NARRATED_LONG, encoding="utf-8")
-
-    await ingest_source_text_structured(store, str(novel), spine_template="narrated")
 
 
 async def test_structured_import_writes_no_embedding_fields(
@@ -434,17 +412,16 @@ async def test_structured_project_rejects_ai_planning_before_enqueue(
 ):
     """Reject before enqueue so the user gets an answer, not a doomed task.
 
-    The AI planners read the Cognee graph, which structured projects do not
-    have, and enqueueing would reserve credit for work that cannot succeed.
+    Only chapter mapping is offered, and enqueueing would reserve credit for
+    work that cannot succeed.
     """
     from types import SimpleNamespace
 
     from novelvideo.api.routes import episodes
     from novelvideo.api.schemas import EpisodePlanRequest
-    from novelvideo.knowledge_pipeline import KnowledgePipelineUnsupported
 
     state_dir = tmp_path / "user" / "structured"
-    _write_config(state_dir, {KNOWLEDGE_PIPELINE_KEY: KNOWLEDGE_PIPELINE_STRUCTURED})
+    _write_config(state_dir, {"knowledge_pipeline": "structured_v1"})
     project_dir = tmp_path / "out"
     project_dir.mkdir()
     (project_dir / "novel.txt").write_text(NARRATED_TEXT, encoding="utf-8")
@@ -474,7 +451,7 @@ async def test_structured_project_rejects_ai_planning_before_enqueue(
     )
 
     assert response["ok"] is False
-    assert response["code"] == KnowledgePipelineUnsupported.error_code
+    assert response["code"] == "KNOWLEDGE_PIPELINE_UNSUPPORTED"
 
 
 async def test_structured_project_allows_deterministic_chapter_planning(
@@ -487,7 +464,7 @@ async def test_structured_project_allows_deterministic_chapter_planning(
     from novelvideo.api.schemas import EpisodePlanRequest
 
     state_dir = tmp_path / "user" / "structured"
-    _write_config(state_dir, {KNOWLEDGE_PIPELINE_KEY: KNOWLEDGE_PIPELINE_STRUCTURED})
+    _write_config(state_dir, {"knowledge_pipeline": "structured_v1"})
     project_dir = tmp_path / "out"
     project_dir.mkdir()
     (project_dir / "novel.txt").write_text(NARRATED_TEXT, encoding="utf-8")
@@ -525,50 +502,6 @@ async def test_structured_project_allows_deterministic_chapter_planning(
 
     assert response["ok"] is True
     assert enqueued["payload"]["config"]["planning_mode"] == "chapters"
-
-
-async def test_legacy_project_still_accepts_ai_planning(tmp_path, monkeypatch):
-    """The gate must be invisible to legacy projects."""
-    from types import SimpleNamespace
-
-    from novelvideo.api.routes import episodes
-    from novelvideo.api.schemas import EpisodePlanRequest
-
-    state_dir = tmp_path / "user" / "legacy"
-    _write_config(state_dir, {"user": "user"})
-    project_dir = tmp_path / "out"
-    project_dir.mkdir()
-    (project_dir / "novel.txt").write_text(NARRATED_TEXT, encoding="utf-8")
-
-    async def resolve_project_scope(project, user, required_role="viewer"):
-        return SimpleNamespace(
-            ctx=SimpleNamespace(project_id="proj_1"),
-            output_dir=str(project_dir),
-            state_dir=str(state_dir),
-            project_dir=str(project_dir),
-        )
-
-    async def accept_enqueue(*_args, **_kwargs):
-        return SimpleNamespace(
-            task_state=SimpleNamespace(task_id="task_1"),
-            backend="celery",
-            queue="default",
-        )
-
-    monkeypatch.setattr(episodes, "resolve_project_scope", resolve_project_scope)
-    monkeypatch.setattr(
-        episodes,
-        "get_task_backend",
-        lambda: SimpleNamespace(enqueue_project_task=accept_enqueue),
-    )
-
-    response = await episodes.plan_episodes(
-        project="proj_1",
-        body=EpisodePlanRequest(target_episodes=10, planning_mode="ai"),
-        user={"username": "admin"},
-    )
-
-    assert response["ok"] is True
 
 
 def test_short_neighbouring_sections_are_packed_into_one_chunk():

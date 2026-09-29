@@ -490,10 +490,6 @@ async def test_project_config_reports_whether_a_scene_build_applies(
     import json
 
     from novelvideo.api.routes import projects
-    from novelvideo.knowledge_pipeline import (
-        KNOWLEDGE_PIPELINE_KEY,
-        KNOWLEDGE_PIPELINE_STRUCTURED,
-    )
 
     state_dir = tmp_path / "alice" / "demo"
     state_dir.mkdir(parents=True)
@@ -535,8 +531,8 @@ async def test_project_config_reports_whether_a_scene_build_applies(
         response = await projects.get_project("demo", {"username": "alice"})
         return response["data"]["scene_build_supported"]
 
-    structured = {KNOWLEDGE_PIPELINE_KEY: KNOWLEDGE_PIPELINE_STRUCTURED}
+    structured = {"knowledge_pipeline": "structured_v1"}
     assert await _read({**structured, "spine_template": "drama"}) is True
     assert await _read({**structured, "spine_template": "narrated"}) is False
-    # Legacy keeps its build whatever the template.
-    assert await _read({"spine_template": "narrated"}) is True
+    # Projects created before structured_v1 follow the same rule.
+    assert await _read({"spine_template": "narrated"}) is False

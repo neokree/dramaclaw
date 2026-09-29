@@ -20,9 +20,6 @@ from novelvideo.config import (
     get_newapi_text_pydantic_model,
 )
 from novelvideo.models import CharacterIdentity
-from novelvideo.shared.env_guard import preserve_st_env
-from novelvideo.cognee.ladybug_access import ladybug_graph_access
-from novelvideo.knowledge_pipeline import is_structured_pipeline
 from novelvideo.sqlite_store import load_episode_planning_content
 from novelvideo.utils.source_language import (
     AssetLanguage,
@@ -31,7 +28,7 @@ from novelvideo.utils.source_language import (
 )
 
 if TYPE_CHECKING:
-    from novelvideo.cognee import CogneeStore
+    from novelvideo.sqlite_store import SQLiteStore
     from novelvideo.models import NovelEpisode
 
 # =============================================================================
@@ -340,11 +337,10 @@ class IdentityPlanner:
         >>> # results = {1: 2, 2: 0, 3: 1}  # {集数: 新建身份数}
     """
 
-    def __init__(self, cognee_store: "CogneeStore"):
+    def __init__(self, cognee_store: "SQLiteStore"):
         self.cognee_store = cognee_store
         # Reads and writes that need no graph go to the SQLite store directly.
         self.store = getattr(cognee_store, "sqlite_store", cognee_store)
-        self._structured = is_structured_pipeline(getattr(cognee_store, "state_dir", None))
         self.auto_promoted_characters: list[str] = []
 
     @staticmethod
@@ -618,52 +614,6 @@ class IdentityPlanner:
                 lines.append(f"{character.name}：无已知别名")
         return "\n".join(lines)
 
-    async def _graph_alias_context(
-        self, episode: "NovelEpisode", on_log: Optional[Callable] = None
-    ) -> str:
-        """Legacy-only: read alias context from the Cognee graph.
-
-        Failure is non-fatal, as it always was here: the cast filter still runs
-        on the episode text alone, just without alias hints.
-        """
-
-        with preserve_st_env():
-            import cognee
-            from cognee.api.v1.search import SearchType
-
-        try:
-            async with ladybug_graph_access(
-                self.cognee_store.state_dir,
-                read_only=True,
-            ):
-                with self.cognee_store.embedding_model_scope():
-                    graph_results = await cognee.search(
-                        query_text=(
-                            f"第{episode.number}集出场的人物角色，"
-                            "以及他们的别名、称谓和关系"
-                        ),
-                        query_type=SearchType.GRAPH_COMPLETION,
-                        datasets=[self.cognee_store.dataset_name],
-                        only_context=True,
-                        top_k=20,
-                    )
-        except Exception as exc:
-            if on_log:
-                on_log(f"[EP{episode.number:03d}] 图谱上下文获取失败（非致命）: {exc}")
-            return ""
-
-        if not graph_results:
-            return ""
-        parts = []
-        for item in graph_results:
-            if hasattr(item, "search_result"):
-                parts.append(str(item.search_result))
-            elif isinstance(item, dict):
-                parts.append(str(item.get("search_result", item)))
-            else:
-                parts.append(str(item))
-        return "\n".join(parts)
-
     async def _filter_cast(
         self,
         all_names: list[str],
@@ -671,23 +621,18 @@ class IdentityPlanner:
         episode: "NovelEpisode",
         on_log: Optional[Callable] = None,
     ) -> tuple[list[str], str]:
-        """用 cognee 图谱 + AI 从原文中筛选本集实际出场的角色（含别名解析）。
+        """用已知别名 + AI 从原文中筛选本集实际出场的角色（含别名解析）。
 
-        利用 cognee.search 的图谱能力自动解析别名关系（如"陛下"→萧玦）。
+        别名来自角色表（如"陛下"→萧玦）。
 
         Returns:
-            (filtered_names, graph_context) — 筛选后的角色名列表 + 图谱上下文文本
+            (filtered_names, graph_context) — 筛选后的角色名列表 + 别名上下文文本
         """
         graph_context = ""
         try:
-            if self._structured:
-                # structured_v1 has no graph. Alias resolution comes from the
-                # SQLite alias index and the evidence recorded when characters
-                # were built, both of which are derived from the source text
-                # rather than from a vector search over it.
-                graph_context = self._alias_context_from_sqlite(all_names)
-            else:
-                graph_context = await self._graph_alias_context(episode, on_log)
+            # Alias resolution comes from the SQLite alias index recorded when
+            # characters were built from the source text.
+            graph_context = self._alias_context_from_sqlite(all_names)
 
             graph_section = ""
             if graph_context:
@@ -718,7 +663,7 @@ class IdentityPlanner:
             filtered = self._normalize_cast_names(cast.character_names)
             if on_log:
                 on_log(
-                    f"[EP{episode.number:03d}] 图谱+AI 筛选出场角色: {', '.join(filtered)}"
+                    f"[EP{episode.number:03d}] 别名+AI 筛选出场角色: {', '.join(filtered)}"
                 )
             return filtered, graph_context
         except Exception as e:
@@ -917,7 +862,7 @@ class IdentityPlanner:
         identity_info = self._build_character_info(cast_names)
         graph_section = ""
         if graph_context and graph_context.strip():
-            graph_section = f"\n## 图谱上下文\n{graph_context[:3000]}\n"
+            graph_section = f"\n## 别名上下文\n{graph_context[:3000]}\n"
 
         task = f"""分析第 {episode.number} 集《{episode.title}》中每个角色的**现实主线默认身份**。
 
@@ -989,7 +934,7 @@ class IdentityPlanner:
         identity_info = self._build_character_info(canonical_cast_names)
         graph_section = ""
         if graph_context and graph_context.strip():
-            graph_section = f"\n## 图谱上下文\n{graph_context[:3000]}\n"
+            graph_section = f"\n## 别名上下文\n{graph_context[:3000]}\n"
 
         resolved_default_ids = list(dict.fromkeys(already_resolved or []))
         already_section = ""

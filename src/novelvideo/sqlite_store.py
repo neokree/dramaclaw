@@ -1,7 +1,7 @@
-"""轻量 SQLite 存储。
+"""Project SQLite store: characters, episodes, beats, scenes, props.
 
-只提供项目级 SQLite 读写能力，不导入 Cognee / 图谱搜索依赖。
-适用于只需要读取角色/剧集/beats 或写回 beat 字段的 API/UI/Actor。
+The single persistence layer for a project. Every API route, task runner and
+workflow opens one of these.
 """
 
 from __future__ import annotations
@@ -12,12 +12,12 @@ import functools
 import inspect
 import json
 import logging
-import os
 import sqlite3
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional
 
 import aiosqlite
+from pydantic import BaseModel, Field
 from rich.console import Console
 
 from novelvideo.i18n_message import MessageLike, lmsg
@@ -26,8 +26,10 @@ from novelvideo.models import (
     build_prop_menu,
     build_scene_menu,
     CharacterIdentity,
+    complete_detected_refs_from_visual_description,
     NovelCharacter,
     NovelEpisode,
+    NovelEvent,
     NovelProp,
     NovelScene,
     NovelVisualBeat,
@@ -41,7 +43,6 @@ from novelvideo.novel_source import (
     load_imported_novel_content,
     require_imported_novel,
 )
-from novelvideo.official_defaults import DEFAULT_COGNEE_LLM_MODEL
 from novelvideo.sqlite_pragmas import configure_sqlite_connection_async
 from novelvideo.sqlite_schema import ensure_sqlite_schema
 from novelvideo.utils.asset_names import (
@@ -61,6 +62,44 @@ from novelvideo.utils.path_resolver import compute_identity_path
 
 console = Console()
 logger = logging.getLogger(__name__)
+
+
+def _json_list_payload(values: list[str]) -> str:
+    return json.dumps(list(values or []), ensure_ascii=False)
+
+
+def _text_agent(output_type: Any):
+    """Structured-output agent on the configured text engine."""
+    from pydantic_ai import Agent
+
+    from novelvideo.config import (
+        get_newapi_structured_output_model_settings,
+        get_pydantic_model,
+    )
+
+    return Agent(
+        get_pydantic_model(),
+        model_settings=get_newapi_structured_output_model_settings(),
+        output_type=output_type,
+    )
+
+
+class _EpisodeMetadata(BaseModel):
+    title: str = ""
+    summary: str = ""
+    conflict: str = ""
+    cliffhanger: str = ""
+    key_events: list[str] = Field(default_factory=list)
+    characters: list[str] = Field(default_factory=list)
+
+
+class _EpisodeEventAssignment(BaseModel):
+    episode: int
+    event_ids: list[str] = Field(default_factory=list)
+
+
+class _EpisodeEventAssignmentList(BaseModel):
+    assignments: list[_EpisodeEventAssignment] = Field(default_factory=list)
 
 # 存量名字自愈的「每种资产只跑一次、并且串行」必须记在**进程**上，不能记在 store 实例上：
 # store 是按请求新建的（``api/deps.py`` 的 ``make_sqlite_store`` / ``make_sqlite_store_for_context``），
@@ -1806,10 +1845,7 @@ class SQLiteStore:
         """从小说章节结构创建剧集（章节映射模式）。
 
         Deterministic: chapter markers in the source text become episodes, one
-        per chapter. It reads the imported novel and writes SQLite and touches
-        no graph, which is why it lives here rather than on the Cognee facade —
-        structured projects open a SQLiteStore directly and could not reach it
-        there. CogneeStore delegates, so legacy behaviour is unchanged.
+        per chapter. It reads the imported novel and writes SQLite.
         """
         from novelvideo.story.chapter_detector import ChapterDetector
 
@@ -1848,7 +1884,7 @@ class SQLiteStore:
         chapters = detector.detect(novel_text)
 
         if not chapters:
-            raise ValueError("未检测到章节标记，请使用 AI 规划模式")
+            raise ValueError("未检测到章节标记（例如“第一章”），无法按章节映射剧集")
 
         log(f"检测到 {len(chapters)} 个章节")
 
@@ -1940,46 +1976,22 @@ class SQLiteStore:
 
     async def _generate_episode_metadata(self, episode_num: int, content: str) -> dict:
         """使用 LLM 生成剧集元数据。"""
-        try:
-            import litellm
-
-            from novelvideo.config import (
-                get_newapi_structured_output_litellm_kwargs,
-            )
-
-            truncated = content[:8000] if len(content) > 8000 else content
-
-            prompt = f"""请分析以下章节内容，提取关键信息。
+        truncated = content[:8000]
+        prompt = f"""请分析以下章节内容，提取关键信息。
 
 章节内容：
 {truncated}
 
-请用 JSON 格式返回以下信息：
-{{
-    "title": "一个吸引人的标题（10字以内）",
-    "summary": "内容摘要（50-100字）",
-    "conflict": "主要冲突或矛盾",
-    "cliffhanger": "结尾悬念（如果有）",
-    "key_events": ["关键事件1", "关键事件2"],
-    "characters": ["出场角色1", "出场角色2"]
-}}
-
-只返回 JSON，不要有其他内容。"""
-
-            response = await litellm.acompletion(
-                model=os.environ.get("LLM_MODEL", "").strip()
-                or DEFAULT_COGNEE_LLM_MODEL,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.3,
-                response_format={"type": "json_object"},
-                **get_newapi_structured_output_litellm_kwargs(),
-            )
-
-            import json
-
-            result = json.loads(response.choices[0].message.content)
-            return result
-
+需要返回：
+- title: 一个吸引人的标题（10字以内）
+- summary: 内容摘要（50-100字）
+- conflict: 主要冲突或矛盾
+- cliffhanger: 结尾悬念（如果有）
+- key_events: 关键事件列表
+- characters: 出场角色列表"""
+        try:
+            result = await _text_agent(_EpisodeMetadata).run(prompt)
+            return result.output.model_dump()
         except Exception as e:
             console.print(f"[yellow]元数据生成失败: {e}，使用默认值[/yellow]")
             return {
@@ -1990,6 +2002,157 @@ class SQLiteStore:
                 "key_events": [],
                 "characters": [],
             }
+
+    async def build_episodes_from_events(
+        self,
+        target_episodes: int,
+        on_progress: Optional[Callable[[float, str], None]] = None,
+        on_log: Optional[Callable[[str], None]] = None,
+    ) -> List[NovelEpisode]:
+        """基于事件的剧集规划（支持章节拆分）。
+
+        Chapters are split into events by the text engine, then the events are
+        assigned to ``target_episodes`` episodes. Not reachable from the API
+        today: the planning gate only admits ``chapters``.
+        """
+        from novelvideo.story.chapter_detector import ChapterDetector
+        from novelvideo.story.event_extractor import EventExtractor
+
+        def report(progress: float, task: MessageLike):
+            if on_progress:
+                on_progress(progress, task)
+
+        def log(message: MessageLike):
+            if on_log:
+                on_log(message)
+            console.print(f"[dim]{message}[/dim]")
+
+        log(lmsg("tasks.log.source.loading", "从文件加载原文..."))
+        novel_text = require_imported_novel(self.project_dir)
+        log(
+            lmsg(
+                "tasks.log.source.loaded",
+                f"原文加载完成: {len(novel_text)} 字符",
+                charCount=len(novel_text),
+            )
+        )
+
+        await self.clear_episode_contents()
+
+        report(0.1, "检测章节结构...")
+        chapters = ChapterDetector().detect(novel_text)
+        if not chapters:
+            raise ValueError("未检测到章节标记，请使用章节映射模式")
+        log(f"检测到 {len(chapters)} 个章节，目标 {target_episodes} 集")
+
+        extractor = EventExtractor()
+        all_events: List[NovelEvent] = []
+        for i, chapter in enumerate(chapters):
+            report(0.1 + 0.3 * (i / len(chapters)), f"提取第 {chapter.number} 章事件...")
+            events = await extractor.extract_events(
+                chapter_num=chapter.number,
+                chapter_content=chapter.content,
+                on_log=log,
+            )
+            all_events.extend(events)
+            log(f"第 {chapter.number} 章: {len(events)} 个事件")
+        log(f"共提取 {len(all_events)} 个事件")
+
+        report(0.5, "AI 规划剧集分配...")
+        episode_assignments = await self._assign_events_to_episodes(
+            all_events, target_episodes, on_log=log
+        )
+
+        episodes = []
+        for ep_num, event_ids in episode_assignments.items():
+            report(0.7 + 0.1 * (ep_num / target_episodes), f"创建第 {ep_num} 集...")
+            ep_events = [e for e in all_events if e.event_id in event_ids]
+            if not ep_events:
+                log(f"⚠️ 第 {ep_num} 集没有分配到事件，跳过")
+                continue
+
+            combined_content = "\n\n---\n\n".join(e.content for e in ep_events if e.content)
+            chapter_nums = [e.chapter_num for e in ep_events]
+            episodes.append(
+                NovelEpisode(
+                    number=ep_num,
+                    title=f"第{ep_num}集",
+                    chapter_start=min(chapter_nums),
+                    chapter_end=max(chapter_nums),
+                    raw_content=combined_content,
+                    event_ids=event_ids,
+                    content_summary=(
+                        combined_content[:2000] + "..."
+                        if len(combined_content) > 2000
+                        else combined_content
+                    ),
+                    key_events=[e.description for e in ep_events],
+                    character_names=list(set(c for e in ep_events for c in e.characters)),
+                    cliffhanger=ep_events[-1].description,
+                )
+            )
+
+        old_episode_count = len(self._episodes)
+        report(0.88, "保存到数据库...")
+        await self.replace_episodes(episodes)
+        log(f"已原子替换 {old_episode_count} 个旧剧集")
+
+        report(1.0, "事件级规划完成")
+        log(f"事件级规划完成: {len(episodes)} 集")
+        return episodes
+
+    async def _assign_events_to_episodes(
+        self,
+        events: List[NovelEvent],
+        target_episodes: int,
+        on_log: Optional[Callable[[str], None]] = None,
+    ) -> Dict[int, List[str]]:
+        """AI 将事件分配到剧集；失败时按顺序均匀分配。"""
+
+        def log(msg: MessageLike):
+            if on_log:
+                on_log(msg)
+
+        event_summaries = [
+            {
+                "id": e.event_id,
+                "description": e.description,
+                "characters": e.characters,
+                "causes": e.causes[:3] if e.causes else [],
+            }
+            for e in events
+        ]
+        prompt = f"""将以下 {len(events)} 个事件分配到 {target_episodes} 集中。
+
+事件列表：
+{json.dumps(event_summaries, ensure_ascii=False, indent=2)}
+
+分配原则：
+1. 保持因果关系：有 causes 关系的事件尽量在同一集或相邻集
+2. 叙事完整性：每集应有完整的小叙事弧
+3. 均衡分配：每集事件数量大致相当（平均 {len(events) // max(target_episodes, 1)} 个）
+4. 悬念设置：每集最后的事件适合作为 cliffhanger
+5. 按顺序分配：事件的顺序不能打乱
+
+每一项给出 episode（集号，从 1 开始）和 event_ids（该集的事件 id 列表）。"""
+
+        try:
+            log("调用 LLM 分配事件...")
+            result = await _text_agent(_EpisodeEventAssignmentList).run(prompt)
+            assignments = {
+                int(item.episode): list(item.event_ids)
+                for item in result.output.assignments
+            }
+            log(f"LLM 分配完成: {len(assignments)} 集")
+            return assignments
+        except Exception as e:
+            log(f"LLM 分配失败: {e}，使用均匀分配")
+            assignments: Dict[int, List[str]] = {}
+            events_per_episode = max(1, len(events) // max(target_episodes, 1))
+            for i, event in enumerate(events):
+                ep_num = min(i // events_per_episode + 1, target_episodes)
+                assignments.setdefault(ep_num, []).append(event.event_id)
+            return assignments
 
     async def replace_episodes(self, episodes: List[NovelEpisode]) -> None:
         """Atomically replace every episode row and refresh the cache."""
@@ -2012,15 +2175,34 @@ class SQLiteStore:
         self._episodes[episode.number] = episode
 
     async def update_episode(self, episode_number: int, **updates) -> None:
+        """Whole-row update that only overrides the fields in ``updates``.
+
+        Every other field is refreshed from the persisted row first, so a stale
+        cached episode cannot overwrite what another writer stored meanwhile.
+        """
         episode = self.get_episode(episode_number)
         if not episode:
             raise ValueError(f"剧集 {episode_number} 不存在")
+
         old_number = episode.number
+        persisted = await self.get_episode_from_graph(episode_number)
+        if persisted is not None:
+            protected_fields = set(updates)
+            if "scene_menu" in protected_fields:
+                protected_fields.add("scene_menu_json")
+            if "prop_menu" in protected_fields:
+                protected_fields.add("prop_menu_json")
+            if "identity_default_map" in protected_fields:
+                protected_fields.add("identity_default_map_json")
+            for field_name in type(episode).model_fields:
+                if field_name not in protected_fields:
+                    setattr(episode, field_name, getattr(persisted, field_name))
+
         for key, value in updates.items():
             if key == "scene_menu":
-                episode.scene_menu = value or []
+                episode.scene_menu = await self._normalize_scene_menu_items(value or [])
             elif key == "prop_menu":
-                episode.prop_menu = value or []
+                episode.prop_menu = self._normalize_prop_menu_items(value or [])
             elif hasattr(episode, key):
                 setattr(episode, key, value)
         new_number = updates.get("number", old_number)
@@ -2234,6 +2416,9 @@ class SQLiteStore:
         for char in characters:
             for alias in char.aliases:
                 self._alias_index[alias] = char.name
+        for episode in self._episodes.values():
+            episode.scene_menu = await self._normalize_scene_menu_items(episode.scene_menu)
+            episode.prop_menu = self._normalize_prop_menu_items(episode.prop_menu)
 
     def resolve_name(self, name: str) -> str:
         return self._alias_index.get(name, name)
@@ -2533,6 +2718,211 @@ class SQLiteStore:
                 }
             )
         return result
+
+    async def persist_beats_from_script(self, episode_number: int, beats_data: List[dict]):
+        """从脚本数据持久化 Beats。"""
+        existing_rows = await self.get_beats_for_episode(episode_number)
+        existing_by_num = {beat.beat_number: beat for beat in existing_rows}
+        await self._do_persist_beats(episode_number, beats_data, existing_by_num=existing_by_num)
+
+    async def _episode_asset_ref_scope(self, episode_number: int) -> tuple[set[str], set[str]]:
+        episode = await self.get_episode_from_graph(episode_number)
+        allowed_identity_ids = {
+            str(identity_id or "").strip()
+            for identity_id in (getattr(episode, "identity_ids", []) or [])
+            if str(identity_id or "").strip()
+        }
+        if not allowed_identity_ids:
+            for character in await self.list_characters():
+                for identity in getattr(character, "identities", []) or []:
+                    identity_id = str(getattr(identity, "identity_id", "") or "").strip()
+                    if identity_id:
+                        allowed_identity_ids.add(identity_id)
+
+        allowed_prop_ids = {
+            str(getattr(prop, "name", "") or "").strip()
+            for prop in await self.list_props()
+            if str(getattr(prop, "name", "") or "").strip()
+            and str(getattr(prop, "marker_color", "") or "").strip()
+        }
+        return allowed_identity_ids, allowed_prop_ids
+
+    def _complete_generated_beat_refs(
+        self,
+        beat_payload: dict,
+        *,
+        allowed_identity_ids: set[str],
+        allowed_prop_ids: set[str],
+    ) -> dict:
+        detected_identities, detected_props = complete_detected_refs_from_visual_description(
+            visual_description=str(beat_payload.get("visual_description", "") or ""),
+            detected_identities=beat_payload.get("detected_identities"),
+            detected_props=beat_payload.get("detected_props"),
+            allowed_identity_ids=allowed_identity_ids,
+            allowed_prop_ids=allowed_prop_ids,
+        )
+        beat_payload["detected_identities_json"] = _json_list_payload(
+            normalize_detected_identities(detected_identities)
+        )
+        beat_payload["detected_props_json"] = _json_list_payload(
+            normalize_detected_props(detected_props)
+        )
+        return beat_payload
+
+    async def _do_persist_beats(
+        self,
+        episode_number: int,
+        beats_data: List[dict],
+        existing_by_num: Dict[int, NovelVisualBeat] | None = None,
+    ):
+        """实际执行 Beat 持久化。"""
+        existing_by_num = existing_by_num or {}
+        keep_numbers = {
+            int(b.get("beat_number", 0)) for b in beats_data if int(b.get("beat_number", 0))
+        }
+        manual_keep_numbers = {
+            int(beat_number)
+            for beat_number, beat in existing_by_num.items()
+            if getattr(beat, "is_manual_shot", False)
+        }
+        keep_numbers |= manual_keep_numbers
+        if keep_numbers:
+            await self.delete_beats_except(episode_number, keep_numbers)
+        else:
+            await self.delete_beats_for_episode(episode_number)
+            return
+
+        allowed_identity_ids, allowed_prop_ids = await self._episode_asset_ref_scope(episode_number)
+        beats = []
+        for b in beats_data:
+            beat_payload = sync_beat_asset_refs(dict(b))
+            beat_payload = self._complete_generated_beat_refs(
+                beat_payload,
+                allowed_identity_ids=allowed_identity_ids,
+                allowed_prop_ids=allowed_prop_ids,
+            )
+            beat_number = int(beat_payload.get("beat_number", 0))
+            existing = existing_by_num.get(beat_number)
+            beats.append(
+                NovelVisualBeat(
+                    beat_number=beat_number,
+                    episode_number=episode_number,
+                    narration=beat_payload.get(
+                        "narration_segment", existing.narration if existing else ""
+                    ),
+                    visual_description=beat_payload.get(
+                        "visual_description",
+                        existing.visual_description if existing else "",
+                    ),
+                    time_of_day=beat_payload.get(
+                        "time_of_day", existing.time_of_day if existing else ""
+                    )
+                    or "",
+                    detected_identities_json=(
+                        beat_payload.get("detected_identities_json") or '["__NO_CHARACTER__"]'
+                    ),
+                    detected_props_json=(
+                        beat_payload.get("detected_props_json") or '["__NO_PROP__"]'
+                    ),
+                    scene_ref_json=(
+                        json.dumps(beat_payload.get("scene_ref"), ensure_ascii=False)
+                        if beat_payload.get("scene_ref")
+                        else ""
+                    ),
+                    audio_type=beat_payload.get(
+                        "audio_type", existing.audio_type if existing else "narration"
+                    ),
+                    speaker=beat_payload.get("speaker", existing.speaker if existing else ""),
+                    speaker_kind=beat_payload.get(
+                        "speaker_kind",
+                        existing.speaker_kind if existing else "character",
+                    ),
+                    video_mode=beat_payload.get(
+                        "video_mode", existing.video_mode if existing else "first_frame"
+                    ),
+                    video_prompt=beat_payload.get(
+                        "video_prompt", existing.video_prompt if existing else ""
+                    )
+                    or "",
+                    keyframe_prompt=beat_payload.get(
+                        "keyframe_prompt",
+                        existing.keyframe_prompt if existing else "",
+                    )
+                    or "",
+                    shot_order=(
+                        beat_payload.get("shot_order")
+                        if beat_payload.get("shot_order") is not None
+                        else (existing.shot_order if existing else None)
+                    ),
+                    duration_seconds=(
+                        beat_payload.get("duration_seconds")
+                        if beat_payload.get("duration_seconds") is not None
+                        else (existing.duration_seconds if existing else None)
+                    ),
+                    is_manual_shot=bool(
+                        beat_payload.get(
+                            "is_manual_shot",
+                            existing.is_manual_shot if existing else False,
+                        )
+                    ),
+                )
+            )
+
+        if beats:
+            await self.add_visual_beats(beats)
+
+    async def persist_narration_script(self, script) -> None:
+        """接收 NarrationScript，映射 VisualBeat 字段到 SQLite，删旧插新。
+
+        Args:
+            script: NarrationScript 实例 (from novelvideo.models)
+        """
+        allowed_identity_ids, allowed_prop_ids = await self._episode_asset_ref_scope(
+            script.episode_number
+        )
+        beats = []
+        for beat in script.beats:
+            detected_identities, detected_props = complete_detected_refs_from_visual_description(
+                visual_description=str(getattr(beat, "visual_description", "") or ""),
+                detected_identities=getattr(beat, "detected_identities", None),
+                detected_props=getattr(beat, "detected_props", None),
+                allowed_identity_ids=allowed_identity_ids,
+                allowed_prop_ids=allowed_prop_ids,
+            )
+            beats.append(
+                NovelVisualBeat(
+                    beat_number=beat.beat_number,
+                    episode_number=script.episode_number,
+                    narration=beat.narration_segment,
+                    visual_description=beat.visual_description,
+                    time_of_day=getattr(beat, "time_of_day", "") or "",
+                    detected_identities_json=_json_list_payload(
+                        normalize_detected_identities(detected_identities)
+                    ),
+                    detected_props_json=_json_list_payload(
+                        normalize_detected_props(detected_props)
+                    ),
+                    scene_ref_json=(
+                        json.dumps(
+                            getattr(beat, "scene_ref", None).model_dump(), ensure_ascii=False
+                        )
+                        if getattr(beat, "scene_ref", None)
+                        else ""
+                    ),
+                    audio_type=beat.audio_type,
+                    speaker=beat.speaker,
+                    speaker_kind=getattr(beat, "speaker_kind", "character"),
+                    video_mode=getattr(beat, "video_mode", "first_frame"),
+                    video_prompt=getattr(beat, "video_prompt", "") or "",
+                    keyframe_prompt=getattr(beat, "keyframe_prompt", "") or "",
+                )
+            )
+
+        if not beats:
+            return
+
+        await self.delete_beats_for_episode(script.episode_number)
+        await self.add_visual_beats(beats)
 
     async def get_script_as_dict(self, episode_number: int) -> Optional[Dict]:
         episode = self.get_episode(episode_number)

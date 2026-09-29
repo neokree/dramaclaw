@@ -1,4 +1,4 @@
-"""Fast graph ingest progress reporting contracts."""
+"""Ingest progress reporting contracts."""
 
 from pathlib import Path
 
@@ -7,15 +7,6 @@ import pytest
 from novelvideo.project_context import ProjectContext
 
 pytestmark = pytest.mark.m07
-
-
-def test_ingest_store_progress_milestones_are_strictly_increasing() -> None:
-    from novelvideo.cognee.store import INGEST_PROGRESS_MILESTONES
-
-    milestones = list(INGEST_PROGRESS_MILESTONES.values())
-    assert milestones == sorted(set(milestones))
-    assert milestones[0] > 0
-    assert milestones[-1] == 1.0
 
 
 def _ctx(tmp_path: Path) -> ProjectContext:
@@ -56,47 +47,47 @@ class _FakeStore:
     async def initialize(self) -> None:
         self.initialized = True
 
-    async def ingest_novel_fast(
-        self, novel_path, rebuild=False, spine_template=None, on_progress=None, on_log=None
-    ):
-        on_progress(0.02, "读取并校验原文...")
-        on_log("文件读取完成")
-        on_progress(0.3, "构建知识图谱...")
-        on_log("正在处理实体")
-        on_progress(0.7, "创建向量索引...")
-        on_log("正在写入索引")
-        on_progress(1.0, "导入完成")
-        return {"status": "graph_ready"}
-
     async def close(self) -> None:
         self.closed = True
+
+
+async def _fake_ingest(store, novel_path, spine_template=None, on_progress=None, on_log=None):
+    on_progress(0.05, "读取并校验原文...")
+    on_log("文件读取完成")
+    on_progress(0.6, "切分原文...")
+    on_log("确定性切分完成")
+    on_progress(0.85, "记录分析计划...")
+    on_log("分析计划已记录")
+    on_progress(1.0, "导入完成")
+    return {"status": "imported"}
 
 
 async def test_ingest_logs_preserve_intermediate_progress(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Ordinary Cognee logs must not send the progress bar back to zero."""
-    from novelvideo import cognee
+    """Ordinary log lines must not send the progress bar back to zero."""
+    from novelvideo import sqlite_store, structured_ingest
     from novelvideo.task_backend.runners import ingest
 
     manager = _RecordingTaskManager()
     monkeypatch.setattr(ingest, "get_task_manager", lambda: manager)
-    monkeypatch.setattr(cognee, "CogneeStore", _FakeStore)
+    monkeypatch.setattr(sqlite_store, "SQLiteStore", _FakeStore)
+    monkeypatch.setattr(structured_ingest, "ingest_source_text_structured", _fake_ingest)
 
     result = await ingest._run_ingest_fast(
         {"payload": {"novel_path": str(tmp_path / "novel.txt")}}, _ctx(tmp_path)
     )
 
-    assert result == {"status": "graph_ready"}
+    assert result == {"status": "imported"}
     assert _FakeStore.instance is not None
     assert _FakeStore.instance.initialized
     assert _FakeStore.instance.closed
     assert [update["progress"] for update in manager.updates] == [
-        0.02,
+        0.05,
         None,
-        0.3,
+        0.6,
         None,
-        0.7,
+        0.85,
         None,
         1.0,
     ]

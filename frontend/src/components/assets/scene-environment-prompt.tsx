@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
  * Scene `environment_prompt` is a single backend string that follows a fixed
  * "360 空间合同" template — seven headings the scene-reference-image generator
  * reads to understand each direction (see SuperTale
- * `cognee/pipeline.py: SCENE_ENRICHMENT_SYSTEM_PROMPT`). The backend has no
+ * `story/scenes.py: SCENE_ENRICHMENT_SYSTEM_PROMPT`). The backend has no
  * structured sub-fields, so this module is purely a frontend convenience: it
  * splits that one string into seven editable inputs (parse) and stitches them
  * back into the same labeled string on save (serialize).

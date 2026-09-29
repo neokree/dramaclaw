@@ -67,10 +67,6 @@ class ProjectPaths:
         return self.state_dir / "data.db"
 
     @property
-    def cognee_system_dir(self) -> Path:
-        return self.state_dir / "cognee_system"
-
-    @property
     def project_config(self) -> Path:
         return self.state_dir / "project_config.json"
 

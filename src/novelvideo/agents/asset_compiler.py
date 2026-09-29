@@ -419,9 +419,7 @@ class AssetCompiler:
 
     def __init__(self, cognee_store: Any):
         self.cognee_store = cognee_store
-        # Reads that need no graph go straight to SQLite. Accepting either a
-        # CogneeStore or a SQLiteStore keeps legacy callers working while
-        # structured callers pass SQLiteStore directly.
+        # Tolerates wrappers that expose the store as ``.sqlite_store``.
         self.store = getattr(cognee_store, "sqlite_store", cognee_store)
         self.spine_template = "drama"
 

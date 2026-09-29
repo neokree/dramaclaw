@@ -25,7 +25,6 @@ import pytest
 def forbid_project_data(monkeypatch: pytest.MonkeyPatch):
     """Every way this task used to reach project data, wired to explode."""
     from novelvideo import project_config
-    from novelvideo.cognee import CogneeStore
     from novelvideo.director_world import control_frame_to_sketch as module
     from novelvideo.sqlite_store import SQLiteStore
 
@@ -35,16 +34,11 @@ def forbid_project_data(monkeypatch: pytest.MonkeyPatch):
         calls.append("SQLiteStore.__init__")
         raise AssertionError("worker opened a project store")
 
-    def refuse_cognee(self, *args, **kwargs):
-        calls.append("CogneeStore.__init__")
-        raise AssertionError("worker opened a project store")
-
     def refuse_config(*args, **kwargs):
         calls.append("load_project_config_file")
         raise AssertionError("worker read the project config file")
 
     monkeypatch.setattr(SQLiteStore, "__init__", refuse_sqlite)
-    monkeypatch.setattr(CogneeStore, "__init__", refuse_cognee)
     monkeypatch.setattr(project_config, "load_project_config_file", refuse_config)
     monkeypatch.setattr(module, "load_project_config_file", refuse_config)
     monkeypatch.setattr(module, "SQLiteStore", refuse_sqlite)

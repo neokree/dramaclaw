@@ -224,7 +224,7 @@ def m03_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     async def make_store_for_context(_ctx, **_kwargs):
         return store
 
-    async def make_store(username: str, project: str):
+    async def make_store(username: str, project: str, **_kwargs):
         return store
 
     queued = SimpleNamespace(
@@ -242,9 +242,7 @@ def m03_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     for module in (episodes, scripts):
         monkeypatch.setattr(module, "resolve_project_scope", resolve_project_scope)
         monkeypatch.setattr(module, "make_sqlite_store_for_context", make_store_for_context)
-        monkeypatch.setattr(module, "make_cognee_store_for_context", make_store_for_context)
         monkeypatch.setattr(module, "make_sqlite_store", make_store)
-        monkeypatch.setattr(module, "make_cognee_store", make_store)
         monkeypatch.setattr(
             module,
             "get_task_backend",

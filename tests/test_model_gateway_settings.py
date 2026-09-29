@@ -417,45 +417,6 @@ def test_ee_model_gateway_settings_reader_does_not_open_sqlite(monkeypatch, tmp_
     assert not (tmp_path / "state").exists()
 
 
-def test_cognee_newapi_resolution_prefers_saved_gateway(monkeypatch, tmp_path):
-    _isolate_settings_db(monkeypatch, tmp_path)
-    monkeypatch.delenv("COGNEE_LLM_PROVIDER", raising=False)
-    monkeypatch.delenv("COGNEE_LLM_MODEL", raising=False)
-    monkeypatch.delenv("NEWAPI_BASE_URL", raising=False)
-    monkeypatch.setenv("NEWAPI_API_KEY", "sk-env-secret")
-
-    save_custom_newapi_gateway(
-        base_url="https://custom.example",
-        api_key="sk-custom-secret",
-        activate=True,
-    )
-
-    from novelvideo.cognee import config as cognee_config
-
-    assert cognee_config._resolve_llm_provider() == "newapi"
-    # NewAPI now only backs Cognee embeddings.
-    assert cognee_config._effective_newapi_gateway()[0] == "sk-custom-secret"
-    assert (
-        cognee_config._get_endpoint_env("newapi", "COGNEE_LLM_ENDPOINT", "LLM_ENDPOINT")
-        == "https://custom.example/v1"
-    )
-
-
-def test_cognee_provider_env_cannot_bypass_newapi(monkeypatch):
-    from novelvideo.cognee import config as cognee_config
-
-    monkeypatch.setenv("COGNEE_LLM_PROVIDER", "gemini")
-    monkeypatch.setenv("COGNEE_LLM_API_KEY", "direct-secret")
-    monkeypatch.setattr(
-        cognee_config,
-        "_effective_newapi_gateway",
-        lambda: ("gateway-secret", "https://gateway.example/v1"),
-    )
-
-    assert cognee_config._resolve_llm_provider() == "newapi"
-    assert cognee_config._effective_newapi_gateway()[0] == "gateway-secret"
-
-
 def test_cognee_embedding_provider_env_cannot_bypass_newapi(monkeypatch, tmp_path):
     _isolate_settings_db(monkeypatch, tmp_path)
     monkeypatch.setenv("COGNEE_EMBEDDING_PROVIDER", "gemini")
@@ -2475,29 +2436,6 @@ def test_ce_official_embedding_ignores_saved_custom_model(monkeypatch, tmp_path)
     assert effective.model == "DC-cognee-embedding"
     assert effective.dimensions == "1024"
     assert effective.upstream_model == ""
-
-
-def test_cognee_apply_embedding_env_sets_saved_batch_size(monkeypatch, tmp_path):
-    _isolate_settings_db(monkeypatch, tmp_path)
-    monkeypatch.delenv("EMBEDDING_BATCH_SIZE", raising=False)
-
-    save_custom_newapi_gateway(
-        base_url="https://custom.example",
-        api_key="sk-custom-secret",
-        activate=True,
-    )
-    save_newapi_embedding_model_config(
-        provider="ali",
-        upstream_model="text-embedding-v3",
-        dimension=1024,
-        batch_size=10,
-    )
-
-    from novelvideo.cognee import config as cognee_config
-
-    cognee_config._apply_embedding_env("newapi", "sk-custom-secret")
-
-    assert os.environ["EMBEDDING_BATCH_SIZE"] == "10"
 
 
 def test_custom_newapi_channels_batch_reports_partial_failure(monkeypatch, tmp_path):

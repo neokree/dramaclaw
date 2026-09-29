@@ -19,11 +19,6 @@ from novelvideo.api.chapter_preview import (
 )
 from novelvideo.api.deps import resolve_project_scope
 from novelvideo.api.schemas import IngestStart
-from novelvideo.knowledge_pipeline import is_structured_pipeline
-from novelvideo.graph_preview import (
-    empty_graph_preview,
-    load_graph_preview,
-)
 from novelvideo.project_config import (
     default_aspect_ratio_for_spine_template,
     load_project_config_file_from_state_dir,
@@ -78,50 +73,6 @@ async def _run_ingest_upload_operation(
         limiter=_ingest_upload_limiter(),
         **kwargs,
     )
-
-
-@router.get("/projects/{project}/ingest/graph")
-async def get_ingest_knowledge_graph(
-    project: str,
-    user: dict = Depends(get_api_user),
-):
-    """Return the persisted graph preview without opening Ladybug on normal reads."""
-
-    resolved = await resolve_project_scope(project, user, required_role="viewer")
-    ctx = resolved.ctx
-
-    # A missing novel.txt means an import has not completed (or a rebuild
-    # invalidated the old graph). Do not race the active/failed import by
-    # returning a stale sidecar or opening its embedded graph database from an
-    # API worker.
-    if not (ctx.output_dir / "novel.txt").is_file():
-        return {"ok": True, "data": empty_graph_preview()}
-
-    # structured_v1 projects never build a graph, so there is never a sidecar
-    # to read and the client renders nothing for an empty preview.
-    if is_structured_pipeline(ctx.state_dir):
-        return {"ok": True, "data": empty_graph_preview()}
-
-    # Written during import, before novel.txt — which is the public "import
-    # succeeded" marker — so a project that imported successfully has one.
-    #
-    # Projects predating the sidecar do not, and are left without a preview
-    # rather than materialized on demand. Backfilling meant a viewer-role GET
-    # opening Ladybug from an API worker and waiting on the project graph lock
-    # with no timeout: during a rebuild that is the length of the rebuild, held
-    # by a request that asyncio.shield keeps alive after the client is gone.
-    # And the wait bought nothing — the first thing it did on acquiring the
-    # lock was re-check novel.txt, find it removed by the rebuild, and return
-    # the empty preview anyway.
-    #
-    # Nothing downstream reads this file; it is one visualization on the import
-    # page, and the client already renders nothing for an empty one. A missing
-    # preview is a missing picture, not missing data, and re-importing produces
-    # it.
-    snapshot = load_graph_preview(ctx.state_dir)
-    if snapshot is not None:
-        return {"ok": True, "data": snapshot}
-    return {"ok": True, "data": empty_graph_preview()}
 
 
 def _unsupported_format_response(filename: str) -> dict:
@@ -296,7 +247,7 @@ async def upload_novel(
 async def start_ingest(
     project: str, body: IngestStart, user: dict = Depends(require_scope("tasks:submit"))
 ):
-    """触发小说导入（构建知识图谱）。"""
+    """触发小说导入。"""
     logger.info("[%s] start_ingest: %s (rebuild=%s)", project, body.filename, body.rebuild)
     resolved = await resolve_project_scope(project, user, required_role="editor")
     ctx = resolved.ctx
@@ -311,9 +262,8 @@ async def start_ingest(
 
     # Historical projects may only retain the canonical, already-parsed
     # ``novel.txt`` and have no original file under ``uploads/``.  Preserve a
-    # durable copy before queuing the rebuild: the Cognee rebuild deliberately
-    # removes the canonical marker early, so passing that marker itself to the
-    # worker would make a failed rebuild impossible to retry.
+    # durable copy before queuing the rebuild, so the worker never reads the
+    # canonical marker it is about to rewrite and a failed rebuild can retry.
     if not novel_path.exists() and safe_name == "novel.txt":
         imported_novel_path = project_dir / "novel.txt"
         if imported_novel_path.is_file():

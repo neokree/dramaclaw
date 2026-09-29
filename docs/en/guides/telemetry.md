@@ -10,9 +10,8 @@
 - ❌ No built-in analytics/instrumentation SDK (no PostHog / Mixpanel / GA and the like).
 - ❌ No reporting of usage, project content, or model-call records.
 - ❌ No crash reporting by default.
-- ✅ We also **proactively disable telemetry shipped with dependencies**: at runtime we force `COGNEE_TELEMETRY_ENABLED=false` to prevent the Cognee knowledge-graph library from reporting on its own.
 
-Your drafts, keys, and outputs all stay on your machine (local filesystem + SQLite). The only outbound network traffic is calls to **the engines you configure yourself** (Higgsfield, OpenRouter, the embedding gateway); both the target and the key are under your control.
+Your drafts, keys, and outputs all stay on your machine (local filesystem + SQLite). The only outbound network traffic is calls to **the engines you configure yourself** (Higgsfield, OpenRouter); both the target and the key are under your control.
 
 ## The one optional feature: observability tracing (off by default)
 

@@ -5,7 +5,7 @@
 
 > 在 macOS / Windows / Linux 上装好 DramaClaw CE 的运行环境。只想最快跑起来,直接看 [快速开始](quickstart.md);本篇覆盖各平台前置与本地开发两种装法。
 
-DramaClaw CE 是单机服务,**无需 PostgreSQL / Redis**。Docker 起 `api` + 内置 `newapi` 网关(只用于知识图谱 embedding)+ `web`。生成用云端的 Higgsfield 和 OpenRouter,不需要本地硬件;也可用本地引擎 MTPLX(文本)、Draw Things(图片)、h3.c(视频),它们在宿主机上运行,需要能跑得动的机器。详见[配置模型](configuring-models.md)。
+DramaClaw CE 是单机服务,**无需 PostgreSQL / Redis**。Docker 起 `api` + `web`。生成用云端的 Higgsfield 和 OpenRouter,不需要本地硬件;也可用本地引擎 MTPLX(文本)、Draw Things(图片)、h3.c(视频),它们在宿主机上运行,需要能跑得动的机器。详见[配置模型](configuring-models.md)。
 
 ## 两种装法选一
 
@@ -32,11 +32,10 @@ DramaClaw CE 是单机服务,**无需 PostgreSQL / Redis**。Docker 起 `api` + 
 
 ```bash
 git clone https://github.com/dramaclaw/dramaclaw.git
-git clone https://github.com/dramaclaw/dramaclaw-gateway.git   # 内置网关，从 ../dramaclaw-gateway 构建
 cd dramaclaw
 cp .env.example .env        # 至少把 PROMPT_EXPORT_PASSWORD 改成非默认值
-docker compose up -d --build    # 用两个 checkout 从源码构建 api、web 与网关
-# 免构建：docker compose -f docker-compose.release.yml up -d   # 拉已发布镜像，不需要 clone 网关
+docker compose up -d --build    # 从本仓源码构建 api、web
+# 免构建：docker compose -f docker-compose.release.yml up -d   # 拉已发布镜像
 ```
 
 起好后浏览器打开 **`http://localhost:8080`**(应用界面);REST API 在 `http://localhost:8780`。打开 **设置 → 引擎** 查看哪些引擎可用;引擎在 `.env` 中选择。完整步骤见 [快速开始](quickstart.md),起停/备份见 [自托管手册](../guides/self-hosting.md)。
@@ -76,19 +75,6 @@ CE 默认 `ST_EDITION=ce`、免登录单本地用户、任务进程内 inline �
 ```bash
 curl http://localhost:8780/api/v1/config   # 返回 200 即正常
 ```
-
-### 4. Embedding 网关（仅使用本地 NewAPI 时需要）
-
-使用官方 DC key 时 embedding 无需再跑任何东西。使用本地 NewAPI 时，API 需要一个跑在 `127.0.0.1:3000` 的网关（`.env` 里 `NEWAPI_ADMIN_BASE_URL` 的默认值），且它的 SQLite 文件在 `./state/newapi/one-api.db`，`POST /api/v1/model-gateway/custom/newapi/init` 写的就是这个文件。用发布镜像并把这个目录挂进去：
-
-```bash
-mkdir -p state/newapi
-docker run -d --name dramaclaw-gateway -p 127.0.0.1:3000:3000 \
-  -v "$PWD/state/newapi:/data" \
-  claymorelab/dramaclaw-gateway:v1.0.0-rc.24-dramaclaw.1
-```
-
-或者在旁边的 `dramaclaw-gateway` checkout 里构建并用 `SQLITE_PATH` 指向该文件来启动。embedding 配置见[配置模型供应商](configuring-models.md)。
 
 ---
 

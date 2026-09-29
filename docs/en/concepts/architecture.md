@@ -29,7 +29,7 @@ Main subpackages of `src/novelvideo/`:
 | `agents` | Script / asset / identity / planning and other agents |
 | `generators` | Image / video / audio generation adapters |
 | `audio` | Voiceover (TTS) synthesis |
-| `cognee` | Story knowledge graph (parses the novel, builds characters / relationships / timeline) |
+| `story` | Source-text helpers: chapter detection, screenplay normalization, scene parsing |
 | `freezone` | Free-form creative canvas |
 | `director_world` | 3DGS / world scene features |
 | `chat` | Conversational creative assistant |
@@ -75,7 +75,7 @@ No external database is required.
 
 ## Model Access
 
-Text runs on **MTPLX** (local) or **OpenRouter**; images on **Draw Things** (local), **Higgsfield**, or **OpenRouter**; video on **Higgsfield** or **h3.c** (local); voices, music, and sound effects on **Higgsfield**. The bundled NewAPI gateway serves only the knowledge-graph embedding. See [Configuring Model Providers](../getting-started/configuring-models.md) for details.
+Text runs on **MTPLX** (local) or **OpenRouter**; images on **Draw Things** (local), **Higgsfield**, or **OpenRouter**; video on **Higgsfield** or **h3.c** (local); voices, music, and sound effects on **Higgsfield**. Every LLM call (structured extraction, planning metadata, Hermes chat) uses the text engine. See [Configuring Model Providers](../getting-started/configuring-models.md) for details.
 
 ## Tech Stack
 

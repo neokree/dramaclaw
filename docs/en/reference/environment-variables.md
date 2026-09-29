@@ -38,16 +38,21 @@ Engines are chosen here, not in the web UI; **Settings → Engines** only shows 
 | `DRAWTHINGS_URL` | `http://127.0.0.1:7860` | Draw Things API server. `DRAWTHINGS_MODEL` and `DRAWTHINGS_STEPS` default to the current Draw Things settings. |
 | `H3C_BINARY` / `H3C_WEIGHTS` | `~/Developer/AI-Tools/h3.c/h3` / `~/Developer/AI-Tools/h3.c/MiniMax-H3` | Local h3.c binary and MiniMax H3 weights. |
 
-## Embedding Gateway
+## Structured Extraction
 
-The bundled NewAPI now serves only the Cognee embedding model (`DC-cognee-embedding`). Its channel, address, and token are written to the local `settings.db` through the `/api/v1/model-gateway` API, not through environment variables.
+Characters, scenes, and props are extracted from the source text by the text engine (`TEXT_ENGINE`).
 
 | Variable | Default | Description |
 |---|---|---|
-| `NEWAPI_PROVISIONER_ENABLED` | `true` | Enables one-click initialization of the bundled NewAPI. |
-| `NEWAPI_ADMIN_BASE_URL` | `http://127.0.0.1:3000` (set in `.env.example`) | NewAPI management address, without `/v1`. |
-| `COGNEE_EMBEDDING_MODEL` / `COGNEE_EMBEDDING_DIM` | `DC-cognee-embedding` / `1024` | Default embedding model and dimensions; each project stores its own in `project_config.json`. |
-| `EMBEDDING_BATCH_SIZE` | `10` | Texts per embedding request. |
+| `STRUCTURED_LLM_CONCURRENCY` | `2` | Concurrency slots for per-chunk extraction (character extraction, scene normalization, scene description generation). |
+
+## Docker Images and Ports
+
+| Variable | Default | Description |
+|---|---|---|
+| `DRAMACLAW_IMAGE_PREFIX` | `claymorelab` | Image registry prefix (image mode, `docker-compose.release.yml`). Set `claymore-registry.cn-chengdu.cr.aliyuncs.com/dramaclaw` for the Aliyun ACR mirror, which carries pinned tags only. |
+| `DRAMACLAW_VERSION` | Tag pinned in `docker-compose.release.yml` | Version of the `api` and `web` images. |
+| `ST_API_PORT` / `ST_WEB_PORT` | `8780` / `8080` | Host ports published for the REST API and the web UI. |
 
 ## Video / Image Parameters
 

@@ -38,16 +38,21 @@
 | `DRAWTHINGS_URL` | `http://127.0.0.1:7860` | Draw Things API 服务。`DRAWTHINGS_MODEL`、`DRAWTHINGS_STEPS` 留空时用 Draw Things 当前设置。 |
 | `H3C_BINARY` / `H3C_WEIGHTS` | `~/Developer/AI-Tools/h3.c/h3` / `~/Developer/AI-Tools/h3.c/MiniMax-H3` | 本地 h3.c 二进制与 MiniMax H3 权重。 |
 
-## Embedding 网关
+## 结构化抽取
 
-内置 NewAPI 现在只承载 Cognee 的 embedding 模型（`DC-cognee-embedding`）。其渠道、地址和 token 通过 `/api/v1/model-gateway` API 写入本机 `settings.db`，不通过环境变量配置。
+角色、场景和道具由文本引擎（`TEXT_ENGINE`）从原文抽取。
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
-| `NEWAPI_PROVISIONER_ENABLED` | `true` | 启用内置 NewAPI 一键初始化。 |
-| `NEWAPI_ADMIN_BASE_URL` | `http://127.0.0.1:3000`（`.env.example` 中设置） | NewAPI 管理地址，不带 `/v1`。 |
-| `COGNEE_EMBEDDING_MODEL` / `COGNEE_EMBEDDING_DIM` | `DC-cognee-embedding` / `1024` | 默认 embedding 模型与维度；各项目在 `project_config.json` 中保存自己的值。 |
-| `EMBEDDING_BATCH_SIZE` | `10` | 每次 embedding 请求的文本条数。 |
+| `STRUCTURED_LLM_CONCURRENCY` | `2` | 按分块抽取的并发槽位数（角色抽取、场景规范化、场景描述生成）。 |
+
+## Docker 镜像与端口
+
+| 变量 | 默认 | 说明 |
+|---|---|---|
+| `DRAMACLAW_IMAGE_PREFIX` | `claymorelab` | 镜像仓库前缀（镜像模式，`docker-compose.release.yml`）。国内可设为 `claymore-registry.cn-chengdu.cr.aliyuncs.com/dramaclaw`（阿里云 ACR，只有钉定的 tag）。 |
+| `DRAMACLAW_VERSION` | `docker-compose.release.yml` 中钉定的 tag | `api` 与 `web` 镜像版本。 |
+| `ST_API_PORT` / `ST_WEB_PORT` | `8780` / `8080` | REST API 与 Web 界面在宿主机上发布的端口。 |
 
 ## 视频 / 图像参数
 

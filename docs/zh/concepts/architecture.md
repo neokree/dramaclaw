@@ -29,7 +29,7 @@ DramaClaw 社区版（CE）是一条**单机运行**的「小说 → 成片」�
 | `agents` | 剧本 / 资产 / 身份 / 规划等智能体 |
 | `generators` | 图片 / 视频 / 音频生成适配器 |
 | `audio` | 配音（TTS）合成 |
-| `cognee` | 故事知识图谱（解析小说，构建角色 / 关系 / 时间线） |
+| `story` | 原文辅助：章节识别、剧本规范化、场景解析 |
 | `freezone` | 自由创作画布 |
 | `director_world` | 3DGS / world 场景特性 |
 | `chat` | 对话式创作助手 |
@@ -75,7 +75,7 @@ CE 固定**单本地用户**，项目数据全部在本地：
 
 ## 模型接入
 
-文本用 **MTPLX**（本地）或 **OpenRouter**；图片用 **Draw Things**（本地）、**Higgsfield** 或 **OpenRouter**；视频用 **Higgsfield** 或 **h3.c**（本地）；配音、音乐和音效用 **Higgsfield**。内置 NewAPI 网关只承载知识图谱 embedding。详见[配置模型供应商](../getting-started/configuring-models.md)。
+文本用 **MTPLX**（本地）或 **OpenRouter**；图片用 **Draw Things**（本地）、**Higgsfield** 或 **OpenRouter**；视频用 **Higgsfield** 或 **h3.c**（本地）；配音、音乐和音效用 **Higgsfield**。所有 LLM 调用（结构化抽取、规划元数据、Hermes 聊天）都走文本引擎。详见[配置模型供应商](../getting-started/configuring-models.md)。
 
 ## 技术栈
 

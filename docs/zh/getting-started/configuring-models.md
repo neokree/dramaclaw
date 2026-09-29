@@ -11,13 +11,12 @@ DramaClaw CE 通过少数几个引擎生成文本、图片、视频和音频。�
 | 图片 | Draw Things（本地）、任意 Higgsfield 图片模型、OpenRouter 图片模型 | `drawthings` / `higgsfield:<模型>` / `openrouter:<模型>` |
 | 视频 | 任意 Higgsfield 视频模型，或 h3.c / MiniMax H3（本地） | `higgsfield:<模型>` / `h3c` |
 | 配音、音乐、音效 | Higgsfield | `HIGGSFIELD_TTS_*` |
-| 知识图谱 Embedding | 内置 NewAPI 网关 | `DC-cognee-embedding` |
 
 启动后打开 `http://localhost:8080`，点击 **设置**。**引擎** 区块显示每个引擎是否可用、Higgsfield 剩余积分、MTPLX 是否在运行或按需启动，以及当前文本引擎。该区块读取 `GET /api/v1/model-gateway/engines`，只读：要更换引擎，请修改 `.env` 并重启 API。
 
 ## 文本：MTPLX 或 OpenRouter
 
-`TEXT_ENGINE` 决定所有文本请求及带图的文本（视觉理解）请求使用的引擎。Hermes 聊天和 Cognee 的 LLM 也跟随它。
+`TEXT_ENGINE` 决定所有文本请求及带图的文本（视觉理解）请求使用的引擎。结构化抽取（角色、场景、道具）、规划元数据和 Hermes 聊天也跟随它。
 
 ### MTPLX（默认）
 
@@ -114,17 +113,6 @@ Higgsfield 任务运行前，DramaClaw 会先报出积分价格。每个任务�
 - `GET /api/v1/projects/{project}/video-usage`：视频任务与已花费积分，以及 Higgsfield 余额。
 - `GET /api/v1/projects/{project}/character-image-usage` 和 `GET /api/v1/projects/{project}/episodes/{episode}/sketch-image-usage`：图片请求。
 
-## Embedding（内置 NewAPI）
-
-`DC-cognee-embedding` 支撑小说知识图谱和语义检索，是内置 NewAPI 网关唯一仍在承载的模型。通过模型网关 API 配置：
-
-- **官方**：`POST /api/v1/model-gateway/official/config`，传入 DC Key（`newApiApiKey`）。RelayClaw（虾驿）已映射好 `DC-cognee-embedding`。获取 DC Key 请访问 <https://relayclaw.cdnfg.com>。
-- **自定义**：`POST /api/v1/model-gateway/custom/newapi/init` 初始化内置 NewAPI（新实例创建 root 账号、`dramaclaw-ce-runtime` token，运行地址和 token 保存到本机 `settings.db`），再用 `POST /api/v1/model-gateway/custom/newapi/embedding-model` 设置供应商、上游模型、维度和批量大小。
-
-`GET /api/v1/model-gateway/config` 返回当前网关状态。密钥不会回传，只显示脱敏后的预览。
-
-模型和维度在创建项目时绑定，之后的修改只影响新项目。要修改已有项目的这些值，请先清空并重建图谱。遇到 embedding HTTP 400/422 时，确认模型支持所配置的维度，且批量大小不超过上游 `input` 上限。
-
 ## 常见问题
 
 | 现象 | 检查方法 |
@@ -135,14 +123,12 @@ Higgsfield 任务运行前，DramaClaw 会先报出积分价格。每个任务�
 | MTPLX 下文本请求失败 | `MTPLX_BINARY` 不存在，或 `MTPLX_BASE_URL` 上的其他服务提供的模型不是 `MTPLX_MODEL`。 |
 | OpenRouter 显示“不可用” | 未设置 `OPENROUTER_API_KEY`。 |
 | Docker 中访问不到 `127.0.0.1` 上的引擎 | 容器内的 `127.0.0.1` 指容器自身。把 `DRAWTHINGS_URL` / `MTPLX_BASE_URL` 改为后端可访问的宿主机地址。镜像中不包含 Higgsfield CLI 和 h3.c。 |
-| 知识图谱 embedding 失败 | 检查网关 Key、上游模型、维度和批量大小；429 表示上游限流。 |
-| 本地 NewAPI 初始化失败 | 检查 NewAPI 服务、SQLite 挂载、目录权限和 `NEWAPI_PROVISIONER_ENABLED`。 |
 
 ## 相关文件
 
 - `src/novelvideo/engines/`：引擎驱动（Higgsfield、Draw Things、OpenRouter 图片、h3.c、MTPLX、音频）。
 - `src/novelvideo/media_catalog.py`：根据已安装引擎生成的媒体模型目录。
 - `.env.example`：环境变量参考。
-- `docker-compose.yml`（源码构建）/ `docker-compose.release.yml`（镜像）：部署文件（api + 内置 NewAPI + web）。
+- `docker-compose.yml`（源码构建）/ `docker-compose.release.yml`（镜像）：部署文件（api + web）。
 - [自托管手册](../guides/self-hosting.md)
 - [环境变量参考](../reference/environment-variables.md)

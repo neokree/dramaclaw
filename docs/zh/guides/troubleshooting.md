@@ -24,7 +24,6 @@
 | **MTPLX 下文本失败** | `MTPLX_BINARY` 不存在，或 `MTPLX_BASE_URL` 上的其他服务提供的模型不是 `MTPLX_MODEL`。 |
 | **结构化环节报 `Exceeded maximum output retries`**（角色抽取、剧本规划等），纯文本环节正常 | 文本模型没有返回 function/tool call。任务日志（v2.0.3 起）会打出重试提示和底层原因。使用 OpenRouter 时，在 `OPENROUTER_MODEL` 或按任务覆盖的 `*_MODEL` 中换成支持 tool calling 的模型。 |
 | **文本模型超时** | 调大 `TEXT_TIMEOUT_SECONDS`(默认 300);本地引擎被系统代理拦截时设 `TEXT_TRUST_ENV=false`。 |
-| **知识图谱 embedding 失败** | 只有 embedding 仍经过内置 NewAPI：检查网关 Key 或 embedding 渠道、上游模型、维度和批量大小。 |
 
 ## 媒体 / ffmpeg 类
 
@@ -39,8 +38,7 @@
 | 现象 | 排查 |
 |---|---|
 | **重建后数据没了** | 数据在命名卷 `ce-data`(容器内 `/data`)。`docker compose down` 保留卷,**别加 `-v`**(会删卷)。备份见 [自托管手册](self-hosting.md#5-数据在哪--备份)。 |
-| **`unable to prepare context: path ".../dramaclaw-gateway" not found`** | 源码构建要求网关 checkout 放在本仓旁边。`git clone https://github.com/dramaclaw/dramaclaw-gateway.git ../dramaclaw-gateway`，或在 `.env` 里把 `DRAMACLAW_GATEWAY_SRC` 设成你的 clone 路径或 `https://github.com/dramaclaw/dramaclaw-gateway.git#main`。 |
-| **升级后报配置错误** | 源码构建（`docker-compose.yml`）：`git -C ../dramaclaw-gateway pull && git pull && docker compose up -d --build`。镜像模式（`docker-compose.release.yml`）：`docker compose -f docker-compose.release.yml pull && docker compose -f docker-compose.release.yml up -d`（如果在 `.env` 里钉了 `DRAMACLAW_VERSION` / `DRAMACLAW_GATEWAY_VERSION`，先改版本号）。详见自托管手册 §6。 |
+| **升级后报配置错误** | 源码构建（`docker-compose.yml`）：`git pull && docker compose up -d --build`。镜像模式（`docker-compose.release.yml`）：`docker compose -f docker-compose.release.yml pull && docker compose -f docker-compose.release.yml up -d`（如果在 `.env` 里钉了 `DRAMACLAW_VERSION`，先改版本号）。详见自托管手册 §6。 |
 
 ## world 特性(3DGS/SHARP)类
 

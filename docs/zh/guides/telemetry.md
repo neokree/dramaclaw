@@ -10,9 +10,8 @@
 - ❌ 不内置任何分析/埋点 SDK(无 PostHog / Mixpanel / GA 之类)。
 - ❌ 不上报使用量、项目内容、模型调用记录。
 - ❌ 默认不做崩溃上报。
-- ✅ 还**主动关掉依赖自带的遥测**:运行时强制 `COGNEE_TELEMETRY_ENABLED=false`,阻止 Cognee 知识图谱库自行上报。
 
-你的原稿、密钥、产出都留在本机(本地文件系统 + SQLite)。唯一的对外网络是**你自己配置的引擎**调用(Higgsfield、OpenRouter、embedding 网关)，目标和密钥都由你掌控。
+你的原稿、密钥、产出都留在本机(本地文件系统 + SQLite)。唯一的对外网络是**你自己配置的引擎**调用(Higgsfield、OpenRouter)，目标和密钥都由你掌控。
 
 ## 唯一可选项:可观测追踪(默认关闭)
 

@@ -186,7 +186,7 @@ It's built for creators, indie studios and creative engineers — run the whole 
 
 Every step has its own interface — run them in order, skip steps, resume from any checkpoint, or even plug in your own orchestrator.
 
-- **Structured ingest** &mdash; new projects build episodes, characters and scenes straight from the manuscript or screenplay (Fountain supported), no knowledge graph or embeddings required; the Cognee story-graph path remains for legacy projects
+- **Structured ingest** &mdash; episodes, characters and scenes are built straight from the manuscript or screenplay (Fountain supported); chapter markers become episodes
 - **Asset library & identity consistency** &mdash; characters, scenes, props and voices organised by purpose and folder; stable identities across episodes, character portraits and per-episode variants
 - **Episode planning & script generation** &mdash; chapter segmentation, beat planning, multi-episode arcs; adaptive / literal / staged script modes with review-and-repair loops
 - **Storyboards & first frames** &mdash; beat-driven stylized generation, grid splitting, image-pool selection
@@ -264,7 +264,7 @@ The edge isn't "more generation" — it's organizing the whole short-drama produ
 
 ## System Requirements
 
-Cloud generation runs on **Higgsfield** and **OpenRouter**, so with those alone an ordinary laptop or a small VPS is enough. The local engines (**MTPLX** for text, **Draw Things** for images, **h3.c** for video) run on the host and need a machine that can run them. The bundled [dramaclaw-gateway](https://github.com/dramaclaw/dramaclaw-gateway) serves only the knowledge-graph embedding.
+Cloud generation runs on **Higgsfield** and **OpenRouter**, so with those alone an ordinary laptop or a small VPS is enough. The local engines (**MTPLX** for text, **Draw Things** for images, **h3.c** for video) run on the host and need a machine that can run them.
 
 | Item | Requirement |
 |---|---|
@@ -273,9 +273,9 @@ Cloud generation runs on **Higgsfield** and **OpenRouter**, so with those alone 
 | **Disk** | A few GB for images plus generated media/state under the `ce-data` volume (no hard minimum) |
 | **OS** | macOS (Apple Silicon / Intel), Windows (Docker Desktop + WSL2 backend), Linux (Docker Engine + compose plugin) |
 | **Docker** | Docker + `docker compose` |
-| **Ports** | `8080` web UI · `8780` REST API · `3000` bundled gateway admin UI (host-only by default, can be widened) |
+| **Ports** | `8080` web UI · `8780` REST API |
 | **Datastores** | None required — no Postgres, Redis, Celery or Ray. Tasks run in-process; state lives on the local filesystem (SQLite + files) |
-| **Network** | Outbound access to Higgsfield and/or OpenRouter, plus the official gateway `relayclaw.cdnfg.com` or the embedding provider you configure in the bundled gateway |
+| **Network** | Outbound access to Higgsfield and/or OpenRouter (none needed when you only use the local engines) |
 
 > Local development (non-Docker) additionally needs Python 3.11–3.12 + [`uv`](https://docs.astral.sh/uv/) + `ffmpeg`. Full prerequisites in the [Self-hosting guide](docs/en/guides/self-hosting.md).
 
@@ -287,22 +287,21 @@ Cloud generation runs on **Higgsfield** and **OpenRouter**, so with those alone 
 
 Every GitHub Release publishes multi-arch (amd64/arm64) images to Docker Hub.
 
-**Source build (default)** — clone DramaClaw and the bundled [dramaclaw-gateway](https://github.com/dramaclaw/dramaclaw-gateway) side by side; `docker compose up -d --build` builds all three services from those two checkouts.
+**Source build (default)** — clone DramaClaw; `docker compose up -d --build` builds both services from that checkout.
 
 ```bash
 git clone https://github.com/dramaclaw/dramaclaw.git
-git clone https://github.com/dramaclaw/dramaclaw-gateway.git   # bundled gateway, built from ../dramaclaw-gateway
 cd dramaclaw
 
 cp .env.example .env
 # Edit .env — set PROMPT_EXPORT_PASSWORD to a non-default value.
 
-docker compose up -d --build   # builds and starts three services: api / newapi (bundled gateway) / web
+docker compose up -d --build   # builds and starts two services: api / web
 ```
 
-Both checkouts are plain git repos: edit, `git pull`, rebuild. Only DramaClaw code changed? `docker compose up -d --build api web`. Only the gateway? `docker compose up -d --build newapi`. Gateway clone somewhere else, or prefer Docker to fetch it from git? Set `DRAMACLAW_GATEWAY_SRC` in `.env` to that path or to `https://github.com/dramaclaw/dramaclaw-gateway.git#main`.
+The checkout is a plain git repo: edit, `git pull`, `docker compose up -d --build`.
 
-**No build** — pull published images instead (no gateway clone needed):
+**No build** — pull published images instead:
 
 ```bash
 docker compose -f docker-compose.release.yml up -d
@@ -312,9 +311,9 @@ Open the app at <http://localhost:8080>; the REST API is at <http://localhost:87
 
 Full steps in the [Quick Start](docs/en/getting-started/quickstart.md).
 
-Pin versions or switch registry in `.env` (`DRAMACLAW_VERSION`, `DRAMACLAW_GATEWAY_VERSION`, `DRAMACLAW_IMAGE_PREFIX`) — these apply to the image mode (`docker-compose.release.yml`) only. Mainland China: set `DRAMACLAW_IMAGE_PREFIX=claymore-registry.cn-chengdu.cr.aliyuncs.com/dramaclaw` and pin both versions (the ACR mirror carries pinned tags only).
+Pin versions or switch registry in `.env` (`DRAMACLAW_VERSION`, `DRAMACLAW_IMAGE_PREFIX`) — these apply to the image mode (`docker-compose.release.yml`) only. Mainland China: set `DRAMACLAW_IMAGE_PREFIX=claymore-registry.cn-chengdu.cr.aliyuncs.com/dramaclaw` and pin `DRAMACLAW_VERSION` (the ACR mirror carries pinned tags only).
 
-> Migrating from an older checkout? For the source build, first `git clone https://github.com/dramaclaw/dramaclaw-gateway.git ../dramaclaw-gateway` (the gateway is now built from that sibling checkout; without it the build stops with `unable to prepare context`). `docker-compose.selfhosted.yml` / `docker-compose.selfhosted.release.yml` have been removed — use `docker-compose.yml` (source build) / `docker-compose.release.yml` (images). Service names and the `ce-data` / `newapi-data` volumes are unchanged; existing data is reused as-is. The bundled gateway's port now binds only to `127.0.0.1` by default; set `ST_NEWAPI_BIND=0.0.0.0` in `.env` if you need remote access to it.
+> Migrating from an older checkout? `docker-compose.selfhosted.yml` / `docker-compose.selfhosted.release.yml` have been removed — use `docker-compose.yml` (source build) / `docker-compose.release.yml` (images). The `api` / `web` service names and the `ce-data` volume are unchanged; existing data is reused as-is. The bundled `newapi` gateway service is gone; a leftover `newapi-data` volume is no longer used and can be removed with `docker volume rm` once you no longer need it.
 
 ### Local development (uv + Python 3.11+)
 
@@ -330,17 +329,6 @@ uv run novelvideo api --port 8780   # start the REST API (CE defaults to inline 
 
 Frontend in a second terminal: `cd frontend && pnpm install && pnpm dev`.
 
-**Embedding gateway.** With an official DC key you need nothing else. For a local NewAPI the API expects a gateway on `127.0.0.1:3000` whose SQLite file is `./state/newapi/one-api.db` (that is what `POST /api/v1/model-gateway/custom/newapi/init` writes to; `NEWAPI_ADMIN_BASE_URL` in `.env` already points there). Either run the published image with that directory mounted:
-
-```bash
-mkdir -p state/newapi
-docker run -d --name dramaclaw-gateway -p 127.0.0.1:3000:3000 \
-  -v "$PWD/state/newapi:/data" \
-  claymorelab/dramaclaw-gateway:v1.0.0-rc.24-dramaclaw.1
-```
-
-or run the gateway from source in the sibling checkout (`make dev-api` / `make dev-web` in [dramaclaw-gateway](https://github.com/dramaclaw/dramaclaw-gateway#develop), or `go build` and start the binary with `SQLITE_PATH=<path to>/dramaclaw/state/newapi/one-api.db`).
-
 <br/>
 
 ## Supported Models & Providers
@@ -353,16 +341,11 @@ Generation runs on local engines where possible and on Higgsfield in the cloud:
 | **Image**            | Draw Things (local, `drawthings`), any Higgsfield image model (`higgsfield:<model>`), or OpenRouter (`openrouter:<model>`) |
 | **Video**            | any Higgsfield video model (`higgsfield:<model>`) or h3.c / MiniMax H3 (local, `h3c`) |
 | **Voice / music / SFX** | Higgsfield (reference voices, TTS voices, music, sound effects)     |
-| **Story graph**      | Cognee, embeddings through the bundled gateway (`DC-cognee-embedding`) |
 | **Task runtime**     | in-process inline (no Ray / Redis / Celery)                            |
 | **Storage**          | local filesystem                                                       |
 
 Local engines cost nothing; Higgsfield jobs show Higgsfield's own credit price before they run, and every job lands in the project's usage ledger (`GET /api/v1/projects/{project}/video-usage`).
 The settings screen shows which engines are reachable (`GET /api/v1/model-gateway/engines`). Full walkthrough in [Configuring Models](docs/en/getting-started/configuring-models.md).
-
-### The bundled gateway: dramaclaw-gateway
-
-The `newapi` service in `docker-compose.yml` is [**dramaclaw-gateway**](https://github.com/dramaclaw/dramaclaw-gateway), DramaClaw's own fork of [New API](https://github.com/QuantumNous/new-api). It now only serves the Cognee embedding model: either save your DC key from <https://relayclaw.cdnfg.com> (`POST /api/v1/model-gateway/official/config`), or initialize the bundled gateway and add an embedding channel (`/api/v1/model-gateway/custom/newapi/init`, then `/custom/newapi/embedding-model`). Image: [`claymorelab/dramaclaw-gateway`](https://hub.docker.com/r/claymorelab/dramaclaw-gateway) on Docker Hub, pinned by `DRAMACLAW_GATEWAY_VERSION` in `.env`.
 
 <br/>
 

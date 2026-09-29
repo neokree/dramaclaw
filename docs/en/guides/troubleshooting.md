@@ -24,7 +24,6 @@
 | **Text fails with MTPLX** | `MTPLX_BINARY` is missing, or another server at `MTPLX_BASE_URL` serves a model other than `MTPLX_MODEL`. |
 | **Structured steps fail with `Exceeded maximum output retries`** (character extraction, script planning…) while plain text works | The text model did not return a function/tool call. The task log (v2.0.3+) shows the retry prompt and cause. Under OpenRouter, pick a model that supports tool calling in `OPENROUTER_MODEL` or the per-feature `*_MODEL` override. |
 | **Text model times out** | Increase `TEXT_TIMEOUT_SECONDS` (default 300); if a system proxy intercepts a local engine, set `TEXT_TRUST_ENV=false`. |
-| **Knowledge-graph embedding fails** | Embeddings are the only calls through the bundled NewAPI: check the gateway key or embedding channel, upstream model, dimensions, and batch size. |
 
 ## Media / ffmpeg
 
@@ -39,8 +38,7 @@
 | Symptom | Diagnosis |
 |---|---|
 | **Data gone after a rebuild** | Data lives in the named volume `ce-data` (`/data` inside the container). `docker compose down` keeps the volume—**do not add `-v`** (it deletes the volume). For backups see the [self-hosting handbook](self-hosting.md#5-where-the-data-lives--backups). |
-| **`unable to prepare context: path ".../dramaclaw-gateway" not found`** | The source build expects the gateway checkout next to this repo. `git clone https://github.com/dramaclaw/dramaclaw-gateway.git ../dramaclaw-gateway`, or set `DRAMACLAW_GATEWAY_SRC` in `.env` to your clone's path or to `https://github.com/dramaclaw/dramaclaw-gateway.git#main`. |
-| **Config error after an upgrade** | Source build (`docker-compose.yml`): `git -C ../dramaclaw-gateway pull && git pull && docker compose up -d --build`. Prebuilt images (`docker-compose.release.yml`): `docker compose -f docker-compose.release.yml pull && docker compose -f docker-compose.release.yml up -d` (bump `DRAMACLAW_VERSION` / `DRAMACLAW_GATEWAY_VERSION` in `.env` if you pin them). See the self-hosting guide §6. |
+| **Config error after an upgrade** | Source build (`docker-compose.yml`): `git pull && docker compose up -d --build`. Prebuilt images (`docker-compose.release.yml`): `docker compose -f docker-compose.release.yml pull && docker compose -f docker-compose.release.yml up -d` (bump `DRAMACLAW_VERSION` in `.env` if you pin it). See the self-hosting guide §6. |
 
 ## world features (3DGS/SHARP)
 

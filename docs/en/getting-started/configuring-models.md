@@ -11,13 +11,12 @@ DramaClaw CE generates text, images, video, and audio through a small set of eng
 | Images | Draw Things (local), any Higgsfield image model, or OpenRouter image models | `drawthings` / `higgsfield:<model>` / `openrouter:<model>` |
 | Video | any Higgsfield video model, or h3.c / MiniMax H3 (local) | `higgsfield:<model>` / `h3c` |
 | Voices, music, sound effects | Higgsfield | `HIGGSFIELD_TTS_*` |
-| Knowledge-graph embedding | Bundled NewAPI gateway | `DC-cognee-embedding` |
 
 After startup, open `http://localhost:8080` and click **Settings**. The **Engines** section shows, for each engine, whether it is reachable, the remaining Higgsfield credits, whether MTPLX is running or starts on demand, and the active text engine. It reads `GET /api/v1/model-gateway/engines` and is read-only: change engines in `.env` and restart the API.
 
 ## Text: MTPLX or OpenRouter
 
-`TEXT_ENGINE` picks the engine for every text call and for text-with-image (vision) calls. Hermes chat and the Cognee LLM follow it.
+`TEXT_ENGINE` picks the engine for every text call and for text-with-image (vision) calls. Structured extraction (characters, scenes, props), planning metadata and Hermes chat follow it.
 
 ### MTPLX (default)
 
@@ -114,17 +113,6 @@ Before a Higgsfield job runs, DramaClaw quotes its credit price. Every job is re
 - `GET /api/v1/projects/{project}/video-usage`: video jobs and credits spent, plus the Higgsfield balance.
 - `GET /api/v1/projects/{project}/character-image-usage` and `GET /api/v1/projects/{project}/episodes/{episode}/sketch-image-usage`: image requests.
 
-## Embedding (bundled NewAPI)
-
-`DC-cognee-embedding` powers the novel knowledge graph and semantic retrieval. It is the only model still served by the bundled NewAPI gateway. Configure it through the model-gateway API:
-
-- **Official**: `POST /api/v1/model-gateway/official/config` with your DC Key (`newApiApiKey`). RelayClaw already maps `DC-cognee-embedding`. To obtain a DC Key, visit <https://relayclaw.cdnfg.com>.
-- **Custom**: `POST /api/v1/model-gateway/custom/newapi/init` initializes the bundled NewAPI (root account on a fresh instance, the `dramaclaw-ce-runtime` token, runtime URL and token stored in local `settings.db`), then `POST /api/v1/model-gateway/custom/newapi/embedding-model` sets the provider, upstream model, dimensions, and batch size.
-
-`GET /api/v1/model-gateway/config` returns the current gateway state. Secrets are never returned; only masked previews are shown.
-
-The model and dimensions are bound when a project is created. Later changes affect only new projects. Clear and rebuild the graph before changing these values for an existing project. For embedding HTTP 400/422 errors, verify the model supports the configured dimensions and that the batch size does not exceed the upstream `input` limit.
-
 ## Troubleshooting
 
 | Symptom | What to check |
@@ -135,14 +123,12 @@ The model and dimensions are bound when a project is created. Later changes affe
 | Text calls fail with MTPLX | `MTPLX_BINARY` is missing, or another server at `MTPLX_BASE_URL` serves a different model than `MTPLX_MODEL`. |
 | OpenRouter shows “Unavailable” | `OPENROUTER_API_KEY` is not set. |
 | `127.0.0.1` engines unreachable from Docker | Inside a container `127.0.0.1` is the container itself. Point `DRAWTHINGS_URL` / `MTPLX_BASE_URL` at an address of the host reachable from the backend. The Higgsfield CLI and h3.c are not in the image. |
-| Knowledge-graph embedding fails | Check the gateway key, upstream model, dimensions, and batch size. HTTP 429 means upstream rate limiting. |
-| Local NewAPI initialization fails | Check the NewAPI service, SQLite mount, directory permissions, and `NEWAPI_PROVISIONER_ENABLED`. |
 
 ## Related files
 
 - `src/novelvideo/engines/`: engine drivers (Higgsfield, Draw Things, OpenRouter images, h3.c, MTPLX, audio).
 - `src/novelvideo/media_catalog.py`: the media model catalog built from the installed engines.
 - `.env.example`: environment variable reference.
-- `docker-compose.yml` (source build) / `docker-compose.release.yml` (images): the deployment files (api + bundled NewAPI + web).
+- `docker-compose.yml` (source build) / `docker-compose.release.yml` (images): the deployment files (api + web).
 - [Self-Hosting Handbook](../guides/self-hosting.md)
 - [Environment Variable Reference](../reference/environment-variables.md)

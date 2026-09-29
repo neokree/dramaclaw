@@ -28,6 +28,7 @@ MTPLX is a local OpenAI-compatible server (`mtplx serve`). DramaClaw starts it o
 | `MTPLX_MODEL` | `hawhyhb-qwen36-35b-a3b-uncensored-heretic-mtplx-4bit-fp16` |
 | `MTPLX_BINARY` | `~/.mtplx/bin/mtplx` |
 | `MTPLX_MODEL_PATH` | `~/.mtplx/models/hawhyhb--Qwen3.6-35B-A3B-Uncensored-Heretic-MTPLX-4bit-FP16` |
+| `MTPLX_IDLE_SECONDS` | `120` (seconds a server DramaClaw started stays up after the last text request or chat turn; `0` stops it at once) |
 
 If a server already answers at `MTPLX_BASE_URL` but does not serve `MTPLX_MODEL`, text calls fail instead of starting a second server. MTPLX serves one model, so the per-feature `*_MODEL` overrides in `.env.example` are ignored.
 

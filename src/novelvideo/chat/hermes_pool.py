@@ -144,13 +144,20 @@ class _ManagedHermesThread:
         return getattr(self._slot.thread, name)
 
     async def stream(self, prompt: str, *, current_project: str | None = None):
+        from novelvideo.config import ensure_text_engine_ready
+        from novelvideo.engines import mtplx
+
         await self._owner._begin_turn(self._slot)
         try:
-            async for event in self._slot.thread.stream(
-                prompt,
-                current_project=current_project,
-            ):
-                yield event
+            # The worker calls MTPLX directly: hold a lease for the whole turn
+            # and restart the server if the idle stop freed it since the spawn.
+            with mtplx.lease():
+                await asyncio.to_thread(ensure_text_engine_ready)
+                async for event in self._slot.thread.stream(
+                    prompt,
+                    current_project=current_project,
+                ):
+                    yield event
         finally:
             await asyncio.shield(self._owner._finish_turn(self._slot))
 

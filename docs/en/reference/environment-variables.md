@@ -24,6 +24,7 @@ Engines are chosen here, not in the web UI; **Settings → Engines** only shows 
 |---|---|---|
 | `TEXT_ENGINE` | `mtplx` | Text and vision engine: `mtplx` (local) or `openrouter`. |
 | `MTPLX_BASE_URL` / `MTPLX_MODEL` | `http://127.0.0.1:8000/v1` / see `.env.example` | Local MTPLX server, started on demand. `MTPLX_BINARY` and `MTPLX_MODEL_PATH` locate the binary and weights. |
+| `MTPLX_IDLE_SECONDS` | `120` | Seconds a server DramaClaw started stays up after the last text request or chat turn; `0` stops it at once. |
 | `OPENROUTER_API_KEY` | Empty | Key for OpenRouter text (`TEXT_ENGINE=openrouter`) and OpenRouter images. |
 | `OPENROUTER_MODEL` | `google/gemma-4-26b-a4b-it` | Default OpenRouter text model. Per-feature `*_MODEL` overrides (`vendor/model`) apply only under OpenRouter. |
 | `OPENROUTER_IMAGE_MODELS` | `google/gemini-3.1-flash-image-preview,openai/gpt-5.4-image-2` | OpenRouter image models offered as `openrouter:<model>`. |

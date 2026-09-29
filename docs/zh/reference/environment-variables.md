@@ -24,6 +24,7 @@
 |---|---|---|
 | `TEXT_ENGINE` | `mtplx` | 文本与视觉理解引擎：`mtplx`（本地）或 `openrouter`。 |
 | `MTPLX_BASE_URL` / `MTPLX_MODEL` | `http://127.0.0.1:8000/v1` / 见 `.env.example` | 本机 MTPLX 服务，按需启动。`MTPLX_BINARY` 和 `MTPLX_MODEL_PATH` 指定二进制与权重位置。 |
+| `MTPLX_IDLE_SECONDS` | `120` | DramaClaw 自己启动的服务在最后一次文本请求或对话轮次结束后保留的秒数；`0` 表示立即停止。 |
 | `OPENROUTER_API_KEY` | 空 | OpenRouter 文本（`TEXT_ENGINE=openrouter`）和 OpenRouter 图片使用的 key。 |
 | `OPENROUTER_MODEL` | `google/gemma-4-26b-a4b-it` | OpenRouter 默认文本模型。按任务覆盖的 `*_MODEL`（`vendor/model` 形式）只在 OpenRouter 下生效。 |
 | `OPENROUTER_IMAGE_MODELS` | `google/gemini-3.1-flash-image-preview,openai/gpt-5.4-image-2` | 以 `openrouter:<模型>` 提供的 OpenRouter 图片模型。 |

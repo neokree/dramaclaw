@@ -1,3 +1,5 @@
+import time
+
 import pytest
 
 from novelvideo.engines import drawthings, h3c, higgsfield
@@ -240,6 +242,99 @@ def test_mtplx_stop_ends_only_the_server_this_process_started(monkeypatch):
     mtplx.stop()
 
     assert proc.poll() is not None and mtplx._started is None
+
+
+@pytest.fixture
+def owned_mtplx(monkeypatch):
+    """An MTPLX 'started by this process' whose stops are counted, not executed."""
+    from novelvideo.engines import mtplx
+
+    stops = []
+
+    def fake_stop_locked():
+        stops.append(mtplx._started)
+        mtplx._started = None
+
+    monkeypatch.setattr(mtplx, "_started", object())
+    monkeypatch.setattr(mtplx, "_leases", 0)
+    monkeypatch.setattr(mtplx, "_idle_timer", None)
+    monkeypatch.setattr(mtplx, "_stop_locked", fake_stop_locked)
+    yield mtplx, stops
+    with mtplx._lock:
+        mtplx._cancel_idle_locked()
+
+
+def _settle(mtplx, seconds=0.3):
+    time.sleep(seconds)
+    timer = mtplx._idle_timer
+    if timer is not None:
+        timer.join(1)
+
+
+def test_mtplx_lease_keeps_server_then_idle_stops_it_once(owned_mtplx, monkeypatch):
+    mtplx, stops = owned_mtplx
+    monkeypatch.setenv("MTPLX_IDLE_SECONDS", "0.1")
+    with mtplx.lease():
+        with mtplx.lease():
+            pass
+        _settle(mtplx)
+        assert stops == []  # the outer lease is still held
+    _settle(mtplx)
+    assert len(stops) == 1 and mtplx._started is None
+
+
+def test_mtplx_new_lease_during_grace_cancels_the_stop(owned_mtplx, monkeypatch):
+    mtplx, stops = owned_mtplx
+    monkeypatch.setenv("MTPLX_IDLE_SECONDS", "0.3")
+    with mtplx.lease():
+        pass
+    with mtplx.lease():
+        time.sleep(0.5)
+        assert stops == []
+    monkeypatch.setenv("MTPLX_IDLE_SECONDS", "0")
+    with mtplx.lease():
+        pass
+    _settle(mtplx)
+    assert len(stops) == 1
+
+
+def test_mtplx_idle_zero_stops_right_away(owned_mtplx, monkeypatch):
+    mtplx, stops = owned_mtplx
+    monkeypatch.setenv("MTPLX_IDLE_SECONDS", "0")
+    with mtplx.lease():
+        pass
+    _settle(mtplx, 0.05)
+    assert len(stops) == 1
+
+
+def test_mtplx_idle_leaves_an_external_server_alone(owned_mtplx, monkeypatch):
+    mtplx, stops = owned_mtplx
+    monkeypatch.setattr(mtplx, "_started", None)  # served by someone else
+    monkeypatch.setenv("MTPLX_IDLE_SECONDS", "0")
+    with mtplx.lease():
+        pass
+    _settle(mtplx)
+    assert stops == [] and mtplx._idle_timer is None
+
+
+def test_text_model_request_holds_an_mtplx_lease(monkeypatch):
+    import asyncio
+
+    from pydantic_ai.models.openai import OpenAIChatModel
+
+    from novelvideo import config
+    from novelvideo.engines import mtplx
+
+    seen = []
+
+    async def fake_request(self, *args, **kwargs):
+        seen.append(mtplx._leases)
+        return "ok"
+
+    monkeypatch.setattr(OpenAIChatModel, "request", fake_request)
+    model = config.get_text_pydantic_model("MODEL_NAME", "unused")
+    assert asyncio.run(model.request([], None, None)) == "ok"
+    assert seen == [1] and mtplx._leases == 0
 
 
 def test_media_catalog_video_entries_come_from_model_schemas(higgsfield_catalog):

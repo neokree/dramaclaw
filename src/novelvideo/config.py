@@ -219,22 +219,28 @@ def _text_openai_model(
 
     from pydantic_ai.models.openai import OpenAIChatModel
 
+    from novelvideo.engines import mtplx
+
     async def _ready() -> None:
         if ensure_ready is not None:
             await asyncio.to_thread(ensure_ready)
 
+    # Every request holds an MTPLX lease (a no-op unless this process started
+    # the server), so the idle stop never lands mid-generation.
     class _AutoClosingOpenAIChatModel(OpenAIChatModel):
         async def request(self, *args: Any, **kwargs: Any) -> Any:
-            await _ready()
-            async with self:
-                return await super().request(*args, **kwargs)
+            with mtplx.lease():
+                await _ready()
+                async with self:
+                    return await super().request(*args, **kwargs)
 
         @asynccontextmanager
         async def request_stream(self, *args: Any, **kwargs: Any):
-            await _ready()
-            async with self:
-                async with super().request_stream(*args, **kwargs) as response:
-                    yield response
+            with mtplx.lease():
+                await _ready()
+                async with self:
+                    async with super().request_stream(*args, **kwargs) as response:
+                        yield response
 
     return _AutoClosingOpenAIChatModel(
         model_name,

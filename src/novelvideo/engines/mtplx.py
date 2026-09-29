@@ -5,6 +5,9 @@ model is used as is; otherwise `mtplx serve` is started with
 MTPLX_APP_PARENT_PID so it stops by itself when this backend exits.
 `stop()` shuts down a server this process started (h3.c calls it to free
 ~30 GB); the next text request starts it again.
+
+Text requests hold a `lease()`; once the last one is released, a server this
+process started is stopped after MTPLX_IDLE_SECONDS (a new lease cancels it).
 """
 
 from __future__ import annotations
@@ -14,6 +17,7 @@ import signal
 import subprocess
 import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 import httpx
@@ -23,6 +27,8 @@ from novelvideo.engines._proc import EngineError
 START_TIMEOUT_SECONDS = 120
 _lock = threading.Lock()
 _started: subprocess.Popen | None = None
+_leases = 0
+_idle_timer: threading.Timer | None = None
 
 
 def base_url() -> str:
@@ -98,22 +104,80 @@ def ensure_running() -> str:
                 raise EngineError(f"mtplx serve è uscito con codice {proc.returncode}.")
             if model_id() in (served_models() or []):
                 _started = proc
+                _arm_idle_locked()  # an unleased start (Hermes spawn, prewarm) still gets freed
                 return base_url()
             time.sleep(0.25)
         proc.terminate()
         raise EngineError(f"MTPLX non pronto dopo {START_TIMEOUT_SECONDS}s.")
 
 
+def idle_seconds() -> float:
+    try:
+        return max(0.0, float(os.environ.get("MTPLX_IDLE_SECONDS") or 120))
+    except ValueError:
+        return 120.0
+
+
+@contextmanager
+def lease():
+    """Keep a server this process started alive while the block runs."""
+    global _leases
+    with _lock:
+        _leases += 1
+        _cancel_idle_locked()
+    try:
+        yield
+    finally:
+        with _lock:
+            _leases -= 1
+            _arm_idle_locked()
+
+
+def _cancel_idle_locked() -> None:
+    global _idle_timer
+    if _idle_timer is not None:
+        _idle_timer.cancel()
+        _idle_timer = None
+
+
+def _arm_idle_locked() -> None:
+    # ponytail: leases count text requests and Hermes turns in this process only;
+    # a caller that talks to MTPLX outside them can outlive the grace period.
+    global _idle_timer
+    if _leases or _started is None:
+        return
+    _cancel_idle_locked()
+    # Always a thread, even for 0 s: stopping waits up to 30 s and a lease is
+    # released on the event loop.
+    _idle_timer = threading.Timer(idle_seconds(), _idle_stop)
+    _idle_timer.daemon = True
+    _idle_timer.start()
+
+
+def _idle_stop() -> None:
+    global _idle_timer
+    with _lock:
+        if _idle_timer is not threading.current_thread() or _leases:
+            return  # superseded or a lease came in while this timer waited for the lock
+        _idle_timer = None
+        _stop_locked()
+
+
 def stop() -> None:
     """Stop the server this process started, if any; a server started elsewhere is left alone."""
-    global _started
     with _lock:
-        proc, _started = _started, None
-        if proc is None or proc.poll() is not None:
-            return
-        os.killpg(proc.pid, signal.SIGTERM)
-        try:
-            proc.wait(timeout=30)
-        except subprocess.TimeoutExpired:
-            os.killpg(proc.pid, signal.SIGKILL)
-            proc.wait()
+        _cancel_idle_locked()
+        _stop_locked()
+
+
+def _stop_locked() -> None:
+    global _started
+    proc, _started = _started, None
+    if proc is None or proc.poll() is not None:
+        return
+    os.killpg(proc.pid, signal.SIGTERM)
+    try:
+        proc.wait(timeout=30)
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.wait()

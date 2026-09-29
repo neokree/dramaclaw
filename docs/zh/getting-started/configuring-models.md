@@ -28,6 +28,7 @@ MTPLX 是本机的 OpenAI 兼容服务（`mtplx serve`）。如果 `MTPLX_BASE_U
 | `MTPLX_MODEL` | `hawhyhb-qwen36-35b-a3b-uncensored-heretic-mtplx-4bit-fp16` |
 | `MTPLX_BINARY` | `~/.mtplx/bin/mtplx` |
 | `MTPLX_MODEL_PATH` | `~/.mtplx/models/hawhyhb--Qwen3.6-35B-A3B-Uncensored-Heretic-MTPLX-4bit-FP16` |
+| `MTPLX_IDLE_SECONDS` | `120`（DramaClaw 自己启动的服务在最后一次文本请求或对话轮次结束后保留的秒数；`0` 表示立即停止） |
 
 如果 `MTPLX_BASE_URL` 上已有服务响应但未提供 `MTPLX_MODEL`，文本请求会直接报错，不会再启动第二个服务。MTPLX 只服务一个模型，因此 `.env.example` 中按任务覆盖的 `*_MODEL` 在 MTPLX 下不生效。
 

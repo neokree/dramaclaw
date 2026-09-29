@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from novelvideo.cognee.pipeline import (
+from novelvideo.story.scenes import (
     SCENE_ENRICHMENT_CACHE_TYPE,
     SCENE_FALLBACK_FINGERPRINT,
     StoreSceneBuildCache,
@@ -192,7 +192,7 @@ def test_context_beyond_what_either_call_sees_does_not_change_the_key():
 
 def test_the_contract_version_is_part_of_the_key(monkeypatch):
     """A bump must retire every stored result rather than mix contracts."""
-    from novelvideo.cognee import pipeline
+    from novelvideo.story import scenes as pipeline
 
     before = scene_enrichment_cache_key(_candidate("办公室"))
     monkeypatch.setattr(pipeline, "SCENE_ENRICHMENT_CACHE_VERSION", 99)
@@ -200,7 +200,7 @@ def test_the_contract_version_is_part_of_the_key(monkeypatch):
 
 
 def test_pre_language_contract_cache_keys_are_retired(monkeypatch):
-    from novelvideo.cognee import pipeline
+    from novelvideo.story import scenes as pipeline
 
     current = scene_enrichment_cache_key(_candidate("Central Library"))
     monkeypatch.setattr(pipeline, "SCENE_ENRICHMENT_CACHE_VERSION", 1)
@@ -327,7 +327,7 @@ async def test_a_retry_only_pays_for_the_scenes_that_are_missing():
             ),
         )
 
-    from novelvideo.cognee import pipeline
+    from novelvideo.story import scenes as pipeline
 
     original = pipeline.enrich_scene_environment_from_context
     pipeline.enrich_scene_environment_from_context = failing_per_scene
@@ -383,7 +383,7 @@ async def test_a_failed_scene_is_never_cached():
             ),
         )
 
-    from novelvideo.cognee import pipeline
+    from novelvideo.story import scenes as pipeline
 
     original = pipeline.enrich_scene_environment_from_context
     pipeline.enrich_scene_environment_from_context = failing_per_scene
@@ -512,7 +512,7 @@ async def test_build_scenes_structured_passes_the_projects_own_cache(
     import json
 
     from novelvideo import structured_builders
-    from novelvideo.cognee import pipeline
+    from novelvideo.story import scenes as pipeline
     from novelvideo.knowledge_pipeline import (
         KNOWLEDGE_PIPELINE_KEY,
         KNOWLEDGE_PIPELINE_STRUCTURED,
@@ -614,7 +614,7 @@ def _parsed(name, **overrides):
 
 def test_a_parsed_block_becomes_a_candidate_with_no_model_call():
     """A standard heading already states everything a candidate needs."""
-    from novelvideo.cognee.pipeline import _candidate_from_parsed_block
+    from novelvideo.story.scenes import _candidate_from_parsed_block
 
     candidate = _candidate_from_parsed_block(_parsed("主任办公室", interior=True))
     assert candidate["name"] == "主任办公室"
@@ -625,7 +625,7 @@ def test_a_parsed_block_becomes_a_candidate_with_no_model_call():
 
 
 def test_an_exterior_block_keeps_its_type():
-    from novelvideo.cognee.pipeline import _candidate_from_parsed_block
+    from novelvideo.story.scenes import _candidate_from_parsed_block
 
     assert (
         _candidate_from_parsed_block(_parsed("郑家别墅外", interior=False))["scene_type"]
@@ -637,7 +637,7 @@ def test_an_exterior_block_keeps_its_type():
 
 
 def test_a_faithful_normalization_is_accepted():
-    from novelvideo.cognee.pipeline import _scene_recall_is_covered
+    from novelvideo.story.scenes import _scene_recall_is_covered
 
     covered, gap = _scene_recall_is_covered(
         [{"name": "主任办公室", "aliases": []}, {"name": "楼梯间", "aliases": []}],
@@ -648,7 +648,7 @@ def test_a_faithful_normalization_is_accepted():
 
 def test_a_location_kept_only_as_an_alias_still_counts_as_covered():
     """Folding a spelling into an alias is the normalizer working, not a loss."""
-    from novelvideo.cognee.pipeline import _scene_recall_is_covered
+    from novelvideo.story.scenes import _scene_recall_is_covered
 
     covered, _ = _scene_recall_is_covered(
         [{"name": "主任办公室", "aliases": ["主任的办公室"]}],
@@ -658,7 +658,7 @@ def test_a_location_kept_only_as_an_alias_still_counts_as_covered():
 
 
 def test_a_heading_marker_difference_alone_is_not_a_loss():
-    from novelvideo.cognee.pipeline import _scene_recall_is_covered
+    from novelvideo.story.scenes import _scene_recall_is_covered
 
     covered, _ = _scene_recall_is_covered(
         [{"name": "演武场外墙", "aliases": []}],
@@ -669,7 +669,7 @@ def test_a_heading_marker_difference_alone_is_not_a_loss():
 
 def test_a_dropped_location_trips_the_guard():
     """The one thing the guard exists to catch."""
-    from novelvideo.cognee.pipeline import _scene_recall_is_covered
+    from novelvideo.story.scenes import _scene_recall_is_covered
 
     covered, gap = _scene_recall_is_covered(
         [{"name": "主任办公室", "aliases": []}],
@@ -686,7 +686,7 @@ def test_fewer_scenes_alone_no_longer_trips_the_guard():
     on a real screenplay, more than half the build's wall clock — to rebuild a
     catalogue the normalizer had already produced.
     """
-    from novelvideo.cognee.pipeline import _scene_recall_is_covered
+    from novelvideo.story.scenes import _scene_recall_is_covered
 
     normalized = [{"name": "主任办公室", "aliases": ["主任办公室·夜"]}]
     parsed = [_parsed("主任办公室"), _parsed("主任办公室·夜")]
@@ -704,7 +704,7 @@ async def test_the_normalizer_runs_once_per_source_text(monkeypatch):
     Its answer differs between runs, so left uncached it reshuffles the
     candidates — and every scene-description key derived from them misses.
     """
-    from novelvideo.cognee import pipeline
+    from novelvideo.story import scenes as pipeline
 
     calls = {"n": 0}
 
@@ -728,7 +728,7 @@ async def test_the_normalizer_runs_once_per_source_text(monkeypatch):
 
 
 async def test_changed_source_text_runs_the_normalizer_again(monkeypatch):
-    from novelvideo.cognee import pipeline
+    from novelvideo.story import scenes as pipeline
 
     calls = {"n": 0}
 
@@ -751,7 +751,7 @@ async def test_changed_source_text_runs_the_normalizer_again(monkeypatch):
 
 async def test_an_empty_normalization_is_not_cached(monkeypatch):
     """Nothing produced by a call that came back empty is worth replaying."""
-    from novelvideo.cognee import pipeline
+    from novelvideo.story import scenes as pipeline
 
     calls = {"n": 0}
 

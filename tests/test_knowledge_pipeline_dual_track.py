@@ -173,7 +173,7 @@ async def test_structured_store_still_works_as_a_sqlite_facade(structured_store)
     Portrait, prop/scene reference, script, sketch, video, verification and the
     Freezone routes all construct a CogneeStore purely for SQLite access.
     """
-    from novelvideo.cognee.pipeline import NovelCharacter
+    from novelvideo.models import NovelCharacter
 
     try:
         await structured_store.initialize()

@@ -93,7 +93,7 @@ def _block(location: str = "咖啡馆", time_of_day: str = "夜"):
 @pytest.mark.asyncio
 async def test_drama_scene_planning_uses_screenplay_normalizer_as_primary(monkeypatch):
     import novelvideo.agents.asset_compiler as asset_compiler
-    from novelvideo.cognee.screenplay_normalizer import NormalizedSceneHeader
+    from novelvideo.story.screenplay_normalizer import NormalizedSceneHeader
 
     calls = []
 

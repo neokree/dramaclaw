@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from novelvideo.cognee import scene_name_migration as migration_module
-from novelvideo.cognee.scene_name_migration import migrate_scene_names
+from novelvideo.story import scene_name_migration as migration_module
+from novelvideo.story.scene_name_migration import migrate_scene_names
 
 DIRTY = "凤鸣皇城·苏鸾寝殿 亥时"
 CANONICAL = "凤鸣皇城·苏鸾寝殿"
@@ -534,7 +534,7 @@ def test_asset_copy_failure_records_failure_and_skips_backup_and_db_write(
 
 def test_cli_scene_migration_report_keeps_failed_copy_count_and_detail(monkeypatch):
     from novelvideo import cli
-    from novelvideo.cognee.scene_name_migration import SceneNameMigrationReport
+    from novelvideo.story.scene_name_migration import SceneNameMigrationReport
 
     printed: list[str] = []
     report = SceneNameMigrationReport(

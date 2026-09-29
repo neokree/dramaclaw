@@ -1144,8 +1144,8 @@ class CogneeStore:
         on_log: Optional[Callable[[str], None]] = None,
     ) -> List[NovelEpisode]:
         """基于事件的剧集规划（支持章节拆分）。"""
-        from novelvideo.cognee.chapter_detector import ChapterDetector
-        from novelvideo.cognee.event_extractor import EventExtractor
+        from novelvideo.story.chapter_detector import ChapterDetector
+        from novelvideo.story.event_extractor import EventExtractor
 
         def report(progress: float, task: MessageLike):
             if on_progress:
@@ -1831,7 +1831,7 @@ class CogneeStore:
         log(f"从图谱提取了 {len(scenes)} 个场景")
         report(0.8, "保存新增场景...")
         log("保存新增场景到数据库...")
-        from .pipeline import should_repair_scene_placeholder
+        from novelvideo.story.scenes import should_repair_scene_placeholder
 
         added: list[NovelScene] = []
         skipped = 0

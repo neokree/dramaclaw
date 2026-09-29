@@ -527,7 +527,7 @@ async def structured_store(tmp_path, monkeypatch):
 
 async def test_atomic_publish_leaves_nothing_behind_on_failure(structured_store):
     """add_character commits per row; a build must publish all or nothing."""
-    from novelvideo.cognee.pipeline import NovelCharacter
+    from novelvideo.models import NovelCharacter
 
     store, _ = structured_store
     db = await store._ensure_db()
@@ -556,7 +556,7 @@ async def test_atomic_publish_leaves_nothing_behind_on_failure(structured_store)
 
 async def test_atomic_publish_never_overwrites_an_existing_character(structured_store):
     """An existing character may already carry portraits, identities and voice."""
-    from novelvideo.cognee.pipeline import NovelCharacter
+    from novelvideo.models import NovelCharacter
 
     store, _ = structured_store
     await store.add_character(
@@ -924,7 +924,7 @@ async def test_evidence_is_backfilled_when_the_characters_already_exist(
     provenance forever.
     """
     from novelvideo import structured_builders
-    from novelvideo.cognee.pipeline import NovelCharacter
+    from novelvideo.models import NovelCharacter
     from novelvideo.structured_extraction import extract_characters_from_chunks
     from novelvideo.structured_ingest import ingest_source_text_structured
 
@@ -1818,7 +1818,7 @@ async def test_a_placeholder_prompt_is_replaced_on_rebuild(tmp_path, monkeypatch
     those prompts.
     """
     from novelvideo import structured_builders
-    from novelvideo.cognee.pipeline import _ensure_directional_environment_prompt
+    from novelvideo.story.scenes import _ensure_directional_environment_prompt
     from novelvideo.models import NovelScene
 
     store = await _drama_project(tmp_path, DRAMA_SCRIPT)
@@ -1835,7 +1835,7 @@ async def test_a_placeholder_prompt_is_replaced_on_rebuild(tmp_path, monkeypatch
             return [_fresh_scene("林家客厅")]
 
         monkeypatch.setattr(
-            "novelvideo.cognee.pipeline.extract_scenes_from_script", fake_extract
+            "novelvideo.story.scenes.extract_scenes_from_script", fake_extract
         )
         # Imported inside the builder, so it is patched at its source.
         monkeypatch.setattr(
@@ -1866,7 +1866,7 @@ async def test_a_user_written_prompt_is_never_replaced(tmp_path, monkeypatch):
             return [_fresh_scene("林家客厅")]
 
         monkeypatch.setattr(
-            "novelvideo.cognee.pipeline.extract_scenes_from_script", fake_extract
+            "novelvideo.story.scenes.extract_scenes_from_script", fake_extract
         )
         # Imported inside the builder, so it is patched at its source.
         monkeypatch.setattr(
@@ -2143,7 +2143,7 @@ async def test_a_rebuild_fills_a_face_an_existing_character_never_had(
 ):
     """Characters built before this stage existed would otherwise stay faceless."""
     from novelvideo import structured_builders
-    from novelvideo.cognee.pipeline import NovelCharacter
+    from novelvideo.models import NovelCharacter
 
     store, _ = structured_store
     await store.add_characters_atomic(
@@ -2178,7 +2178,7 @@ async def test_a_rebuild_leaves_an_age_band_a_bound_voice_depends_on(
 ):
     """A bound voice means somebody chose the band; the repair must not move it."""
     from novelvideo import structured_builders
-    from novelvideo.cognee.pipeline import NovelCharacter
+    from novelvideo.models import NovelCharacter
 
     store, _ = structured_store
     await store.add_characters_atomic(
@@ -2212,7 +2212,7 @@ async def test_a_rebuild_never_overwrites_a_face_the_user_wrote(
     structured_store, monkeypatch
 ):
     from novelvideo import structured_builders
-    from novelvideo.cognee.pipeline import NovelCharacter
+    from novelvideo.models import NovelCharacter
 
     store, _ = structured_store
     await store.add_characters_atomic(
@@ -2299,7 +2299,7 @@ async def test_a_rebuild_marks_the_narrator_an_existing_project_never_had(
 ):
     """Without it, first-person narration fails with 未找到解说主角 forever."""
     from novelvideo import structured_builders
-    from novelvideo.cognee.pipeline import NovelCharacter
+    from novelvideo.models import NovelCharacter
 
     store, _ = structured_store
     await store.add_characters_atomic(
@@ -2323,7 +2323,7 @@ async def test_a_narrator_marked_by_hand_is_not_joined_by_a_second_one(
 ):
     """Nothing binds to is_main, so an unclaimed narrator is the only signal."""
     from novelvideo import structured_builders
-    from novelvideo.cognee.pipeline import NovelCharacter
+    from novelvideo.models import NovelCharacter
 
     store, _ = structured_store
     await store.add_characters_atomic(
@@ -2352,7 +2352,7 @@ async def test_a_face_written_by_hand_does_not_lock_out_the_other_fields(
 ):
     """Gating the whole repair on a missing face punished the one field filled in."""
     from novelvideo import structured_builders
-    from novelvideo.cognee.pipeline import NovelCharacter
+    from novelvideo.models import NovelCharacter
 
     store, _ = structured_store
     await store.add_characters_atomic(
@@ -2389,7 +2389,7 @@ async def test_a_character_with_nothing_missing_is_left_untouched(
 ):
     """Every field guarded, so a settled character costs no write at all."""
     from novelvideo import structured_builders
-    from novelvideo.cognee.pipeline import NovelCharacter
+    from novelvideo.models import NovelCharacter
 
     store, _ = structured_store
     await store.add_characters_atomic(
@@ -2431,7 +2431,7 @@ async def test_a_newly_discovered_character_cannot_become_a_second_narrator(
 ):
     """The insert lands before the repair path ever looks for a narrator."""
     from novelvideo import structured_builders
-    from novelvideo.cognee.pipeline import NovelCharacter
+    from novelvideo.models import NovelCharacter
 
     store, _ = structured_store
     await store.add_characters_atomic(

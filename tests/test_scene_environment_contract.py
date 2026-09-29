@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from novelvideo.cognee.pipeline import (
+from novelvideo.story.scenes import (
     SCENE_FALLBACK_FINGERPRINT,
     _ensure_directional_environment_prompt,
     _has_required_scene_environment_headings,

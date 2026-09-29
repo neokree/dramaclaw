@@ -18,7 +18,7 @@ from novelvideo.models import NovelProp, NovelScene
 
 @pytest.fixture
 async def stores(tmp_path):
-    from novelvideo.cognee.pipeline import NovelEpisode
+    from novelvideo.models import NovelEpisode
     from novelvideo.sqlite_store import SQLiteStore
 
     state = tmp_path / "user" / "project"

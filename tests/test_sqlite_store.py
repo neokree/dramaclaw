@@ -26,7 +26,7 @@ def test_import():
     )
 
     # 确认不再依赖 DataPoint
-    from novelvideo.cognee.pipeline import NovelCharacter
+    from novelvideo.models import NovelCharacter
     from pydantic import BaseModel
 
     assert issubclass(NovelCharacter, BaseModel)
@@ -590,7 +590,7 @@ async def test_novel_content(tmp_project):
 # ── 4. characters 写入 + 内存缓存 ──────────────────────────
 @pytest.mark.asyncio
 async def test_character_crud(tmp_project):
-    from novelvideo.cognee.pipeline import NovelCharacter
+    from novelvideo.models import NovelCharacter
 
     store = tmp_project
     await store._ensure_db()
@@ -638,7 +638,7 @@ async def test_character_crud(tmp_project):
 # ── 5. episodes + beats 写入 ───────────────────────────────
 @pytest.mark.asyncio
 async def test_episode_and_beats(tmp_project):
-    from novelvideo.cognee.pipeline import NovelEpisode, NovelVisualBeat
+    from novelvideo.models import NovelEpisode, NovelVisualBeat
 
     store = tmp_project
     await store._ensure_db()
@@ -694,7 +694,7 @@ async def test_count_beats_by_episode_groups_in_one_query(tmp_project):
 
     这个方法存在的意义就是替掉「前端逐集拉完整 beats 再取 len()」。
     """
-    from novelvideo.cognee.pipeline import NovelEpisode, NovelVisualBeat
+    from novelvideo.models import NovelEpisode, NovelVisualBeat
 
     store = tmp_project
     await store._ensure_db()
@@ -735,7 +735,7 @@ async def test_list_beat_asset_refs_returns_reference_columns_in_order(tmp_proje
     钉住这条等价性。
     """
     from novelvideo.models import SceneRef
-    from novelvideo.cognee.pipeline import NovelVisualBeat
+    from novelvideo.models import NovelVisualBeat
 
     store = tmp_project
     await store._ensure_db()
@@ -873,7 +873,7 @@ async def test_replace_episodes_commits_new_plan_and_refreshes_cache(tmp_path):
 async def test_episode_schema_migration_adds_planning_columns(tmp_path):
     import aiosqlite
 
-    from novelvideo.cognee.pipeline import NovelEpisode
+    from novelvideo.models import NovelEpisode
     from novelvideo.sqlite_store import SQLiteStore
 
     output_dir = tmp_path / "output" / "testuser" / "legacy_episode_schema"
@@ -942,7 +942,7 @@ async def test_episode_schema_migration_adds_planning_columns(tmp_path):
 async def test_beats_schema_migration_adds_current_columns(tmp_path):
     import aiosqlite
 
-    from novelvideo.cognee.pipeline import NovelVisualBeat
+    from novelvideo.models import NovelVisualBeat
     from novelvideo.sqlite_store import SQLiteStore
 
     output_dir = tmp_path / "output" / "testuser" / "legacy_beats_schema"
@@ -1024,7 +1024,7 @@ async def test_beats_schema_migration_adds_current_columns(tmp_path):
 # ── 6. beat 更新 ───────────────────────────────────────────
 @pytest.mark.asyncio
 async def test_beat_update(tmp_project):
-    from novelvideo.cognee.pipeline import NovelVisualBeat
+    from novelvideo.models import NovelVisualBeat
 
     store = tmp_project
     await store._ensure_db()
@@ -1079,7 +1079,7 @@ def test_stringify_search_fragment_handles_nested_lists():
 # ── 7. load_graph_state 恢复缓存 ──────────────────────────
 @pytest.mark.asyncio
 async def test_load_graph_state(tmp_project):
-    from novelvideo.cognee.pipeline import NovelCharacter, NovelEpisode
+    from novelvideo.models import NovelCharacter, NovelEpisode
 
     store = tmp_project
     await store._ensure_db()
@@ -1108,7 +1108,7 @@ async def test_load_graph_state(tmp_project):
 # ── 8. 身份 CRUD ──────────────────────────────────────────
 @pytest.mark.asyncio
 async def test_identity_crud(tmp_project):
-    from novelvideo.cognee.pipeline import NovelCharacter, CharacterIdentity
+    from novelvideo.models import NovelCharacter, CharacterIdentity
 
     store = tmp_project
     await store._ensure_db()
@@ -1144,7 +1144,7 @@ async def test_identity_crud(tmp_project):
 # ── 9. 删除全部数据 ──────────────────────────────────────
 @pytest.mark.asyncio
 async def test_delete_project_data(tmp_project):
-    from novelvideo.cognee.pipeline import NovelCharacter, NovelEpisode
+    from novelvideo.models import NovelCharacter, NovelEpisode
 
     store = tmp_project
     await store._ensure_db()
@@ -1163,7 +1163,7 @@ async def test_delete_project_data(tmp_project):
 # ── 10. sketch_colors 读写 ────────────────────────────────
 @pytest.mark.asyncio
 async def test_sketch_colors(tmp_project):
-    from novelvideo.cognee.pipeline import NovelEpisode
+    from novelvideo.models import NovelEpisode
 
     store = tmp_project
     await store._ensure_db()
@@ -1184,7 +1184,7 @@ async def test_sketch_colors(tmp_project):
 # ── 11. v2.0 beat 字段 (time/video_prompt) ─
 @pytest.mark.asyncio
 async def test_new_beat_columns(tmp_project):
-    from novelvideo.cognee.pipeline import NovelVisualBeat
+    from novelvideo.models import NovelVisualBeat
 
     store = tmp_project
     await store._ensure_db()
@@ -1214,7 +1214,7 @@ async def test_new_beat_columns(tmp_project):
 # ── 12. beat_number 命名统一 ──────────────────────────────
 @pytest.mark.asyncio
 async def test_beat_number_naming(tmp_project):
-    from novelvideo.cognee.pipeline import NovelVisualBeat
+    from novelvideo.models import NovelVisualBeat
 
     store = tmp_project
     await store._ensure_db()
@@ -1234,7 +1234,7 @@ async def test_beat_number_naming(tmp_project):
 # ── 13. get_script_as_dict ────────────────────────────────
 @pytest.mark.asyncio
 async def test_get_script_as_dict(tmp_project):
-    from novelvideo.cognee.pipeline import NovelEpisode, NovelVisualBeat
+    from novelvideo.models import NovelEpisode, NovelVisualBeat
 
     store = tmp_project
     await store._ensure_db()
@@ -1271,7 +1271,7 @@ async def test_get_script_as_dict(tmp_project):
 # ── 14. persist_narration_script ──────────────────────────
 @pytest.mark.asyncio
 async def test_persist_narration_script(tmp_project):
-    from novelvideo.cognee.pipeline import NovelEpisode
+    from novelvideo.models import NovelEpisode
 
     store = tmp_project
     await store._ensure_db()
@@ -1309,7 +1309,7 @@ async def test_persist_narration_script(tmp_project):
 
 @pytest.mark.asyncio
 async def test_persist_narration_script_completes_detected_refs_from_markers(tmp_project):
-    from novelvideo.cognee.pipeline import (
+    from novelvideo.models import (
         CharacterIdentity,
         NovelCharacter,
         NovelEpisode,
@@ -1362,7 +1362,7 @@ async def test_persist_narration_script_completes_detected_refs_from_markers(tmp
 
 @pytest.mark.asyncio
 async def test_persist_beats_from_script_completes_empty_detected_markers(tmp_project):
-    from novelvideo.cognee.pipeline import NovelEpisode
+    from novelvideo.models import NovelEpisode
 
     store = tmp_project
     await store._ensure_db()

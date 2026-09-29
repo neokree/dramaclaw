@@ -1,6 +1,6 @@
 import pytest
 
-from novelvideo.cognee.script_parser import parse_scenes
+from novelvideo.story.script_parser import parse_scenes
 from novelvideo.time_of_day import normalize_time_of_day
 from novelvideo.utils.screenplay_quality import assess_screenplay_scene_headers
 from novelvideo.utils.screenplay_quality import check_screenplay_import_quality
@@ -457,7 +457,7 @@ def test_parse_numbered_marker_then_location_line():
     assert blocks[0].lines == ["鲁鸢【VO】：旧梁、老桩、百年门楼。"]
 
 
-def test_cognee_scene_parser_uses_shared_scene_blocks():
+def test_script_parser_uses_shared_scene_blocks():
     text = """
 1-1、上海老城·封门旧址 深夜 外
 人物：鲁鸢、鬼纹木魈、神秘人

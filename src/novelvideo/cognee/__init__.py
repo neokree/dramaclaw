@@ -31,9 +31,9 @@ from .pipeline import (
     run_character_extraction_pipeline,
     run_episode_planning_pipeline,
     extract_scenes_from_graph,
-    extract_scenes_from_script,
     extract_props_from_graph,
 )
+from novelvideo.story.scenes import extract_scenes_from_script
 from .tools import create_episode_planner_tools
 
 __all__ = [

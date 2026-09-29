@@ -244,7 +244,7 @@ def _chunk_by_scene(text: str) -> list[SourceChunk]:
 
 
 def _chunk_by_chapter(text: str) -> list[SourceChunk]:
-    from novelvideo.cognee.chapter_detector import ChapterDetector
+    from novelvideo.story.chapter_detector import ChapterDetector
 
     # A marker-less novel comes back as one synthesized chapter covering the
     # whole text. Accepting it would defeat the point of chunking, and its

@@ -43,7 +43,7 @@ async def _open_store(state_dir: Path):
 
 @pytest.fixture
 async def project(tmp_path):
-    from novelvideo.cognee.pipeline import NovelEpisode
+    from novelvideo.models import NovelEpisode
 
     state_dir = tmp_path / "user" / "project"
     _write_config(state_dir, {KNOWLEDGE_PIPELINE_KEY: KNOWLEDGE_PIPELINE_STRUCTURED})

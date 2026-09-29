@@ -474,7 +474,7 @@ def migrate_scene_names_cmd(
     yes: bool = typer.Option(False, "--yes", help="确认执行 apply；必须与 --apply 同时使用"),
 ):
     """迁移旧项目中混入时间词的场景名。默认 dry-run，不写入。"""
-    from novelvideo.cognee.scene_name_migration import migrate_scene_names
+    from novelvideo.story.scene_name_migration import migrate_scene_names
 
     async def do_migrate():
         db_dir, asset_dir, label = await _resolve_scene_migration_dirs(

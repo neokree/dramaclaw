@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from novelvideo.cognee.chapter_detector import ChapterDetector
+from novelvideo.story.chapter_detector import ChapterDetector
 from novelvideo.utils.document_parsers import (
     count_billable_novel_chars as _count_billable_novel_chars,
     decode_novel_bytes as _decode_novel_bytes,

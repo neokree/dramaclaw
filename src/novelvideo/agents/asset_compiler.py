@@ -21,7 +21,7 @@ from novelvideo.models import (
     SceneMenuItem,
 )
 from novelvideo.sqlite_store import load_episode_planning_content
-from novelvideo.cognee.screenplay_normalizer import (
+from novelvideo.story.screenplay_normalizer import (
     clean_scene_name_and_time,
     normalize_screenplay_scene_header,
     normalize_time_of_day,
@@ -373,7 +373,7 @@ NON_PROP_KEYWORDS = (
 
 
 async def enrich_scene_environment_from_context(**kwargs) -> NovelScene:
-    from novelvideo.cognee.pipeline import (
+    from novelvideo.story.scenes import (
         enrich_scene_environment_from_context as enrich,
     )
 

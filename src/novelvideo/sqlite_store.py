@@ -1811,7 +1811,7 @@ class SQLiteStore:
         structured projects open a SQLiteStore directly and could not reach it
         there. CogneeStore delegates, so legacy behaviour is unchanged.
         """
-        from novelvideo.cognee.chapter_detector import ChapterDetector
+        from novelvideo.story.chapter_detector import ChapterDetector
 
         def report(progress: float, task: MessageLike):
             if on_progress:

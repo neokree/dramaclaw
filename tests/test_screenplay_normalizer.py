@@ -1,6 +1,6 @@
 import pytest
 
-from novelvideo.cognee.screenplay_normalizer import (
+from novelvideo.story.screenplay_normalizer import (
     NormalizedSceneBlock,
     clean_scene_name_and_time,
     normalize_time_of_day,
@@ -10,7 +10,7 @@ from novelvideo.cognee.screenplay_normalizer import (
 
 @pytest.fixture
 def per_scene_enrichment(monkeypatch):
-    from novelvideo.cognee import pipeline
+    from novelvideo.story import scenes as pipeline
 
     # These normalization tests supply per-scene enrichment below. An empty
     # batch selects that fallback without creating a real model client.
@@ -173,7 +173,7 @@ def test_normalized_scene_block_validator_cleans_location_time():
 
 def test_scene_heading_suffix_strip_removes_time_markers():
     """The name cleanup a per-block model call used to be needed for."""
-    from novelvideo.cognee.pipeline import strip_scene_heading_suffix
+    from novelvideo.story.scenes import strip_scene_heading_suffix
 
     assert strip_scene_heading_suffix("演武场外墙·夜") == "演武场外墙"
     assert strip_scene_heading_suffix("演武场外墙・夜") == "演武场外墙"
@@ -182,7 +182,7 @@ def test_scene_heading_suffix_strip_removes_time_markers():
 
 def test_scene_heading_suffix_strip_never_generalizes_a_location():
     """It removes heading markers, never part of the place itself."""
-    from novelvideo.cognee.pipeline import strip_scene_heading_suffix
+    from novelvideo.story.scenes import strip_scene_heading_suffix
 
     assert strip_scene_heading_suffix("兰州拉面馆") == "兰州拉面馆"
     assert strip_scene_heading_suffix("春熙路的3D大屏下") == "春熙路的3D大屏下"
@@ -195,7 +195,7 @@ def test_an_attached_interior_marker_is_left_for_adjudication():
     sibling spelling exists, and which one the script uses more — which is what
     adjudication has and a name-cleanup rule does not.
     """
-    from novelvideo.cognee.pipeline import strip_scene_heading_suffix
+    from novelvideo.story.scenes import strip_scene_heading_suffix
 
     assert strip_scene_heading_suffix("商务车内") == "商务车内"
     assert strip_scene_heading_suffix("郑家别墅外") == "郑家别墅外"
@@ -203,7 +203,7 @@ def test_an_attached_interior_marker_is_left_for_adjudication():
 
 
 def test_scene_candidates_fill_missing_episode_from_raw_header():
-    from novelvideo.cognee.pipeline import _scene_candidates_from_normalized_blocks
+    from novelvideo.story.scenes import _scene_candidates_from_normalized_blocks
 
     candidates = _scene_candidates_from_normalized_blocks(
         [
@@ -256,7 +256,7 @@ class _FakeAgent:
 
 @pytest.mark.asyncio
 async def test_single_normalizer_keeps_a_parsed_english_location_verbatim():
-    from novelvideo.cognee.screenplay_normalizer import (
+    from novelvideo.story.screenplay_normalizer import (
         NormalizedSceneHeader,
         normalize_screenplay_scene_header,
     )
@@ -284,7 +284,7 @@ async def test_single_normalizer_keeps_a_parsed_english_location_verbatim():
 
 @pytest.mark.asyncio
 async def test_batch_normalizer_keeps_each_parsed_english_location_verbatim():
-    from novelvideo.cognee.screenplay_normalizer import (
+    from novelvideo.story.screenplay_normalizer import (
         BatchSceneHeaderItem,
         NormalizedSceneHeaderBatch,
     )
@@ -341,7 +341,7 @@ async def test_standard_headings_are_normalized_without_a_model_call():
 
 
 async def test_headings_the_parser_cannot_resolve_go_to_the_model_in_one_batch():
-    from novelvideo.cognee.screenplay_normalizer import (
+    from novelvideo.story.screenplay_normalizer import (
         BatchSceneHeaderItem,
         NormalizedSceneHeaderBatch,
     )
@@ -393,7 +393,7 @@ async def test_headings_the_parser_cannot_resolve_go_to_the_model_in_one_batch()
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("per_scene_enrichment")
 async def test_extract_scenes_from_script_prefers_ai_normalized_blocks(monkeypatch):
-    from novelvideo.cognee import pipeline
+    from novelvideo.story import scenes as pipeline
     from novelvideo.models import NovelScene
 
     async def fake_normalize(_text: str):
@@ -460,7 +460,7 @@ async def test_extract_scenes_from_script_prefers_ai_normalized_blocks(monkeypat
 async def test_extract_scenes_from_script_falls_back_when_ai_returns_partial_blocks(
     monkeypatch,
 ):
-    from novelvideo.cognee import pipeline
+    from novelvideo.story import scenes as pipeline
     from novelvideo.models import NovelScene
 
     async def fake_normalize(_text: str):
@@ -515,7 +515,7 @@ async def test_extract_scenes_from_script_falls_back_when_ai_returns_partial_blo
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("per_scene_enrichment")
 async def test_extract_scenes_from_script_falls_back_when_ai_returns_empty(monkeypatch):
-    from novelvideo.cognee import pipeline
+    from novelvideo.story import scenes as pipeline
     from novelvideo.models import NovelScene
 
     async def fake_normalize(_text: str):
@@ -550,7 +550,7 @@ async def test_extract_scenes_from_script_falls_back_when_ai_returns_empty(monke
 async def test_extract_scenes_from_script_falls_back_when_ai_merges_distinct_locations(
     monkeypatch,
 ):
-    from novelvideo.cognee import pipeline
+    from novelvideo.story import scenes as pipeline
     from novelvideo.models import NovelScene
 
     async def fake_normalize(_text: str):

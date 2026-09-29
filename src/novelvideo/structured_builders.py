@@ -252,7 +252,7 @@ def _source_synopsis(store: Any) -> str:
     from a stored run reaches publication without the source text in hand and
     must still be described from the same input a fresh build used.
     """
-    from novelvideo.cognee.script_parser import extract_synopsis
+    from novelvideo.story.script_parser import extract_synopsis
 
     try:
         return extract_synopsis(require_imported_novel(store.project_dir))
@@ -355,7 +355,8 @@ async def _publish_characters(
     output_language: AssetLanguage | None = None,
 ) -> list[str]:
     """Publish a settled cast, whether freshly built or replayed from cache."""
-    from novelvideo.cognee.pipeline import NovelCharacter, StoreAnalysisItemCache
+    from novelvideo.models import NovelCharacter
+    from novelvideo.story.scenes import StoreAnalysisItemCache
     from novelvideo.config import get_fish_voice_id
     from novelvideo.structured_extraction import enrich_character_appearances
 
@@ -455,7 +456,7 @@ async def build_scenes_structured(
     marker: a full-text sweep would guess at locations, so those scenes are
     discovered per episode from that episode's own text instead.
     """
-    from novelvideo.cognee.pipeline import (
+    from novelvideo.story.scenes import (
         StoreSceneBuildCache,
         extract_scenes_from_script,
         should_repair_scene_placeholder,

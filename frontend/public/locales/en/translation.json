@@ -2820,6 +2820,12 @@
     },
     "projectType": "Project type",
     "projectTypeLocked": "Project type is locked after import. Re-import to switch.",
+    "fieldHelp": {
+      "projectType": "Script structure",
+      "visualStyle": "Visual Style",
+      "narrationStyle": "Narrator point of view",
+      "ethnicity": "Characters Ethnicity"
+    },
     "projectTypes": {
       "narrated": "Narrated",
       "drama": "Premium drama"

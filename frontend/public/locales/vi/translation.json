@@ -2724,6 +2724,12 @@
     },
     "projectType": "Loại dự án",
     "projectTypeLocked": "Loại dự án bị khoá sau khi nhập. Nhập lại để đổi.",
+    "fieldHelp": {
+      "projectType": "Cấu trúc của kịch bản",
+      "visualStyle": "Diện mạo của hình ảnh được tạo",
+      "narrationStyle": "Ngôi kể của người dẫn chuyện",
+      "ethnicity": "Ngoại hình mặc định của nhân vật không được mô tả trong văn bản"
+    },
     "projectTypes": {
       "narrated": "Có lời dẫn",
       "drama": "Phim tinh phẩm"

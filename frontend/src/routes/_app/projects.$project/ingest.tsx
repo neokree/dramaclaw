@@ -814,6 +814,25 @@ function SelectedFileCard({
   );
 }
 
+function LabeledField({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cn("flex min-w-0 flex-col gap-1", className)}>
+      <span className="px-0.5 text-[11px] leading-4 text-muted-foreground/70">
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
 function InputModeToggle({
   value,
   onChange,
@@ -1718,7 +1737,7 @@ export function IngestPageContent({ project }: { project: string }) {
               {/* 这排控件除本段切换外全是 shrink-0 / min-w-max，行放不下时只有它会被压缩，
                   英文标签下「Paste Text」就被压出圆角边框外（按钮自己是 md:flex-none 不跟着缩）。
                   给它 shrink-0，并让整行在 md+ 允许换行，多出来的控件掉到第二行而不是溢出裁切。 */}
-              <div className="mt-2.5 grid grid-cols-2 gap-2.5 px-1 md:flex md:flex-wrap md:items-center md:gap-3">
+              <div className="mt-2.5 grid grid-cols-2 gap-2.5 px-1 md:flex md:flex-wrap md:items-end md:gap-3">
                 <InputModeToggle
                   value={inputMode}
                   onChange={setInputMode}
@@ -1726,6 +1745,10 @@ export function IngestPageContent({ project }: { project: string }) {
                 />
 
                 {spineTemplateLocked ? (
+                  <LabeledField
+                    label={t("ingest.fieldHelp.projectType")}
+                    className="w-full md:w-auto"
+                  >
                   <span
                     className="inline-flex w-full md:w-auto"
                     title={t("ingest.projectTypeLocked")}
@@ -1746,7 +1769,12 @@ export function IngestPageContent({ project }: { project: string }) {
                       </SelectTrigger>
                     </Select>
                   </span>
+                  </LabeledField>
                 ) : (
+                  <LabeledField
+                    label={t("ingest.fieldHelp.projectType")}
+                    className="w-full md:w-auto"
+                  >
                   <Select
                     value={settingsValues.spine_template}
                     onValueChange={(val) =>
@@ -1775,8 +1803,13 @@ export function IngestPageContent({ project }: { project: string }) {
                       ))}
                     </SelectContent>
                   </Select>
+                  </LabeledField>
                 )}
 
+                <LabeledField
+                  label={t("ingest.fieldHelp.visualStyle")}
+                  className="w-full md:w-auto"
+                >
                 <Select
                   value={settingsValues.visual_style}
                   onValueChange={(val) =>
@@ -1805,8 +1838,13 @@ export function IngestPageContent({ project }: { project: string }) {
                     ))}
                   </SelectContent>
                 </Select>
+                </LabeledField>
 
                 {showNarrationStyle && (
+                  <LabeledField
+                    label={t("ingest.fieldHelp.narrationStyle")}
+                    className="w-full md:w-auto"
+                  >
                   <Select
                     value={settingsValues.narration_style}
                     onValueChange={(val) =>
@@ -1835,8 +1873,13 @@ export function IngestPageContent({ project }: { project: string }) {
                       ))}
                     </SelectContent>
                   </Select>
+                  </LabeledField>
                 )}
 
+                <LabeledField
+                  label={t("ingest.fieldHelp.ethnicity")}
+                  className="w-full md:w-auto"
+                >
                 <Select
                   value={settingsValues.ethnicity}
                   onValueChange={(val) =>
@@ -1865,6 +1908,7 @@ export function IngestPageContent({ project }: { project: string }) {
                     ))}
                   </SelectContent>
                 </Select>
+                </LabeledField>
 
                 {/* 导入标准格式只对精品剧成立，解说剧走的是另一套解析。 */}
                 {settingsValues.spine_template === "drama" && (
